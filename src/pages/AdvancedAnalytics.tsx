@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -13,21 +13,40 @@ import {
   RefreshCw,
   Settings,
   Calendar,
+  Activity,
   Eye,
   EyeOff
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { toast } from 'sonner';
+import ErrorBoundary from '../components/ErrorBoundary';
+// Las importaciones ya están definidas arriba
+import { advancedAnalyticsService } from '../services/advancedAnalyticsService';
+import { exportService } from '../services/exportService';
 
-// Importar todos los componentes de dashboard
+// Importar componentes de análisis
 import AdvancedDashboard from '../components/dashboard/AdvancedDashboard';
 import RealTimeMetrics from '../components/dashboard/RealTimeMetrics';
 import PredictiveReports from '../components/dashboard/PredictiveReports';
 import CostAnalysis from '../components/dashboard/CostAnalysis';
 import KPIIndicators from '../components/dashboard/KPIIndicators';
-import AdvancedFilters, { FiltroAvanzado, RangoFecha } from '../components/dashboard/AdvancedFilters';
-import { advancedAnalyticsService } from '../services/advancedAnalyticsService';
-import { exportService } from '../services/exportService';
-import { toast } from 'sonner';
+import AdvancedFilters from '../components/dashboard/AdvancedFilters';
+
+// Interfaces
+interface FiltroAvanzado {
+  id: string;
+  campo: string;
+  operador: 'igual' | 'contiene' | 'mayor' | 'menor' | 'entre' | 'en';
+  valor: any;
+  activo: boolean;
+  tipo: 'texto' | 'numero' | 'fecha' | 'select' | 'multiselect';
+  opciones?: { label: string; value: string }[];
+}
+
+interface RangoFecha {
+  desde: Date | null;
+  hasta: Date | null;
+}
 
 interface AnalyticsConfig {
   autoRefresh: boolean;
@@ -44,7 +63,6 @@ const AdvancedAnalytics: React.FC = () => {
   const [rangoFecha, setRangoFecha] = useState<RangoFecha>({ desde: null, hasta: null });
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [tabKey, setTabKey] = useState(0); // Key para forzar re-render de componentes hijos
   const [config, setConfig] = useState<AnalyticsConfig>({
     autoRefresh: true,
     refreshInterval: 30000, // 30 segundos
@@ -52,69 +70,94 @@ const AdvancedAnalytics: React.FC = () => {
     defaultPeriod: '30d',
     enableNotifications: true
   });
+  
+  // Refs para manejo de intervalos y estado de montaje
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
-  // Auto-refresh functionality - Mejorado para evitar interferencia con navegación
+  // Cleanup al desmontar el componente
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    console.log('[AdvancedAnalytics] Component mounting');
+    isMountedRef.current = true;
     
-    if (config.autoRefresh && activeTab === 'realtime') {
-      // Solo activar auto-refresh cuando estamos en la pestaña de tiempo real
-      interval = setInterval(() => {
-        setLastUpdate(new Date());
+    return () => {
+      console.log('[AdvancedAnalytics] Component unmounting - cleaning up');
+      isMountedRef.current = false;
+      if (intervalRef.current) {
+        console.log('[AdvancedAnalytics] Clearing interval on unmount');
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
+
+  // Auto-refresh functionality - Solo para tiempo real
+  useEffect(() => {
+    console.log('[AdvancedAnalytics] Auto-refresh effect triggered', {
+      autoRefresh: config.autoRefresh,
+      activeTab,
+      isMounted: isMountedRef.current
+    });
+    
+    // Limpiar intervalo anterior
+    if (intervalRef.current) {
+      console.log('[AdvancedAnalytics] Clearing previous interval');
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    if (config.autoRefresh && activeTab === 'realtime' && isMountedRef.current) {
+      console.log('[AdvancedAnalytics] Setting up new interval');
+      intervalRef.current = setInterval(() => {
+        if (isMountedRef.current) {
+          console.log('[AdvancedAnalytics] Auto-refresh tick');
+          setLastUpdate(new Date());
+        } else {
+          console.log('[AdvancedAnalytics] Component unmounted, skipping update');
+        }
       }, config.refreshInterval);
     }
     
     return () => {
-      if (interval) {
-        clearInterval(interval);
+      console.log('[AdvancedAnalytics] Auto-refresh cleanup');
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [config.autoRefresh, config.refreshInterval, activeTab]);
 
-  // Efecto para resetear componentes cuando cambia la pestaña activa
-  useEffect(() => {
-    setTabKey(prev => prev + 1); // Incrementar key para forzar re-render
-    setLastUpdate(new Date());
-  }, [activeTab]);
-
-  // Cleanup completo al desmontar el componente
-  useEffect(() => {
-    return () => {
-      // Limpiar todos los estados y intervalos al salir del componente
-      setConfig(prev => ({ ...prev, autoRefresh: false }));
-      setActiveTab('overview');
-      setLoading(false);
-    };
+  // Funciones optimizadas con useCallback
+  const handleFiltersChange = useCallback((newFiltros: FiltroAvanzado[]) => {
+    setFiltros(newFiltros);
   }, []);
 
-  // Efecto para manejar cambios de pestaña y limpiar estados
-  useEffect(() => {
-    // Resetear loading state cuando cambia la pestaña activa
-    setLoading(false);
-  }, [activeTab]);
-
-  const handleFiltersChange = (newFiltros: FiltroAvanzado[]) => {
-    setFiltros(newFiltros);
-  };
-
-  const handleDateRangeChange = (newRango: RangoFecha) => {
+  const handleDateRangeChange = useCallback((newRango: RangoFecha) => {
     setRangoFecha(newRango);
-  };
+  }, []);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     setLoading(true);
     try {
       // Simular actualización de datos
       await new Promise(resolve => setTimeout(resolve, 1000));
-      setLastUpdate(new Date());
+      if (isMountedRef.current) {
+        setLastUpdate(new Date());
+      }
     } catch (error) {
       console.error('Error al actualizar datos:', error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
 
-  const handleExportAll = async () => {
+  const handleExportAll = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     try {
       setLoading(true);
       
@@ -128,6 +171,8 @@ const AdvancedAnalytics: React.FC = () => {
         advancedAnalyticsService.getAnalisisCostos(fechaInicio, fechaFin),
         advancedAnalyticsService.getIndicadoresKPI()
       ]);
+
+      if (!isMountedRef.current) return;
 
       const exportData = {
         titulo: 'Reporte Completo de Analytics',
@@ -159,24 +204,37 @@ const AdvancedAnalytics: React.FC = () => {
     } catch (error) {
       console.error('Error al exportar:', error);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [filtros, rangoFecha]);
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    setTabKey(prev => prev + 1); // Forzar re-render de componentes hijos
-    setLastUpdate(new Date());
-  };
+  const handleTabChange = useCallback((tab: string) => {
+    console.log('[AdvancedAnalytics] Tab change requested', { from: activeTab, to: tab });
+    if (tab !== activeTab) {
+      console.log('[AdvancedAnalytics] Changing tab and updating timestamp');
+      setActiveTab(tab);
+      setLastUpdate(new Date());
+    } else {
+      console.log('[AdvancedAnalytics] Tab change ignored - same tab');
+    }
+  }, [activeTab]);
 
-  const toggleConfig = (key: keyof AnalyticsConfig) => {
+  const toggleConfig = useCallback((key: keyof AnalyticsConfig) => {
     setConfig(prev => ({
       ...prev,
       [key]: !prev[key]
     }));
-  };
+  }, []);
 
-  const tabs = [
+  // Memoizar filtros activos para evitar cálculos innecesarios
+  const memoizedFiltrosActivos = useMemo(() => {
+    return filtros.filter(f => f.activo);
+  }, [filtros]);
+
+  // Memoizar la configuración de tabs para evitar re-creaciones
+  const tabs = useMemo(() => [
     {
       id: 'overview',
       label: 'Resumen General',
@@ -207,18 +265,28 @@ const AdvancedAnalytics: React.FC = () => {
       icon: Target,
       description: 'Indicadores clave de rendimiento'
     }
-  ];
+  ], []);
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Analytics Avanzado</h1>
-          <p className="text-gray-600 mt-1">
-            Dashboard completo con métricas en tiempo real, análisis predictivo y reportes de costos
-          </p>
-        </div>
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error('[AdvancedAnalytics] Error boundary caught error:', {
+          error: error.message,
+          stack: error.stack,
+          componentStack: errorInfo.componentStack
+        });
+        toast.error('Error en Analytics Avanzado. La página se recargará automáticamente.');
+      }}
+    >
+      <div className="space-y-6 p-6">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Analytics Avanzado</h1>
+            <p className="text-gray-600 mt-1">
+              Dashboard completo con métricas en tiempo real, análisis predictivo y reportes de costos
+            </p>
+          </div>
         
         <div className="flex items-center space-x-3">
           {/* Configuración rápida */}
@@ -277,9 +345,9 @@ const AdvancedAnalytics: React.FC = () => {
             </span>
           </div>
           
-          {filtros.filter(f => f.activo).length > 0 && (
+          {memoizedFiltrosActivos.length > 0 && (
             <Badge variant="secondary">
-              {filtros.filter(f => f.activo).length} filtros activos
+              {memoizedFiltrosActivos.length} filtros activos
             </Badge>
           )}
           
@@ -326,9 +394,8 @@ const AdvancedAnalytics: React.FC = () => {
         {/* Contenido de cada tab */}
         <TabsContent value="overview" className="space-y-6">
           <AdvancedDashboard
-            key={`overview-${tabKey}`}
             userRole={user?.rol || 'ALMACENERO'}
-            filtros={filtros.filter(f => f.activo)}
+            filtros={memoizedFiltrosActivos}
             rangoFecha={rangoFecha}
             autoRefresh={config.autoRefresh}
           />
@@ -336,8 +403,7 @@ const AdvancedAnalytics: React.FC = () => {
 
         <TabsContent value="realtime" className="space-y-6">
           <RealTimeMetrics
-            key={`realtime-${tabKey}`}
-            filtros={filtros.filter(f => f.activo)}
+            filtros={memoizedFiltrosActivos}
             rangoFecha={rangoFecha}
             autoRefresh={config.autoRefresh}
           />
@@ -345,24 +411,21 @@ const AdvancedAnalytics: React.FC = () => {
 
         <TabsContent value="predictive" className="space-y-6">
           <PredictiveReports
-            key={`predictive-${tabKey}`}
-            filtros={filtros.filter(f => f.activo)}
+            filtros={memoizedFiltrosActivos}
             rangoFecha={rangoFecha}
           />
         </TabsContent>
 
         <TabsContent value="costs" className="space-y-6">
           <CostAnalysis
-            key={`costs-${tabKey}`}
-            filtros={filtros.filter(f => f.activo)}
+            filtros={memoizedFiltrosActivos}
             rangoFecha={rangoFecha}
           />
         </TabsContent>
 
         <TabsContent value="kpis" className="space-y-6">
           <KPIIndicators
-            key={`kpis-${tabKey}`}
-            filtros={filtros.filter(f => f.activo)}
+            filtros={memoizedFiltrosActivos}
             rangoFecha={rangoFecha}
           />
         </TabsContent>
@@ -392,7 +455,8 @@ const AdvancedAnalytics: React.FC = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

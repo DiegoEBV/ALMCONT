@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -66,45 +66,85 @@ interface MetricaInstantanea {
   color: string;
 }
 
-const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 10000 }) => {
+const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ 
+  refreshInterval = 10000, 
+  filtros, 
+  rangoFecha, 
+  autoRefresh = true 
+}) => {
   const [consumoRealTime, setConsumoRealTime] = useState<ConsumoRealTime[]>([]);
   const [metricasInstantaneas, setMetricasInstantaneas] = useState<MetricaInstantanea[]>([]);
   const [alertasActivas, setAlertasActivas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [isRealTimeActive, setIsRealTimeActive] = useState(true);
+  const [isRealTimeActive, setIsRealTimeActive] = useState(autoRefresh);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
+  // Cleanup al desmontar el componente
   useEffect(() => {
-    loadRealTimeData();
+    console.log('[RealTimeMetrics] Component mounting');
+    isMountedRef.current = true;
     
-    if (isRealTimeActive) {
-      const interval = setInterval(() => {
-        // Solo actualizar si el componente está montado y visible
-        if (document.visibilityState === 'visible') {
-          loadRealTimeData();
-        }
-      }, refreshInterval);
-      
-      return () => clearInterval(interval);
-    }
-  }, [refreshInterval, isRealTimeActive]);
+    return () => {
+      console.log('[RealTimeMetrics] Component unmounting - cleaning up');
+      isMountedRef.current = false;
+      if (intervalRef.current) {
+        console.log('[RealTimeMetrics] Clearing interval on unmount');
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
 
-  // Pausar actualizaciones cuando la página no está visible
+  // Manejar visibilidad de la página
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        setIsRealTimeActive(false);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      } else if (document.visibilityState === 'visible' && isRealTimeActive) {
+        startRealTimeUpdates();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isRealTimeActive]);
 
-  const loadRealTimeData = async () => {
+  // Funciones optimizadas con useCallback
+
+  const loadRealTimeData = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
+    console.log('[RealTimeMetrics] Starting data load');
+    setLoading(true);
+    
+    // Implementar timeout para prevenir bloqueos
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Data load timeout')), 8000); // 8 segundos timeout
+    });
+    
     try {
+      // Simular carga de datos con delay y timeout
+      await Promise.race([
+        new Promise(resolve => setTimeout(resolve, 1000)),
+        timeoutPromise
+      ]);
+      
+      if (!isMountedRef.current) {
+        console.log('[RealTimeMetrics] Component unmounted during data load');
+        return;
+      }
+      
       // Simular datos en tiempo real
       await generateRealTimeData();
+      
+      if (!isMountedRef.current) return;
       
       // Cargar métricas instantáneas
       const metricas = await advancedAnalyticsService.getDashboardMetricas();
@@ -148,15 +188,81 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
       const alertas = await advancedAnalyticsService.getAlertasStockBajo();
       setAlertasActivas(alertas.slice(0, 3));
       
-      setLastUpdate(new Date());
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLastUpdate(new Date());
+        setLoading(false);
+      }
+      
+      console.log('[RealTimeMetrics] Data load completed successfully');
+      
     } catch (error) {
-      console.error('Error cargando datos en tiempo real:', error);
-      toast.error('Error al actualizar métricas en tiempo real');
+      console.error('[RealTimeMetrics] Error loading real-time data:', error);
+      if (isMountedRef.current && error.message !== 'Data load timeout') {
+        // Solo mostrar error si no es timeout y el componente está montado
+        toast.error('Error al actualizar métricas en tiempo real');
+        setLoading(false);
+      } else if (isMountedRef.current) {
+        setLoading(false);
+      }
+      console.log('[RealTimeMetrics] Data load finished with error, loading set to false');
     }
-  };
+  }, [filtros, rangoFecha]);
 
-  const generateRealTimeData = async () => {
+  // Función para iniciar actualizaciones en tiempo real
+  const startRealTimeUpdates = useCallback(() => {
+    console.log('[RealTimeMetrics] Starting real-time updates');
+    
+    // Limpiar cualquier intervalo existente
+    if (intervalRef.current) {
+      console.log('[RealTimeMetrics] Clearing existing interval before starting new one');
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    // Solo crear nuevo intervalo si el componente está montado
+    if (isMountedRef.current) {
+      intervalRef.current = setInterval(() => {
+        if (isMountedRef.current && document.visibilityState === 'visible') {
+          console.log('[RealTimeMetrics] Real-time update tick');
+          loadRealTimeData();
+        } else {
+          console.log('[RealTimeMetrics] Skipping update - component unmounted or document hidden');
+        }
+      }, 10000); // 10 segundos
+    }
+  }, [loadRealTimeData]);
+
+  // Función para detener actualizaciones
+  const stopRealTimeUpdates = useCallback(() => {
+    console.log('[RealTimeMetrics] Stopping real-time updates');
+    if (intervalRef.current) {
+      console.log('[RealTimeMetrics] Clearing interval');
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    } else {
+      console.log('[RealTimeMetrics] No interval to clear');
+    }
+  }, []);
+
+  // Efecto para cargar datos iniciales
+  useEffect(() => {
+    loadRealTimeData();
+  }, [loadRealTimeData]);
+
+  // Efecto para manejar el estado de tiempo real
+  useEffect(() => {
+    if (isRealTimeActive) {
+      startRealTimeUpdates();
+    } else {
+      stopRealTimeUpdates();
+    }
+    
+    return () => stopRealTimeUpdates();
+  }, [isRealTimeActive, startRealTimeUpdates, stopRealTimeUpdates]);
+
+  const generateRealTimeData = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     // Generar datos simulados de consumo en tiempo real
     const now = new Date();
     const newData: ConsumoRealTime[] = [];
@@ -171,10 +277,12 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
       });
     }
     
-    setConsumoRealTime(newData);
-  };
+    if (isMountedRef.current) {
+      setConsumoRealTime(newData);
+    }
+  }, []);
 
-  const getTrendIcon = (tendencia: string) => {
+  const getTrendIcon = useCallback((tendencia: string) => {
     switch (tendencia) {
       case 'up':
         return <TrendingUp className="h-4 w-4 text-green-500" />;
@@ -183,12 +291,31 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
       default:
         return <Activity className="h-4 w-4 text-blue-500" />;
     }
-  };
+  }, []);
 
-  const formatCambio = (cambio: number) => {
+  const formatCambio = useCallback((cambio: number) => {
     const signo = cambio >= 0 ? '+' : '';
     return `${signo}${cambio.toFixed(1)}%`;
-  };
+  }, []);
+
+  const toggleRealTime = useCallback(() => {
+    setIsRealTimeActive(prev => !prev);
+  }, []);
+
+  const handleManualRefresh = useCallback(() => {
+    if (!loading) {
+      loadRealTimeData();
+    }
+  }, [loading, loadRealTimeData]);
+
+  // Memoizar datos computados para evitar re-renders innecesarios
+  const memoizedConsumoData = useMemo(() => consumoRealTime, [consumoRealTime]);
+  const memoizedMetricas = useMemo(() => metricasInstantaneas, [metricasInstantaneas]);
+  const memoizedAlertas = useMemo(() => alertasActivas, [alertasActivas]);
+  
+  const recentConsumoData = useMemo(() => {
+    return memoizedConsumoData.slice(-10);
+  }, [memoizedConsumoData]);
 
   return (
     <div className="space-y-6">
@@ -216,7 +343,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsRealTimeActive(!isRealTimeActive)}
+            onClick={toggleRealTime}
           >
             {isRealTimeActive ? 'Pausar' : 'Reanudar'}
           </Button>
@@ -224,7 +351,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
           <Button
             variant="outline"
             size="sm"
-            onClick={loadRealTimeData}
+            onClick={handleManualRefresh}
             disabled={loading}
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -234,7 +361,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
 
       {/* Métricas instantáneas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metricasInstantaneas.map((metrica, index) => (
+        {memoizedMetricas.map((metrica, index) => (
           <Card key={index} className="relative overflow-hidden">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -283,7 +410,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={consumoRealTime}>
+              <AreaChart data={memoizedConsumoData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="timestamp" />
                 <YAxis />
@@ -316,7 +443,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={consumoRealTime.slice(-10)}>
+              <BarChart data={recentConsumoData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="timestamp" />
                 <YAxis />
@@ -334,13 +461,13 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ refreshInterval = 100
           <CardTitle className="flex items-center space-x-2">
             <AlertTriangle className="h-5 w-5 text-red-500" />
             <span>Alertas Activas</span>
-            <Badge variant="destructive">{alertasActivas.length}</Badge>
+            <Badge variant="destructive">{memoizedAlertas.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {alertasActivas.length > 0 ? (
+          {memoizedAlertas.length > 0 ? (
             <div className="space-y-3">
-              {alertasActivas.map((alerta, index) => (
+              {memoizedAlertas.map((alerta, index) => (
                 <div key={index} className="flex items-center justify-between p-3 border border-red-200 rounded-lg bg-red-50">
                   <div className="flex items-center space-x-3">
                     <AlertTriangle className="h-5 w-5 text-red-500" />
