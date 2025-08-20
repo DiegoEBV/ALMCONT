@@ -1,0 +1,135 @@
+/* Estilos globales para la aplicación */
+
+/* Reset básico */
+* {
+  box-sizing: border-box;
+}
+
+/* Estilos para el cuerpo de la aplicación */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f9fafb;
+}
+
+/* Estilos para el contenedor principal */
+#root {
+  min-height: 100vh;
+}
+
+/* Estilos para formularios */
+.form-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Estilos para tablas */
+.table-container {
+  overflow-x: auto;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para estados de carga */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Estilos para notificaciones */
+.notification {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.notification.success {
+  background-color: #10b981;
+  color: white;
+}
+
+.notification.error {
+  background-color: #ef4444;
+  color: white;
+}
+
+.notification.warning {
+  background-color: #f59e0b;
+  color: white;
+}
+
+/* Estilos para modales */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Estilos para el sidebar */
+.sidebar {
+  transition: transform 0.3s ease-in-out;
+}
+
+.sidebar.collapsed {
+  transform: translateX(-100%);
+}
+
+/* Estilos responsivos */
+@media (max-width: 768px) {
+  .form-container {
+    padding: 1rem;
+  }
+  
+  .table-container {
+    font-size: 0.875rem;
+  }
+}
+
+/* Estilos para estados de hover */
+.hover-effect:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Estilos para focus */
+.focus-ring:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
