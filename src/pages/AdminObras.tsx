@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Search, Filter, Building2, Calendar, MapPin, User, DollarSign } from 'lucide-react';
 import { obrasService } from '../services/obras';
 import { useAuth } from '../hooks/useAuth';
@@ -39,7 +39,25 @@ const AdminObras: React.FC = () => {
     descripcion: ''
   });
 
-  // Verificar permisos
+  // Todos los hooks deben estar antes de cualquier return condicional
+  const loadObras = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await obrasService.getAll();
+      setObras(data);
+    } catch (error) {
+      console.error('Error loading obras:', error);
+      toast.error('Error al cargar las obras');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadObras();
+  }, [loadObras]);
+
+  // Verificar permisos después de todos los hooks
   if (user?.rol !== 'COORDINACION') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -53,23 +71,6 @@ const AdminObras: React.FC = () => {
       </div>
     );
   }
-
-  useEffect(() => {
-    loadObras();
-  }, []);
-
-  const loadObras = async () => {
-    try {
-      setLoading(true);
-      const data = await obrasService.getAll();
-      setObras(data);
-    } catch (error) {
-      console.error('Error loading obras:', error);
-      toast.error('Error al cargar las obras');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

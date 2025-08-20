@@ -8,12 +8,9 @@ import {
   TrendingUp,
   DollarSign,
   Target,
-  Filter,
   Download,
   RefreshCw,
-  Settings,
   Calendar,
-  Activity,
   Eye,
   EyeOff
 } from 'lucide-react';
