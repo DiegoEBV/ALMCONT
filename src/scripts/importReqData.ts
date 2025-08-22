@@ -64,43 +64,52 @@ function mapEstado(estado: string): string {
   return estadoMap[normalizedEstado] || 'PENDIENTE';
 }
 
-// Function to get or create obra
-async function getOrCreateObra(bloque: string, empresa: string): Promise<string> {
-  const codigo = `${empresa}-${bloque}`.toUpperCase();
-  const nombre = `${empresa} - ${bloque}`;
+// Function to get or create obra - Modified to create main project instead of individual blocks
+async function getOrCreateObra(bloque: string, empresa: string): Promise<{ obraId: string, ubicacion: string }> {
+  // Create main project obra instead of individual block obras
+  const proyectoCodigo = `PROYECTO-${empresa}`.toUpperCase();
+  const proyectoNombre = `Proyecto ${empresa}`;
   
   // Truncate codigo and nombre to fit database constraints
-  const truncatedCodigo = codigo ? codigo.substring(0, 20) : 'DEFAULT';
-  const truncatedNombre = nombre ? nombre.substring(0, 20) : 'Sin nombre';
+  const truncatedCodigo = proyectoCodigo.substring(0, 20);
+  const truncatedNombre = proyectoNombre.substring(0, 100); // Assuming nombre can be longer
   
-  // Check if obra exists
+  // Check if main project obra exists
   const { data: existingObra, error: searchError } = await supabase
     .from('obras')
     .select('id')
     .eq('codigo', truncatedCodigo)
     .single();
   
+  let obraId: string;
+  
   if (existingObra && !searchError) {
-    return existingObra.id;
+    obraId = existingObra.id;
+  } else {
+    // Create new main project obra
+    const { data: newObra, error: createError } = await supabase
+      .from('obras')
+      .insert({
+        codigo: truncatedCodigo,
+        nombre: truncatedNombre,
+        descripcion: `Proyecto principal de ${empresa} con múltiples bloques/ubicaciones`,
+        estado: 'ACTIVA'
+      })
+      .select('id')
+      .single();
+    
+    if (createError) {
+      throw new Error(`Error creating main project obra: ${createError.message}`);
+    }
+    
+    obraId = newObra.id;
   }
   
-  // Create new obra
-  const { data: newObra, error: createError } = await supabase
-    .from('obras')
-    .insert({
-      codigo: truncatedCodigo,
-      nombre: truncatedNombre,
-      descripcion: `Obra ${truncatedNombre}`,
-      estado: 'ACTIVA'
-    })
-    .select('id')
-    .single();
-  
-  if (createError) {
-    throw new Error(`Error creating obra: ${createError.message}`);
-  }
-  
-  return newObra.id;
+  // Return both obra ID and the block as location
+  return {
+    obraId,
+    ubicacion: bloque // This will be used as location within the obra
+  };
 }
 
 // Function to get or create material
@@ -174,8 +183,10 @@ export async function importReqData(): Promise<void> {
       try {
         console.log(`Processing item ${i + 1}/${reqData.length}: ${item['N° REQ.']}`);
         
-        // Get or create obra
-        const obraId = await getOrCreateObra(item.BLOQUE, item.EMPRESA);
+        // Get or create obra (now returns obra ID and location)
+        const obraResult = await getOrCreateObra(item.BLOQUE, item.EMPRESA);
+        const obraId = obraResult.obraId;
+        const ubicacion = obraResult.ubicacion;
         
         // Get or create material - skip if material is null/empty
         if (!item.MATERIAL || item.MATERIAL.trim() === '') {
@@ -216,10 +227,10 @@ export async function importReqData(): Promise<void> {
               fecha_necesidad: fechaNecesidad,
               solicitante: normalizeText(item.SOLICITANTE),
               area_solicitante: item.TIPO,
-              justificacion: `Requerimiento para ${item.MATERIAL}`,
+              justificacion: `Requerimiento para ${item.MATERIAL} - Ubicación: ${ubicacion}`,
               prioridad: 'MEDIA',
               estado: mapEstado(item.ESTADO),
-              observaciones: item.OBSERVACIONES || null,
+              observaciones: `Ubicación: ${ubicacion}${item.OBSERVACIONES ? ' - ' + item.OBSERVACIONES : ''}`,
               created_by: defaultUserId
             })
             .select('id')
