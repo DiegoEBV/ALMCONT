@@ -272,7 +272,7 @@ router.get('/performance/:workerId', async (req, res) => {
 // Get picking list statistics
 router.get('/statistics/picking-lists', async (req, res) => {
   try {
-    const { startDate, endDate, workerId } = req.query;
+    const { } = req.query;
     
     // This would typically involve complex queries to get statistics
     // For now, returning mock data structure
@@ -305,7 +305,7 @@ router.get('/statistics/picking-lists', async (req, res) => {
 // Get alert statistics
 router.get('/statistics/alerts', async (req, res) => {
   try {
-    const { startDate, endDate, type, severity } = req.query;
+    const { } = req.query;
     
     // This would typically involve complex queries to get statistics
     // For now, returning mock data structure

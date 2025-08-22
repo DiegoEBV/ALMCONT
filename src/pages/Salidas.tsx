@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Package, User, FileText, AlertCircle, CheckCircle, Camera as CameraIcon, Image, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { almacenService, type StockMaterial, type SalidaAlmacen } from '../services/almacenService';
+import { stockService } from '../services/stock';
+import { salidasService } from '../services/salidas';
 import { requerimientosService } from '../services/requerimientos';
+import type { SalidaFormData } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { Camera } from '../components/Camera';
 import { PhotoGallery, type GalleryPhoto } from '../components/PhotoGallery';
@@ -16,15 +18,15 @@ const Salidas: React.FC = () => {
     numeroRequerimiento: '',
     material: ''
   });
-  const [stockDisponible, setStockDisponible] = useState<StockMaterial[]>([]);
-  const [materialesDisponibles, setMaterialesDisponibles] = useState<StockMaterial[]>([]);
-  const [materialSeleccionado, setMaterialSeleccionado] = useState<StockMaterial | null>(null);
+  const [stockDisponible, setStockDisponible] = useState<any[]>([]);
+  const [materialesDisponibles, setMaterialesDisponibles] = useState<any[]>([]);
+  const [materialSeleccionado, setMaterialSeleccionado] = useState<any | null>(null);
   const [cantidadSalida, setCantidadSalida] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [loading, setLoading] = useState(false);
   const [solicitantes, setSolicitantes] = useState<string[]>([]);
   const [showCamera, setShowCamera] = useState(false);
-  const [selectedMaterial, setSelectedMaterial] = useState<StockMaterial | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<any | null>(null);
   const [showPhotos, setShowPhotos] = useState<string | null>(null);
   
   // Hook para manejo de fotos
@@ -39,7 +41,7 @@ const Salidas: React.FC = () => {
     try {
       setLoading(true);
       const [stock, requerimientos] = await Promise.all([
-        almacenService.getMaterialesDisponibles(),
+        stockService.getAll(),
         requerimientosService.getAll()
       ]);
       
@@ -70,14 +72,14 @@ const Salidas: React.FC = () => {
     setMaterialesDisponibles(materialesFiltrados);
   };
 
-  const seleccionarMaterial = (material: StockMaterial) => {
+  const seleccionarMaterial = (material: any) => {
     setMaterialSeleccionado(material);
     setCantidadSalida('');
     setObservaciones('');
   };
 
   // Funciones para manejo de fotos
-  const handleCapturePhoto = (material: StockMaterial) => {
+  const handleCapturePhoto = (material: any) => {
     setSelectedMaterial(material);
     setShowCamera(true);
   };
@@ -129,20 +131,20 @@ const Salidas: React.FC = () => {
     try {
       setLoading(true);
       
-      const salida: Omit<SalidaAlmacen, 'id'> = {
-        materialId: materialSeleccionado.materialId,
-        codigoMaterial: materialSeleccionado.codigo,
-        descripcionMaterial: materialSeleccionado.descripcion,
+      const salida: SalidaFormData = {
+        obra_id: materialSeleccionado.obra_id || '',
+        material_id: materialSeleccionado.materialId,
         cantidad: cantidad,
-        unidad: materialSeleccionado.unidad,
+        cantidad_entregada: cantidad,
+        fecha_salida: new Date().toISOString(),
+        fecha_entrega: new Date().toISOString(),
         solicitante: filtros.solicitante,
-        numeroRequerimiento: filtros.numeroRequerimiento || undefined,
+        motivo: 'Salida de almacén',
         observaciones: observaciones || undefined,
-        fechaSalida: new Date().toISOString(),
-        registradoPor: user?.email || 'Sistema'
+        created_by: user?.email || 'Sistema'
       };
 
-      await almacenService.registrarSalida(salida);
+      await salidasService.create(salida);
       
       // Actualizar stock
       await cargarDatosIniciales();

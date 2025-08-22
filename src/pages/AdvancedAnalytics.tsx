@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import {
@@ -34,7 +34,7 @@ interface FiltroAvanzado {
   id: string;
   campo: string;
   operador: 'igual' | 'contiene' | 'mayor' | 'menor' | 'entre' | 'en';
-  valor: any;
+  valor: string | number | Date | string[] | boolean;
   activo: boolean;
   tipo: 'texto' | 'numero' | 'fecha' | 'select' | 'multiselect';
   opciones?: { label: string; value: string }[];

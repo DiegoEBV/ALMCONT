@@ -5,9 +5,16 @@ export interface StockItem {
   id: string
   material_id: string
   obra_id: string
-  cantidad_actual: number
-  cantidad_minima?: number
-  ubicacion?: string
+  stock_actual: number
+  stock_reservado?: number
+  stock_disponible?: number
+  stock_minimo?: number
+  stock_maximo?: number
+  costo_promedio?: number
+  valor_total?: number
+  ubicacion_principal?: string
+  ultima_entrada?: string
+  ultima_salida?: string
   material?: Material
   obra?: {
     id: string
@@ -16,7 +23,6 @@ export interface StockItem {
   }
   created_at: string
   updated_at: string
-  ultima_actualizacion?: string
   [key: string]: unknown
 }
 
@@ -99,7 +105,7 @@ export const stockService = {
       const { data, error } = await supabase
         .from('stock_obra_material')
         .update({
-          cantidad: existingStock.cantidad + cantidad,
+          stock_actual: (existingStock.stock_actual || 0) + cantidad,
           updated_at: new Date().toISOString()
         })
         .eq('id', existingStock.id)
@@ -123,7 +129,7 @@ export const stockService = {
         .insert({
           obra_id: obraId,
           material_id: materialId,
-          cantidad,
+          stock_actual: cantidad,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })

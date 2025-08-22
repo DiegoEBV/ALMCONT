@@ -81,8 +81,8 @@ class AdvancedAnalyticsService {
   // Obtener métricas de consumo por período
   async getMetricasConsumo(fechaInicio: string, fechaFin: string): Promise<MetricaConsumo[]> {
     try {
-      // Usar datos locales ya que la tabla 'salidas' no existe en Supabase
-      return this.getMetricasConsumoLocal(fechaInicio, fechaFin);
+      // Usar datos de requerimientos en lugar de salidas
+      return await this.getMetricasConsumoFromSupabase(fechaInicio, fechaFin);
     } catch (error) {
       console.error('Error obteniendo métricas de consumo:', error);
       return this.getMetricasConsumoLocal(fechaInicio, fechaFin);
@@ -165,8 +165,37 @@ class AdvancedAnalyticsService {
   // Generar predicciones de demanda
   async getPrediccionesDemanda(): Promise<PrediccionDemanda[]> {
     try {
-      // Usar datos locales ya que no tenemos histórico de consumo en Supabase
-      return this.getPrediccionesDemandaLocal();
+      // Obtener materiales únicos de requerimientos
+      const { data: requerimientos, error } = await supabase
+        .from('requerimientos')
+        .select('material')
+        .not('material', 'is', null);
+
+      if (error || !requerimientos) {
+        console.warn('No se pudieron obtener datos para predicciones:', error);
+        return this.getPrediccionesDemandaLocal();
+      }
+
+      // Obtener materiales únicos
+      const materialesUnicos = [...new Set(requerimientos.map(req => req.material))];
+      
+      const predicciones: PrediccionDemanda[] = [];
+      
+      for (const material of materialesUnicos.slice(0, 10)) { // Limitar a 10 materiales
+        const historico = await this.getHistoricoConsumo(material, 30);
+        const prediccion = this.calcularPrediccionDemanda(historico);
+        
+        predicciones.push({
+          materialId: material,
+          materialNombre: material,
+          demandaPredichaProximoMes: prediccion.demandaPredicha,
+          tendencia: prediccion.tendencia,
+          confianza: prediccion.confianza,
+          factoresInfluencia: prediccion.factores
+        });
+      }
+
+      return predicciones.length > 0 ? predicciones : this.getPrediccionesDemandaLocal();
     } catch (error) {
       console.error('Error generando predicciones:', error);
       return this.getPrediccionesDemandaLocal();
@@ -176,10 +205,63 @@ class AdvancedAnalyticsService {
   // Análisis de costos por obra
   async getAnalisisCostos(fechaInicio: string, fechaFin: string): Promise<AnalisisCostos[]> {
     try {
-      // Usar datos locales ya que la tabla 'salidas' no existe
-      return this.getAnalisisCostosLocal(fechaInicio, fechaFin);
+      const { data: requerimientos, error } = await supabase
+        .from('requerimientos')
+        .select('*')
+        .gte('fecha_solicitud', fechaInicio)
+        .lte('fecha_solicitud', fechaFin)
+        .eq('estado', 'Entregado');
+
+      if (error || !requerimientos) {
+        console.warn('No se pudieron obtener datos para análisis de costos:', error);
+        return this.getAnalisisCostosLocal(fechaInicio, fechaFin);
+      }
+
+      // Agrupar por obra
+      const costosPorObra: { [obra: string]: AnalisisCostos } = {};
+      
+      requerimientos.forEach(req => {
+        const obra = req.obra || 'Obra General';
+        const cantidad = parseFloat(req.cantidad) || 0;
+        const precio = parseFloat(req.precio_unitario) || 0;
+        const costoTotal = cantidad * precio;
+        const material = req.material || 'Material desconocido';
+        
+        if (!costosPorObra[obra]) {
+          costosPorObra[obra] = {
+            obraId: obra,
+            obraNombre: obra,
+            costoTotal: 0,
+            costoPorCategoria: {},
+            costoPorMaterial: [],
+            periodo: `${fechaInicio} - ${fechaFin}`
+          };
+        }
+        
+        costosPorObra[obra].costoTotal += costoTotal;
+        
+        // Agrupar por categoría (usando el material como categoría)
+        const categoria = 'Materiales';
+        costosPorObra[obra].costoPorCategoria[categoria] = 
+          (costosPorObra[obra].costoPorCategoria[categoria] || 0) + costoTotal;
+        
+        // Agregar o actualizar material
+        const materialExistente = costosPorObra[obra].costoPorMaterial.find(m => m.nombre === material);
+        if (materialExistente) {
+          materialExistente.costo += costoTotal;
+        } else {
+          costosPorObra[obra].costoPorMaterial.push({
+            materialId: req.id?.toString() || '1',
+            nombre: material,
+            costo: costoTotal
+          });
+        }
+      });
+
+      const resultado = Object.values(costosPorObra);
+      return resultado.length > 0 ? resultado : this.getAnalisisCostosLocal(fechaInicio, fechaFin);
     } catch (error) {
-      console.error('Error en análisis de costos:', error);
+      console.error('Error obteniendo análisis de costos:', error);
       return this.getAnalisisCostosLocal(fechaInicio, fechaFin);
     }
   }
@@ -243,13 +325,56 @@ class AdvancedAnalyticsService {
 
   // Métodos auxiliares privados - usando datos locales
   private async getConsumoDelDia(fecha: string): Promise<{ total: number; items: number }> {
-    // Usar datos locales ya que la tabla 'salidas' no existe
-    return { total: 15000, items: 5 };
+    try {
+      const { data: requerimientos, error } = await supabase
+        .from('requerimientos')
+        .select('cantidad, precio_unitario')
+        .eq('fecha_solicitud', fecha)
+        .eq('estado', 'Entregado');
+
+      if (error || !requerimientos) {
+        console.warn('No se pudieron obtener datos de consumo del día:', error);
+        return { total: 15000, items: 5 };
+      }
+
+      const total = requerimientos.reduce((sum, req) => {
+        const cantidad = parseFloat(req.cantidad) || 0;
+        const precio = parseFloat(req.precio_unitario) || 0;
+        return sum + (cantidad * precio);
+      }, 0);
+
+      return { total: Math.round(total), items: requerimientos.length };
+    } catch (error) {
+      console.error('Error obteniendo consumo del día:', error);
+      return { total: 15000, items: 5 };
+    }
   }
 
   private async getConsumoPorPeriodo(fechaInicio: string, fechaFin: string): Promise<{ total: number; items: number }> {
-    // Usar datos locales ya que la tabla 'salidas' no existe
-    return { total: 450000, items: 150 };
+    try {
+      const { data: requerimientos, error } = await supabase
+        .from('requerimientos')
+        .select('cantidad, precio_unitario')
+        .gte('fecha_solicitud', fechaInicio)
+        .lte('fecha_solicitud', fechaFin)
+        .eq('estado', 'Entregado');
+
+      if (error || !requerimientos) {
+        console.warn('No se pudieron obtener datos de consumo por período:', error);
+        return { total: 450000, items: 150 };
+      }
+
+      const total = requerimientos.reduce((sum, req) => {
+        const cantidad = parseFloat(req.cantidad) || 0;
+        const precio = parseFloat(req.precio_unitario) || 0;
+        return sum + (cantidad * precio);
+      }, 0);
+
+      return { total: Math.round(total), items: requerimientos.length };
+    } catch (error) {
+      console.error('Error obteniendo consumo por período:', error);
+      return { total: 450000, items: 150 };
+    }
   }
 
   private async getConsumoPromedioDiario(materialId: string): Promise<number> {
@@ -269,8 +394,29 @@ class AdvancedAnalyticsService {
   }
 
   private async getTiempoPromedioAtencion(): Promise<number> {
-    // Usar valor fijo local ya que la tabla 'requerimientos' podría no tener los campos necesarios
-    return 3;
+    try {
+      const { data: requerimientos, error } = await supabase
+        .from('requerimientos')
+        .select('fecha_solicitud, fecha_entrega')
+        .not('fecha_entrega', 'is', null);
+
+      if (error || !requerimientos || requerimientos.length === 0) {
+        console.warn('No se pudieron obtener datos de requerimientos para tiempo de atención:', error);
+        return 3; // Valor por defecto
+      }
+
+      const tiempos = requerimientos.map(req => {
+        const fechaSolicitud = new Date(req.fecha_solicitud);
+        const fechaEntrega = new Date(req.fecha_entrega);
+        return Math.abs(fechaEntrega.getTime() - fechaSolicitud.getTime()) / (1000 * 60 * 60); // en horas
+      });
+
+      const promedio = tiempos.reduce((sum, tiempo) => sum + tiempo, 0) / tiempos.length;
+      return Math.round(promedio);
+    } catch (error) {
+      console.error('Error calculando tiempo promedio de atención:', error);
+      return 3; // Valor por defecto
+    }
   }
 
   private async getPrecisionInventario(): Promise<number> {
@@ -284,8 +430,44 @@ class AdvancedAnalyticsService {
   }
 
   private async getHistoricoConsumo(materialId: string, dias: number): Promise<number[]> {
-    // Usar datos locales ya que la tabla 'salidas' no existe
-    return [5, 3, 7, 4, 6, 8, 5, 4, 6, 7];
+    try {
+      const fechaInicio = new Date();
+      fechaInicio.setDate(fechaInicio.getDate() - dias);
+      
+      const { data: requerimientos, error } = await supabase
+        .from('requerimientos')
+        .select('cantidad, fecha_solicitud')
+        .eq('material', materialId)
+        .gte('fecha_solicitud', fechaInicio.toISOString().split('T')[0])
+        .order('fecha_solicitud', { ascending: true });
+
+      if (error || !requerimientos) {
+        console.warn('No se pudieron obtener datos históricos de consumo:', error);
+        return [5, 3, 7, 4, 6, 8, 5, 4, 6, 7];
+      }
+
+      // Agrupar por día y sumar cantidades
+      const consumoPorDia: { [fecha: string]: number } = {};
+      requerimientos.forEach(req => {
+        const fecha = req.fecha_solicitud;
+        const cantidad = parseFloat(req.cantidad) || 0;
+        consumoPorDia[fecha] = (consumoPorDia[fecha] || 0) + cantidad;
+      });
+
+      // Convertir a array de los últimos días
+      const historico: number[] = [];
+      for (let i = dias - 1; i >= 0; i--) {
+        const fecha = new Date();
+        fecha.setDate(fecha.getDate() - i);
+        const fechaStr = fecha.toISOString().split('T')[0];
+        historico.push(consumoPorDia[fechaStr] || 0);
+      }
+
+      return historico.length > 0 ? historico : [5, 3, 7, 4, 6, 8, 5, 4, 6, 7];
+    } catch (error) {
+      console.error('Error obteniendo histórico de consumo:', error);
+      return [5, 3, 7, 4, 6, 8, 5, 4, 6, 7];
+    }
   }
 
   private calcularPrediccionDemanda(historico: number[]): {
@@ -335,6 +517,35 @@ class AdvancedAnalyticsService {
       eficienciaAlmacen: 87,
       tiempoPromedioAtencion: 18
     };
+  }
+
+  private async getMetricasConsumoFromSupabase(fechaInicio: string, fechaFin: string): Promise<MetricaConsumo[]> {
+    try {
+      const { data: requerimientos, error } = await supabase
+        .from('requerimientos')
+        .select('*')
+        .gte('fecha_solicitud', fechaInicio)
+        .lte('fecha_solicitud', fechaFin)
+        .eq('estado', 'Entregado');
+
+      if (error || !requerimientos) {
+        console.warn('No se pudieron obtener métricas de consumo:', error);
+        return this.getMetricasConsumoLocal(fechaInicio, fechaFin);
+      }
+
+      return requerimientos.map(req => ({
+        fecha: req.fecha_solicitud,
+        materialId: req.id?.toString() || '1',
+        materialNombre: req.material || 'Material desconocido',
+        cantidad: parseFloat(req.cantidad) || 0,
+        costo: (parseFloat(req.cantidad) || 0) * (parseFloat(req.precio_unitario) || 0),
+        obraId: req.obra || '1',
+        obraNombre: req.obra || 'Obra desconocida'
+      }));
+    } catch (error) {
+      console.error('Error obteniendo métricas de consumo desde Supabase:', error);
+      return this.getMetricasConsumoLocal(fechaInicio, fechaFin);
+    }
   }
 
   private getMetricasConsumoLocal(fechaInicio: string, fechaFin: string): MetricaConsumo[] {

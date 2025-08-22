@@ -8,11 +8,7 @@ export const requerimientosService = {
     try {
       const { data, error } = await supabase
         .from('requerimientos')
-        .select(`
-          *,
-          obra:obras(*),
-          material:materiales(*)
-        `)
+        .select('*')
         .eq('id', id)
         .single()
       
@@ -35,32 +31,21 @@ export const requerimientosService = {
       
       let query = supabase
         .from('requerimientos')
-        .select(`
-          *,
-          obra:obras(*)
-        `)
-        .order('fecha_requerimiento', { ascending: false })
+        .select('*')
+        .order('fecha_solicitud', { ascending: false })
 
-      // Aplicar filtros
-      if (filters?.obra_id) {
-        query = query.eq('obra_id', filters.obra_id)
-        console.log('🏗️ Filtro por obra_id:', filters.obra_id)
-      }
+      // Aplicar filtros usando los campos correctos de la tabla
       if (filters?.estado) {
         query = query.eq('estado', filters.estado)
         console.log('📊 Filtro por estado:', filters.estado)
       }
       if (filters?.fecha_desde) {
-        query = query.gte('fecha_requerimiento', filters.fecha_desde)
+        query = query.gte('fecha_solicitud', filters.fecha_desde)
         console.log('📅 Filtro fecha desde:', filters.fecha_desde)
       }
       if (filters?.fecha_hasta) {
-        query = query.lte('fecha_requerimiento', filters.fecha_hasta)
+        query = query.lte('fecha_solicitud', filters.fecha_hasta)
         console.log('📅 Filtro fecha hasta:', filters.fecha_hasta)
-      }
-      if (filters?.prioridad) {
-        query = query.eq('prioridad', filters.prioridad)
-        console.log('⚡ Filtro por prioridad:', filters.prioridad)
       }
 
       const { data, error } = await query
@@ -78,9 +63,10 @@ export const requerimientosService = {
         const searchTerm = filters.busqueda.toLowerCase()
         console.log('🔍 Aplicando filtro de búsqueda:', searchTerm)
         filteredData = filteredData.filter(req => 
-          req.numero_rq?.toLowerCase().includes(searchTerm) ||
+          req.numero_requerimiento?.toLowerCase().includes(searchTerm) ||
           req.solicitante?.toLowerCase().includes(searchTerm) ||
-          req.justificacion?.toLowerCase().includes(searchTerm)
+          req.descripcion?.toLowerCase().includes(searchTerm) ||
+          req.material?.toLowerCase().includes(searchTerm)
         )
         console.log('🔍 Resultados después del filtro de búsqueda:', filteredData.length)
       }
@@ -93,41 +79,35 @@ export const requerimientosService = {
     }
   },
 
-  // Obtener requerimientos por obra
-  async getByObra(obraId: string): Promise<Requerimiento[]> {
+  // Obtener requerimientos por empresa
+  async getByEmpresa(empresa: string): Promise<Requerimiento[]> {
     try {
       const { data, error } = await supabase
         .from('requerimientos')
-        .select(`
-          *,
-          obra:obras(*)
-        `)
-        .eq('obra_id', obraId)
-        .order('fecha_requerimiento', { ascending: false })
+        .select('*')
+        .eq('empresa', empresa)
+        .order('fecha_solicitud', { ascending: false })
 
       if (error) throw error
       return data || []
     } catch (error) {
-      console.error('Error al obtener requerimientos por obra:', error)
+      console.error('Error al obtener requerimientos por empresa:', error)
       return []
     }
   },
 
   // Obtener requerimientos pendientes
-  async getPendientes(obraId?: string): Promise<Requerimiento[]> {
+  async getPendientes(empresa?: string): Promise<Requerimiento[]> {
     try {
       let query = supabase
         .from('requerimientos')
-        .select(`
-          *,
-          obra:obras(*)
-        `)
+        .select('*')
         .eq('estado', 'PENDIENTE')
-        .order('fecha_requerimiento', { ascending: true })
+        .order('fecha_solicitud', { ascending: true })
 
-      // Filtrar por obra si se especifica
-      if (obraId) {
-        query = query.eq('obra_id', obraId)
+      // Filtrar por empresa si se especifica
+      if (empresa) {
+        query = query.eq('empresa', empresa)
       }
 
       const { data, error } = await query
@@ -145,15 +125,14 @@ export const requerimientosService = {
       console.log('🔄 Iniciando creación de requerimiento:', requerimiento)
       
       // Generar número automático si no se proporciona
-      const numeroRQ = requerimiento.numero_rq || await NumberGeneratorService.generateUniqueNumber('RQ')
-      console.log('📝 Número RQ generado:', numeroRQ)
+      const numeroReq = requerimiento.numero_requerimiento || await NumberGeneratorService.generateUniqueNumber('RQ')
+      console.log('📝 Número REQ generado:', numeroReq)
       
       const nuevoRequerimiento = {
         ...requerimiento,
-        numero_rq: numeroRQ,
-        estado: 'PENDIENTE' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        numero_requerimiento: numeroReq,
+        estado: requerimiento.estado || 'PENDIENTE',
+        fecha_solicitud: requerimiento.fecha_solicitud || new Date().toISOString().split('T')[0]
       }
       
       console.log('📋 Datos del nuevo requerimiento:', nuevoRequerimiento)
@@ -161,10 +140,7 @@ export const requerimientosService = {
       const { data, error } = await supabase
         .from('requerimientos')
         .insert(nuevoRequerimiento)
-        .select(`
-          *,
-          obra:obras(*)
-        `)
+        .select('*')
         .single()
 
       if (error) {
@@ -185,18 +161,14 @@ export const requerimientosService = {
     try {
       const nuevosRequerimientos = requerimientos.map(req => ({
         ...req,
-        estado: 'PENDIENTE' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        estado: req.estado || 'PENDIENTE',
+        fecha_solicitud: req.fecha_solicitud || new Date().toISOString().split('T')[0]
       }))
 
       const { data, error } = await supabase
         .from('requerimientos')
         .insert(nuevosRequerimientos)
-        .select(`
-          *,
-          obra:obras(*)
-        `)
+        .select('*')
 
       if (error) throw error
       return data || []
@@ -211,15 +183,9 @@ export const requerimientosService = {
     try {
       const { data, error } = await supabase
         .from('requerimientos')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', id)
-        .select(`
-          *,
-          obra:obras(*)
-        `)
+        .select('*')
         .single()
 
       if (error) throw error
@@ -235,10 +201,7 @@ export const requerimientosService = {
     try {
       const { error } = await supabase
         .from('requerimientos')
-        .update({
-          estado,
-          updated_at: new Date().toISOString()
-        })
+        .update({ estado })
         .eq('id', id)
 
       if (error) throw error
@@ -265,35 +228,32 @@ export const requerimientosService = {
     }
   },
 
-  // Buscar por número RQ
-  async searchByNumeroRQ(numeroRq: string): Promise<Requerimiento[]> {
+  // Buscar por número de requerimiento
+  async searchByNumeroRequerimiento(numeroReq: string): Promise<Requerimiento[]> {
     try {
       const { data, error } = await supabase
         .from('requerimientos')
-        .select(`
-          *,
-          obra:obras(*)
-        `)
-        .ilike('numero_rq', `%${numeroRq}%`)
-        .order('fecha_requerimiento', { ascending: false })
+        .select('*')
+        .ilike('numero_requerimiento', `%${numeroReq}%`)
+        .order('fecha_solicitud', { ascending: false })
 
       if (error) throw error
       return data || []
     } catch (error) {
-      console.error('Error al buscar por número RQ:', error)
+      console.error('Error al buscar por número de requerimiento:', error)
       return []
     }
   },
 
   // Obtener estadísticas de requerimientos
-  async getEstadisticas(obraId?: string): Promise<{ [key: string]: number }> {
+  async getEstadisticas(empresa?: string): Promise<{ [key: string]: number }> {
     try {
       let query = supabase
         .from('requerimientos')
         .select('estado')
 
-      if (obraId) {
-        query = query.eq('obra_id', obraId)
+      if (empresa) {
+        query = query.eq('empresa', empresa)
       }
 
       const { data, error } = await query
@@ -302,7 +262,7 @@ export const requerimientosService = {
 
       const estadisticas = {
         PENDIENTE: 0,
-        ASIGNADO: 0,
+        EN_PROCESO: 0,
         ATENDIDO: 0,
         CANCELADO: 0
       }
@@ -316,18 +276,18 @@ export const requerimientosService = {
       return estadisticas
     } catch (error) {
       console.error('Error al obtener estadísticas:', error)
-      return { PENDIENTE: 0, ASIGNADO: 0, ATENDIDO: 0, CANCELADO: 0 }
+      return { PENDIENTE: 0, EN_PROCESO: 0, ATENDIDO: 0, CANCELADO: 0 }
     }
   },
 
-  // Verificar si existe un número RQ
-  async checkNumeroRQExists(numeroRq: string, obraId: string, excludeId?: string): Promise<boolean> {
+  // Verificar si existe un número de requerimiento
+  async checkNumeroRequerimientoExists(numeroRequerimiento: string, excludeId?: string): Promise<boolean> {
     try {
       let query = supabase
         .from('requerimientos')
         .select('id')
-        .eq('numero_rq', numeroRq)
-        .eq('obra_id', obraId)
+        .eq('numero_requerimiento', numeroRequerimiento)
+        .limit(1)
 
       if (excludeId) {
         query = query.neq('id', excludeId)
@@ -336,10 +296,9 @@ export const requerimientosService = {
       const { data, error } = await query
 
       if (error) throw error
-
-      return (data?.length || 0) > 0
+      return (data && data.length > 0)
     } catch (error) {
-      console.error('Error al verificar número RQ:', error)
+      console.error('Error al verificar número de requerimiento:', error)
       return false
     }
   }

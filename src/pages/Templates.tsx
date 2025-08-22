@@ -373,45 +373,50 @@ const Templates: React.FC = () => {
               <p className="text-gray-600">No se han generado documentos con esta plantilla</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {templateInstances.map((instance) => (
-                <Card key={instance.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(instance.generation_status)}`}>
+                <Card key={instance.id} className="border border-gray-200 hover:border-gray-300 transition-colors">
+                  <CardContent className="p-5">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      {/* Left section - Status and Document Info */}
+                      <div className="flex items-start space-x-4">
+                        <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${getStatusColor(instance.generation_status)}`}>
                           {instance.generation_status === 'completed' && 'Completado'}
                           {instance.generation_status === 'processing' && 'Procesando'}
                           {instance.generation_status === 'failed' && 'Fallido'}
                           {instance.generation_status === 'pending' && 'Pendiente'}
                         </div>
-                        <div>
-                          <div className="font-medium">{instance.output_format.toUpperCase()}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-gray-900">{instance.output_format.toUpperCase()}</span>
+                            {instance.file_size && (
+                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                {(instance.file_size / 1024).toFixed(1)} KB
+                              </span>
+                            )}
+                          </div>
                           <div className="text-sm text-gray-600">
-                            {new Date(instance.generated_at).toLocaleString('es-PE')}
+                            Generado: {new Date(instance.generated_at).toLocaleString('es-PE')}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {instance.download_count} {instance.download_count === 1 ? 'descarga' : 'descargas'}
                           </div>
                         </div>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
-                        {instance.file_size && (
-                          <span className="text-sm text-gray-500">
-                            {(instance.file_size / 1024).toFixed(1)} KB
-                          </span>
-                        )}
-                        <span className="text-sm text-gray-500">
-                          {instance.download_count} descargas
-                        </span>
+                      {/* Right section - Actions */}
+                      <div className="flex items-center justify-end lg:justify-start">
                         {instance.file_url && instance.generation_status === 'completed' && (
                           <Button
                             size="sm"
                             variant="outline"
+                            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
                             onClick={() => {
                               window.open(instance.file_url, '_blank');
                               TemplateService.incrementDownloadCount(instance.id);
                             }}
                           >
-                            <Download className="w-4 h-4 mr-1" />
+                            <Download className="w-4 h-4 mr-2" />
                             Descargar
                           </Button>
                         )}
@@ -419,8 +424,12 @@ const Templates: React.FC = () => {
                     </div>
                     
                     {instance.error_message && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                        {instance.error_message}
+                      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                        <div className="flex items-start">
+                          <div className="text-sm text-red-700">
+                            <strong>Error:</strong> {instance.error_message}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </CardContent>

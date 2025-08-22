@@ -105,6 +105,50 @@ interface FrameworkContract {
   };
 }
 
+interface Requerimiento {
+  id: string;
+  prioridad?: string;
+  cantidad?: number;
+  material_id?: string;
+  material?: string;
+  materiales?: {
+    id: string;
+    nombre: string;
+    peso_unitario: number;
+  };
+}
+
+interface LocationPoint {
+  latitude: number;
+  longitude: number;
+}
+
+interface RouteStop {
+  order: number;
+  location: DeliveryLocation;
+  arrivalTime: string;
+  departureTime: string;
+  travelTimeFromPrevious: number;
+}
+
+interface PriceData {
+  material_id: string;
+  supplier_id: string;
+  price: number;
+  recorded_at: string;
+  availability?: 'available' | 'limited' | 'unavailable';
+  lead_time_days?: number;
+  minimum_order_quantity?: number;
+  materiales?: {
+    id: string;
+    nombre: string;
+  }[];
+  proveedores?: {
+    id: string;
+    nombre: string;
+  }[];
+}
+
 export class LogisticsService {
   // Route Optimization
   static async getDeliveryLocations(): Promise<DeliveryLocation[]> {
@@ -142,10 +186,10 @@ export class LogisticsService {
         priority: this.calculatePriority(obra.requerimientos),
         estimatedDeliveryTime: this.estimateDeliveryTime(obra.requerimientos),
         materials: obra.requerimientos?.map((req: any) => ({
-          materialId: req.materiales.id,
-          materialName: req.materiales.nombre,
-          quantity: req.cantidad,
-          weight: req.materiales.peso_unitario * req.cantidad
+          materialId: req.material_id || '',
+          materialName: req.material || 'Material Desconocido',
+          quantity: req.cantidad || 0,
+          weight: (req.cantidad || 0) * 1 // Peso por defecto
         })) || []
       })) || [];
     } catch (error) {
@@ -264,9 +308,9 @@ export class LogisticsService {
           const previousPrice = this.getPreviousPrice(priceHistory || [], price.supplier_id, materialId);
           return {
             supplierId: price.supplier_id,
-            supplierName: price.proveedores?.nombre || 'Proveedor Desconocido',
+            supplierName: price.proveedores?.[0]?.nombre || 'Proveedor Desconocido',
             materialId: price.material_id,
-            materialName: price.materiales?.nombre || 'Material Desconocido',
+            materialName: price.materiales?.[0]?.nombre || 'Material Desconocido',
             currentPrice: price.price,
             previousPrice: previousPrice || price.price,
             priceChange: price.price - (previousPrice || price.price),
@@ -358,7 +402,7 @@ export class LogisticsService {
           const materialIds = materials?.map(m => m.material_id) || [];
           const { data: marketPrices } = await supabase
             .from('supplier_price_history')
-            .select('material_id, price')
+            .select('material_id, supplier_id, price, recorded_at')
             .in('material_id', materialIds)
             .order('recorded_at', { ascending: false });
           
@@ -457,11 +501,11 @@ export class LogisticsService {
     if (!requerimientos || requerimientos.length === 0) return 30;
     
     // Estimar tiempo basado en cantidad de materiales
-    const totalItems = requerimientos.reduce((sum, req) => sum + req.cantidad, 0);
+    const totalItems = requerimientos.reduce((sum, req) => sum + (req.cantidad || 0), 0);
     return Math.max(30, Math.min(120, totalItems * 2)); // Entre 30 y 120 minutos
   }
 
-  private static sortLocationsByPriorityAndDistance(locations: DeliveryLocation[], depot: any): DeliveryLocation[] {
+  private static sortLocationsByPriorityAndDistance(locations: DeliveryLocation[], depot: LocationPoint): DeliveryLocation[] {
     return locations.sort((a, b) => {
       // Primero por prioridad
       const priorityOrder = { high: 3, medium: 2, low: 1 };
@@ -476,7 +520,7 @@ export class LogisticsService {
     });
   }
 
-  private static calculateDistance(point1: any, point2: any): number {
+  private static calculateDistance(point1: LocationPoint, point2: LocationPoint): number {
     const R = 6371; // Radio de la Tierra en km
     const dLat = this.deg2rad(point2.latitude - point1.latitude);
     const dLon = this.deg2rad(point2.longitude - point1.longitude);
@@ -492,13 +536,13 @@ export class LogisticsService {
     return deg * (Math.PI/180);
   }
 
-  private static calculateTravelTime(point1: any, point2: any): number {
+  private static calculateTravelTime(point1: LocationPoint, point2: LocationPoint): number {
     const distance = this.calculateDistance(point1, point2);
     const averageSpeed = 30; // km/h en ciudad
     return (distance / averageSpeed) * 60; // minutos
   }
 
-  private static calculateRouteEfficiency(stops: any[], totalDistance: number, totalTime: number): number {
+  private static calculateRouteEfficiency(stops: RouteStop[], totalDistance: number, totalTime: number): number {
     if (stops.length === 0) return 0;
     
     const baseEfficiency = 100;
@@ -529,8 +573,8 @@ export class LogisticsService {
     }
   }
 
-  private static groupPricesByMaterial(prices: any[]): Record<string, any[]> {
-    const groups: Record<string, any[]> = {};
+  private static groupPricesByMaterial(prices: PriceData[]): Record<string, PriceData[]> {
+    const groups: Record<string, PriceData[]> = {};
     
     for (const price of prices) {
       if (!groups[price.material_id]) {
@@ -552,7 +596,7 @@ export class LogisticsService {
     return groups;
   }
 
-  private static getPreviousPrice(prices: any[], supplierId: string, materialId: string): number | null {
+  private static getPreviousPrice(prices: PriceData[], supplierId: string, materialId: string): number | null {
     const supplierPrices = prices
       .filter(p => p.supplier_id === supplierId && p.material_id === materialId)
       .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
@@ -560,7 +604,7 @@ export class LogisticsService {
     return supplierPrices.length > 1 ? supplierPrices[1].price : null;
   }
 
-  private static getAverageMarketPrice(marketPrices: any[], materialId: string): number {
+  private static getAverageMarketPrice(marketPrices: PriceData[], materialId: string): number {
     const materialPrices = marketPrices.filter(p => p.material_id === materialId);
     if (materialPrices.length === 0) return 0;
     

@@ -14,7 +14,6 @@ import warehouseRoutes from './routes/warehouse.js';
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // load env
 dotenv.config();
@@ -37,7 +36,7 @@ app.use('/api/warehouse', warehouseRoutes);
 /**
  * health
  */
-app.use('/api/health', (req: Request, res: Response, next: NextFunction): void => {
+app.use('/api/health', (req: Request, res: Response): void => {
   res.status(200).json({
     success: true,
     message: 'ok'
@@ -47,7 +46,7 @@ app.use('/api/health', (req: Request, res: Response, next: NextFunction): void =
 /**
  * error handler middleware
  */
-app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((error: Error, req: Request, res: Response) => {
   res.status(500).json({
     success: false,
     error: 'Server internal error'

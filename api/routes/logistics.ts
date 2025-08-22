@@ -307,7 +307,15 @@ router.get('/contracts/performance/summary', async (req, res) => {
 });
 
 // Helper functions for price analysis
-function calculatePriceVolatility(suppliers: any[]): number {
+interface SupplierPriceData {
+  currentPrice: number;
+  availability: 'available' | 'limited' | 'unavailable';
+  leadTime: number;
+  priceChangePercent: number;
+  [key: string]: any;
+}
+
+function calculatePriceVolatility(suppliers: SupplierPriceData[]): number {
   if (suppliers.length < 2) return 0;
   
   const prices = suppliers.map(s => s.currentPrice);
@@ -318,7 +326,7 @@ function calculatePriceVolatility(suppliers: any[]): number {
   return (standardDeviation / mean) * 100; // Coefficient of variation as percentage
 }
 
-function getRecommendedSupplier(suppliers: any[]): any {
+function getRecommendedSupplier(suppliers: SupplierPriceData[]): SupplierPriceData & { score: number } {
   // Scoring algorithm considering price, availability, and lead time
   const scoredSuppliers = suppliers.map(supplier => {
     let score = 0;
@@ -349,7 +357,7 @@ function getRecommendedSupplier(suppliers: any[]): any {
   return scoredSuppliers.sort((a, b) => b.score - a.score)[0];
 }
 
-function analyzePriceTrend(suppliers: any[]): 'increasing' | 'decreasing' | 'stable' {
+function analyzePriceTrend(suppliers: SupplierPriceData[]): 'increasing' | 'decreasing' | 'stable' {
   const avgPriceChange = suppliers.reduce((sum, s) => sum + s.priceChangePercent, 0) / suppliers.length;
   
   if (avgPriceChange > 2) return 'increasing';

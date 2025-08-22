@@ -62,31 +62,47 @@ export interface Material {
 
 export interface Requerimiento {
   id: string
-  obra_id: string
-  numero_rq: string
-  fecha_solicitud: string
-  fecha_requerimiento: string
-  descripcion_actividad: string
-  solicitante: string
+  // Campos originales (ahora opcionales)
+  obra_id?: string
+  numero_rq?: string
+  fecha_solicitud?: string
+  fecha_requerimiento?: string
+  descripcion_actividad?: string
+  solicitante?: string
   area_solicitante?: string
-  material_id: string
-  cantidad_solicitada: number
-  unidad: string
+  material_id?: string
+  cantidad_solicitada?: number
+  unidad?: string
   especificaciones_tecnicas?: string
   justificacion?: string
   fecha_necesidad?: string
-  prioridad: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
+  prioridad?: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
   presupuesto_referencial?: number
   codigo_presupuesto?: string
   observaciones?: string
   archivo_adjunto?: string
-  estado: 'PENDIENTE' | 'ASIGNADO' | 'ATENDIDO' | 'CANCELADO'
+  estado?: 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO'
   aprobado_por?: string
   fecha_aprobacion?: string
-  created_at: string
-  updated_at: string
-  created_by: string
-  actividad_descripcion: string
+  created_at?: string
+  updated_at?: string
+  created_by?: string
+  actividad_descripcion?: string
+  // Nuevos campos según estructura requerida
+  bloque?: string
+  empresa?: string
+  tipo?: string
+  material_nombre?: string
+  descripcion?: string
+  numero_requerimiento?: string
+  fecha_atencion?: string
+  cantidad?: number
+  cantidad_atendida?: number
+  numero_solicitud_compra?: string
+  orden_compra?: string
+  proveedor?: string
+  precio_unitario?: number
+  subtotal?: number
   // Relaciones
   obra?: Obra
   material?: Material
@@ -94,16 +110,17 @@ export interface Requerimiento {
 }
 
 export interface RequerimientoFormData {
-  numero_rq: string
-  fecha_solicitud: string
-  fecha_requerimiento: string
-  fecha_necesidad: string
-  obra_id: string
-  material_id: string
-  cantidad_solicitada: number
-  unidad: string
-  prioridad: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
-  solicitante: string
+  // Campos originales
+  numero_rq?: string
+  fecha_solicitud?: string
+  fecha_requerimiento?: string
+  fecha_necesidad?: string
+  obra_id?: string
+  material_id?: string
+  cantidad_solicitada?: number
+  unidad?: string
+  prioridad?: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
+  solicitante?: string
   observaciones?: string
   especificaciones_tecnicas?: string
   justificacion?: string
@@ -111,12 +128,27 @@ export interface RequerimientoFormData {
   area_solicitante?: string
   codigo_presupuesto?: string
   archivo_adjunto?: string
-  estado?: 'PENDIENTE' | 'ASIGNADO' | 'ATENDIDO' | 'CANCELADO'
+  estado?: 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO'
   fecha_aprobacion?: string
   actividad_descripcion?: string
   created_by?: string
   presupuesto_referencial?: number
   aprobado_por?: string
+  // Nuevos campos según estructura requerida
+  bloque?: string
+  empresa?: string
+  tipo?: string
+  material_nombre?: string
+  descripcion?: string
+  numero_requerimiento?: string
+  fecha_atencion?: string
+  cantidad?: number
+  cantidad_atendida?: number
+  numero_solicitud_compra?: string
+  orden_compra?: string
+  proveedor?: string
+  precio_unitario?: number
+  subtotal?: number
 }
 
 export interface EntradaFormData {
@@ -299,6 +331,7 @@ export interface RequerimientoFilters {
   material_id?: string
   numero_rq?: string
   solicitante?: string
+  empresa?: string
 }
 
 export interface SolicitudCompraFilters {

@@ -1,10 +1,23 @@
 import React, { useState } from 'react'
 import { Search, Package, CheckCircle, XCircle, Save, AlertTriangle, Camera as CameraIcon, Image } from 'lucide-react'
-import { almacenService, LineaSCParaEntrada } from '../services/almacenService'
+import { entradasService } from '../services/entradas'
+import { solicitudesCompraService } from '../services/solicitudesCompra'
 import { toast } from 'sonner'
 import { Camera } from '../components/Camera';
 import { PhotoGallery, type GalleryPhoto } from '../components/PhotoGallery';
 import { usePhotoCapture, type CapturedPhoto } from '../hooks/usePhotoCapture';
+import type { SolicitudCompra } from '../types';
+
+interface LineaSCParaEntrada {
+  codigoMaterial: string
+  nombreMaterial: string
+  cantidadPedida: number
+  cantidadAtendida: number
+  atendido: boolean
+  solicitante: string
+  numeroRQ: string
+  unidad: string
+}
 
 export default function Entradas() {
   const [numeroSC, setNumeroSC] = useState('SC-01')
@@ -16,7 +29,6 @@ export default function Entradas() {
   const [showPhotos, setShowPhotos] = useState<string | null>(null)
   
   // Hook para gestionar fotos del movimiento de entrada
-  const movementId = `entrada-${numeroSC}-${Date.now()}`
   const { photos: movementPhotos, capturePhoto, deletePhoto, downloadPhoto } = usePhotoCapture()
 
   const buscarSC = async () => {
@@ -27,13 +39,29 @@ export default function Entradas() {
 
     setLoading(true)
     try {
-      const lineas = await almacenService.buscarLineasSC(numeroSC.trim())
-      setLineasSC(lineas)
-      if (lineas.length === 0) {
-        toast.warning('No se encontraron materiales para esta SC')
-      } else {
-        toast.success(`Se encontraron ${lineas.length} materiales`)
-      }
+      const solicitudes = await solicitudesCompraService.searchByNumeroSC(numeroSC.trim())
+      const solicitud = solicitudes.length > 0 ? solicitudes[0] : null
+       if (solicitud && solicitud.requerimientos) {
+         const lineas = solicitud.requerimientos.map(req => ({
+           codigoMaterial: req.material?.codigo || '',
+           nombreMaterial: req.material?.nombre || '',
+           cantidadPedida: req.cantidad_solicitada || 0,
+           cantidadAtendida: 0,
+           atendido: false,
+           solicitante: req.solicitante || '',
+           numeroRQ: req.numero_rq || '',
+           unidad: req.material?.unidad || ''
+         }))
+         setLineasSC(lineas)
+         if (lineas.length === 0) {
+           toast.warning('No se encontraron requerimientos para esta SC')
+         } else {
+           toast.success(`Se encontraron ${lineas.length} requerimientos`)
+         }
+       } else {
+         setLineasSC([])
+         toast.warning('No se encontraron requerimientos para esta SC')
+       }
     } catch (error) {
       console.error('Error al buscar SC:', error)
       toast.error(error instanceof Error ? error.message : 'Error al buscar la SC')
@@ -73,8 +101,25 @@ export default function Entradas() {
 
     setGuardando(true)
     try {
-      await almacenService.registrarEntradas(numeroSC, lineasSC)
+      // Filtrar líneas con cantidad > 0
       const lineasConEntrada = lineasSC.filter(l => l.cantidadAtendida > 0)
+      
+      // Crear entradas para cada línea con cantidad > 0
+      for (const linea of lineasConEntrada) {
+        await entradasService.create({
+          obra_id: 'obra-1', // TODO: obtener obra_id del contexto
+          material_id: linea.codigoMaterial,
+          cantidad_recibida: linea.cantidadAtendida,
+          cantidad_atendida: linea.cantidadAtendida,
+          fecha_recepcion: new Date().toISOString().split('T')[0],
+          fecha_entrada: new Date().toISOString().split('T')[0],
+          numero_sc: numeroSC,
+          proveedor: 'Por definir',
+          recibido_por: 'Usuario actual', // TODO: obtener del contexto de usuario
+          observaciones: 'Entrada registrada desde módulo de entradas',
+          usuario_id: 'user-1'
+        })
+      }
       toast.success(`Se registraron ${lineasConEntrada.length} entradas correctamente`)
       
       // Mostrar resumen de fotos capturadas

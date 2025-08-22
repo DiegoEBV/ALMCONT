@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth'
 import { requerimientosService } from '../services/requerimientos'
 import { obrasService } from '../services/obras'
 import { materialesService } from '../services/materiales'
-import { Requerimiento, Obra, Material, RequerimientoFormData, TableColumn } from '../types'
+import { Requerimiento, Obra, Material, RequerimientoFormData, RequerimientoFilters, TableColumn } from '../types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -46,108 +46,91 @@ export default function Requerimientos() {
   // Estados de filtros
   const [filters, setFilters] = useState({
     busqueda: '',
-    obra_id: '',
+    empresa: '',
     estado: '',
-    prioridad: '',
     fecha_desde: '',
-    fecha_hasta: '',
-    material_id: ''
+    fecha_hasta: ''
   })
 
   // Estados del formulario
   const [formData, setFormData] = useState<RequerimientoFormData>({
-    obra_id: '',
-    numero_rq: '',
+    bloque: '',
+    empresa: '',
+    tipo: '',
+    material_nombre: '',
+    descripcion: '',
+    numero_requerimiento: '',
     fecha_solicitud: new Date().toISOString().split('T')[0],
-    fecha_requerimiento: new Date().toISOString().split('T')[0],
-    descripcion_actividad: '',
-    solicitante: '',
-    area_solicitante: '',
-    material_id: '',
-    cantidad_solicitada: 0,
+    fecha_atencion: '',
     unidad: '',
-    especificaciones_tecnicas: '',
-    justificacion: '',
-    fecha_necesidad: '',
-    prioridad: 'MEDIA',
-    presupuesto_referencial: 0,
-    codigo_presupuesto: '',
-    observaciones: '',
-    archivo_adjunto: '',
+    cantidad: 0,
+    cantidad_atendida: 0,
+    solicitante: '',
+    numero_solicitud_compra: '',
+    orden_compra: '',
+    proveedor: '',
     estado: 'PENDIENTE',
-    aprobado_por: '',
-    fecha_aprobacion: ''
+    observaciones: '',
+    precio_unitario: 0,
+    subtotal: 0
   })
 
   // Definir columnas de la tabla
   const columns: TableColumn<Requerimiento>[] = [
     {
-      key: 'numero_rq',
-      title: 'N° RQ',
+      key: 'numero_requerimiento',
+      title: 'N° Requerimiento',
       sortable: true,
       render: (value: string, item: Requerimiento) => (
-        <span className="font-mono text-sm">{item.numero_rq}</span>
+        <span className="font-mono text-sm">{item.numero_requerimiento || item.numero_rq}</span>
       )
     },
     {
-      key: 'fecha_requerimiento',
-      title: 'Fecha',
+      key: 'empresa',
+      title: 'Empresa',
       sortable: true,
-      render: (value: string, item: Requerimiento) => {
-        if (!item.fecha_requerimiento) return '-'
-        const date = new Date(item.fecha_requerimiento)
-        if (isNaN(date.getTime())) return '-'
-        return format(date, 'dd/MM/yyyy', { locale: es })
-      }
-    },
-    {
-      key: 'descripcion_actividad',
-      title: 'Actividad',
       render: (value: string, item: Requerimiento) => (
-        <div className="max-w-xs truncate" title={item.descripcion_actividad}>
-          {item.descripcion_actividad}
-        </div>
+        <span className="text-sm">{item.empresa || '-'}</span>
       )
-    },
-    {
-      key: 'solicitante',
-      title: 'Solicitante',
-      sortable: true
     },
     {
       key: 'material',
       title: 'Material',
       render: (value: string, item: Requerimiento) => (
         <div>
-          <div className="font-medium">{item.material?.descripcion}</div>
-          <div className="text-sm text-gray-500">{item.material?.codigo}</div>
+          <div className="font-medium">{item.material?.nombre || '-'}</div>
+          <div className="text-sm text-gray-500">{item.descripcion || ''}</div>
         </div>
       )
     },
     {
-      key: 'cantidad_solicitada',
+      key: 'cantidad',
       title: 'Cantidad',
       sortable: true,
       render: (value: number, item: Requerimiento) => (
         <div className="text-right">
-          <span className="font-medium">{item.cantidad_solicitada}</span>
+          <span className="font-medium">{item.cantidad || item.cantidad_solicitada || 0}</span>
+          <span className="text-sm text-gray-500 ml-1">{item.unidad || ''}</span>
+        </div>
+      )
+    },
+    {
+      key: 'cantidad_atendida',
+      title: 'Cant. Atendida',
+      sortable: true,
+      render: (value: number, item: Requerimiento) => (
+        <div className="text-right">
+          <span className="font-medium">{item.cantidad_atendida || 0}</span>
           <span className="text-sm text-gray-500 ml-1">{item.unidad}</span>
         </div>
       )
     },
     {
-      key: 'prioridad',
-      title: 'Prioridad',
+      key: 'proveedor',
+      title: 'Proveedor',
       sortable: true,
       render: (value: string, item: Requerimiento) => (
-        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-          item.prioridad === 'URGENTE' ? 'bg-red-100 text-red-800' :
-          item.prioridad === 'ALTA' ? 'bg-orange-100 text-orange-800' :
-          item.prioridad === 'MEDIA' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-green-100 text-green-800'
-        }`}>
-          {item.prioridad}
-        </span>
+        <span className="text-sm">{item.proveedor || '-'}</span>
       )
     },
     {
@@ -233,6 +216,17 @@ export default function Requerimientos() {
     loadRequerimientos()
   }, [loadRequerimientos])
 
+  // Efecto para calcular subtotal automáticamente
+  useEffect(() => {
+    const cantidad = formData.cantidad || 0;
+    const precioUnitario = formData.precio_unitario || 0;
+    const subtotal = cantidad * precioUnitario;
+    
+    if (subtotal !== formData.subtotal) {
+      setFormData(prev => ({ ...prev, subtotal }));
+    }
+  }, [formData.cantidad, formData.precio_unitario, formData.subtotal]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -267,27 +261,25 @@ export default function Requerimientos() {
   const handleEdit = (requerimiento: Requerimiento) => {
     setEditingRequerimiento(requerimiento)
     setFormData({
-      obra_id: requerimiento.obra_id,
-      numero_rq: requerimiento.numero_rq,
+      bloque: requerimiento.bloque || '',
+      empresa: requerimiento.empresa || '',
+      tipo: requerimiento.tipo || '',
+      material_nombre: requerimiento.material_nombre || '',
+      descripcion: requerimiento.descripcion || '',
+      numero_requerimiento: requerimiento.numero_requerimiento || '',
       fecha_solicitud: requerimiento.fecha_solicitud?.split('T')[0] || '',
-      fecha_requerimiento: requerimiento.fecha_requerimiento.split('T')[0],
-      descripcion_actividad: requerimiento.descripcion_actividad,
-      solicitante: requerimiento.solicitante,
-      area_solicitante: requerimiento.area_solicitante || '',
-      material_id: requerimiento.material_id,
-      cantidad_solicitada: requerimiento.cantidad_solicitada,
-      unidad: requerimiento.unidad,
-      especificaciones_tecnicas: requerimiento.especificaciones_tecnicas || '',
-      justificacion: requerimiento.justificacion || '',
-      fecha_necesidad: requerimiento.fecha_necesidad?.split('T')[0] || '',
-      prioridad: requerimiento.prioridad,
-      presupuesto_referencial: requerimiento.presupuesto_referencial || 0,
-      codigo_presupuesto: requerimiento.codigo_presupuesto || '',
-      observaciones: requerimiento.observaciones || '',
-      archivo_adjunto: requerimiento.archivo_adjunto || '',
+      fecha_atencion: requerimiento.fecha_atencion?.split('T')[0] || '',
+      unidad: requerimiento.unidad || '',
+      cantidad: requerimiento.cantidad || 0,
+      cantidad_atendida: requerimiento.cantidad_atendida || 0,
+      solicitante: requerimiento.solicitante || '',
+      numero_solicitud_compra: requerimiento.numero_solicitud_compra || '',
+      orden_compra: requerimiento.orden_compra || '',
+      proveedor: requerimiento.proveedor || '',
       estado: requerimiento.estado,
-      aprobado_por: requerimiento.aprobado_por || '',
-      fecha_aprobacion: requerimiento.fecha_aprobacion?.split('T')[0] || ''
+      observaciones: requerimiento.observaciones || '',
+      precio_unitario: requerimiento.precio_unitario || 0,
+      subtotal: requerimiento.subtotal || 0
     })
     setShowModal(true)
   }
@@ -305,61 +297,62 @@ export default function Requerimientos() {
 
   const resetForm = () => {
     setFormData({
-      obra_id: user?.obra_id || '',
-      numero_rq: '',
+      bloque: '',
+      empresa: '',
+      tipo: '',
+      material_nombre: '',
+      descripcion: '',
+      numero_requerimiento: '',
       fecha_solicitud: new Date().toISOString().split('T')[0],
-      fecha_requerimiento: new Date().toISOString().split('T')[0],
-      descripcion_actividad: '',
-      solicitante: '',
-      area_solicitante: '',
-      material_id: '',
-      cantidad_solicitada: 0,
+      fecha_atencion: '',
       unidad: '',
-      especificaciones_tecnicas: '',
-      justificacion: '',
-      fecha_necesidad: '',
-      prioridad: 'MEDIA',
-      presupuesto_referencial: 0,
-      codigo_presupuesto: '',
-      observaciones: '',
-      archivo_adjunto: '',
+      cantidad: 0,
+      cantidad_atendida: 0,
+      solicitante: user?.email || '',
+      numero_solicitud_compra: '',
+      orden_compra: '',
+      proveedor: '',
       estado: 'PENDIENTE',
-      aprobado_por: '',
-      fecha_aprobacion: ''
+      observaciones: '',
+      precio_unitario: 0,
+      subtotal: 0
     })
   }
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
+  const handleFilterChange = (field: keyof RequerimientoFilters, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value }))
   }
 
   const clearFilters = () => {
     setFilters({
       busqueda: '',
-      obra_id: '',
+      empresa: '',
       estado: '',
-      prioridad: '',
       fecha_desde: '',
-      fecha_hasta: '',
-      material_id: ''
+      fecha_hasta: ''
     })
   }
 
   const handleExcelImport = async (data: Array<{
-    codigo?: string;
-    numero_rq?: string;
+    bloque?: string;
+    empresa?: string;
+    tipo?: string;
+    material?: string;
     descripcion?: string;
-    actividad_descripcion?: string;
-    solicitante?: string;
-    area_solicitante?: string;
+    numero_requerimiento?: string;
+    fecha_solicitud?: string;
+    fecha_atencion?: string;
+    unidad?: string;
     cantidad?: string | number;
-    especificaciones_tecnicas?: string;
-    justificacion?: string;
-    fecha_necesidad?: string;
-    prioridad?: string;
-    presupuesto_referencial?: string | number;
-    codigo_presupuesto?: string;
+    cantidad_atendida?: string | number;
+    solicitante?: string;
+    numero_solicitud_compra?: string;
+    orden_compra?: string;
+    proveedor?: string;
+    estado?: string;
     observaciones?: string;
+    precio_unitario?: string | number;
+    subtotal?: string | number;
   }>) => {
     try {
       setLoading(true)
@@ -369,48 +362,27 @@ export default function Requerimientos() {
 
       for (const item of data) {
         try {
-          // Buscar material por código
-          const material = materiales.find(m => 
-            m.codigo.toLowerCase() === item.codigo?.toLowerCase()
-          )
-
-          if (!material) {
-            errors.push(`Material con código '${item.codigo}' no encontrado`)
-            errorCount++
-            continue
-          }
-
-          // Buscar obra por defecto o usar la primera disponible
-          const obra = obras.length > 0 ? obras[0] : null
-          if (!obra) {
-            errors.push('No hay obras disponibles para asignar')
-            errorCount++
-            continue
-          }
-
-          // Crear requerimiento
+          // Crear requerimiento con los campos correctos
           const requerimientoData: RequerimientoFormData = {
-            obra_id: obra.id,
-            numero_rq: item.numero_rq || `RQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            fecha_solicitud: new Date().toISOString().split('T')[0],
-            fecha_requerimiento: new Date().toISOString().split('T')[0],
-            descripcion_actividad: item.descripcion || item.actividad_descripcion || 'Importado desde Excel',
+            bloque: item.bloque || '',
+            empresa: item.empresa || '',
+            tipo: item.tipo || '',
+            material_nombre: item.material || '',
+            descripcion: item.descripcion || 'Importado desde Excel',
+            numero_requerimiento: item.numero_requerimiento || `REQ-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            fecha_solicitud: item.fecha_solicitud || new Date().toISOString().split('T')[0],
+            fecha_atencion: item.fecha_atencion || '',
+            unidad: item.unidad || '',
+            cantidad: typeof item.cantidad === 'string' ? parseInt(item.cantidad) || 0 : item.cantidad || 0,
+            cantidad_atendida: typeof item.cantidad_atendida === 'string' ? parseFloat(item.cantidad_atendida) || 0 : item.cantidad_atendida || 0,
             solicitante: item.solicitante || user?.email || 'Sistema',
-            area_solicitante: item.area_solicitante || 'Importación',
-            material_id: material.id,
-            cantidad_solicitada: typeof item.cantidad === 'string' ? parseFloat(item.cantidad) || 1 : item.cantidad || 1,
-            unidad: material.unidad,
-            especificaciones_tecnicas: item.especificaciones_tecnicas || '',
-            justificacion: item.justificacion || 'Importado desde archivo Excel',
-            fecha_necesidad: item.fecha_necesidad || '',
-            prioridad: (item.prioridad?.toUpperCase() as 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE') || 'MEDIA',
-            presupuesto_referencial: typeof item.presupuesto_referencial === 'string' ? parseFloat(item.presupuesto_referencial) || 0 : item.presupuesto_referencial || 0,
-            codigo_presupuesto: item.codigo_presupuesto || '',
+            numero_solicitud_compra: item.numero_solicitud_compra || '',
+            orden_compra: item.orden_compra || '',
+            proveedor: item.proveedor || '',
+            estado: (item.estado as 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO') || 'PENDIENTE',
             observaciones: item.observaciones || '',
-            archivo_adjunto: '',
-            estado: 'PENDIENTE',
-            aprobado_por: '',
-            fecha_aprobacion: ''
+            precio_unitario: typeof item.precio_unitario === 'string' ? parseFloat(item.precio_unitario) || 0 : item.precio_unitario || 0,
+            subtotal: typeof item.subtotal === 'string' ? parseFloat(item.subtotal) || 0 : item.subtotal || 0
           }
 
           await requerimientosService.create(requerimientoData)
@@ -507,20 +479,17 @@ export default function Requerimientos() {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <Input
             label="Búsqueda"
-            placeholder="N° RQ, actividad, solicitante..."
+            placeholder="N° Requerimiento, descripción, solicitante..."
             value={filters.busqueda}
             onChange={(e) => handleFilterChange('busqueda', e.target.value)}
             leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
           />
           
-          <Select
-            label="Obra"
-            value={filters.obra_id}
-            onChange={(e) => handleFilterChange('obra_id', e.target.value)}
-            options={[
-              { value: '', label: 'Todas las obras' },
-              ...obras.map(obra => ({ value: obra.id, label: obra.nombre }))
-            ]}
+          <Input
+            label="Empresa"
+            placeholder="Filtrar por empresa"
+            value={filters.empresa}
+            onChange={(e) => handleFilterChange('empresa', e.target.value)}
           />
           
           <Select
@@ -528,13 +497,6 @@ export default function Requerimientos() {
             value={filters.estado}
             onChange={(e) => handleFilterChange('estado', e.target.value)}
             options={ESTADOS_REQUERIMIENTO}
-          />
-          
-          <Select
-            label="Prioridad"
-            value={filters.prioridad}
-            onChange={(e) => handleFilterChange('prioridad', e.target.value)}
-            options={PRIORIDADES}
           />
         </div>
 
@@ -595,78 +557,56 @@ export default function Requerimientos() {
                 Información General
               </h3>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Select
-                  label="Obra"
-                  value={formData.obra_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, obra_id: e.target.value }))}
-                  options={[
-                    { value: '', label: 'Seleccionar obra' },
-                    ...obras.map(obra => ({ value: obra.id, label: obra.nombre }))
-                  ]}
-                  required
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Input
+                  label="Bloque"
+                  value={formData.bloque}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bloque: e.target.value }))}
+                  placeholder="Bloque o área"
                 />
                 
                 <Input
-                  label="N° RQ"
-                  value={formData.numero_rq}
-                  onChange={(e) => setFormData(prev => ({ ...prev, numero_rq: e.target.value }))}
-                  placeholder="Ej: RQ-2024-001"
-                  required
+                  label="Empresa"
+                  value={formData.empresa}
+                  onChange={(e) => setFormData(prev => ({ ...prev, empresa: e.target.value }))}
+                  placeholder="Empresa solicitante"
+                />
+                
+                <Input
+                  label="Tipo"
+                  value={formData.tipo}
+                  onChange={(e) => setFormData(prev => ({ ...prev, tipo: e.target.value }))}
+                  placeholder="Tipo de requerimiento"
                 />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Input
-                  label="Fecha Requerimiento"
-                  type="date"
-                  value={formData.fecha_requerimiento}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fecha_requerimiento: e.target.value }))}
+                  label="N° Requerimiento"
+                  value={formData.numero_requerimiento}
+                  onChange={(e) => setFormData(prev => ({ ...prev, numero_requerimiento: e.target.value }))}
+                  placeholder="Ej: REQ-2024-001"
                   required
                 />
                 
                 <Input
-                  label="Fecha Necesidad"
+                  label="Fecha Solicitud"
                   type="date"
-                  value={formData.fecha_necesidad}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fecha_necesidad: e.target.value }))}
+                  value={formData.fecha_solicitud}
+                  onChange={(e) => setFormData(prev => ({ ...prev, fecha_solicitud: e.target.value }))}
+                  required
                 />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
-                  Descripción de Actividad <span className="text-red-500">*</span>
+                  Solicitante <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  value={formData.descripcion_actividad}
-                  onChange={(e) => setFormData(prev => ({ ...prev, descripcion_actividad: e.target.value }))}
-                  placeholder="Descripción detallada de la actividad"
-                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Sección: Información del Solicitante */}
-            <div className="bg-blue-50 rounded-lg p-6 space-y-6">
-              <h3 className="text-lg font-semibold text-gray-900 border-b border-blue-200 pb-2">
-                Información del Solicitante
-              </h3>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Input
-                  label="Solicitante"
                   value={formData.solicitante}
                   onChange={(e) => setFormData(prev => ({ ...prev, solicitante: e.target.value }))}
                   placeholder="Nombre del solicitante"
                   required
-                />
-                
-                <Input
-                  label="Área Solicitante"
-                  value={formData.area_solicitante}
-                  onChange={(e) => setFormData(prev => ({ ...prev, area_solicitante: e.target.value }))}
-                  placeholder="Área o departamento"
                 />
               </div>
             </div>
@@ -677,37 +617,32 @@ export default function Requerimientos() {
                 Material y Cantidad
               </h3>
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1">
-                  <Select
-                    label="Material"
-                    value={formData.material_id}
-                    onChange={(e) => {
-                      const material = materiales.find(m => m.id === e.target.value)
-                      setFormData(prev => ({ 
-                        ...prev, 
-                        material_id: e.target.value,
-                        unidad: material?.unidad || ''
-                      }))
-                    }}
-                    options={[
-                      { value: '', label: 'Seleccionar material' },
-                      ...materiales.map(material => ({ 
-                        value: material.id, 
-                        label: `${material.codigo} - ${material.descripcion}` 
-                      }))
-                    ]}
-                    required
-                  />
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Input
+                  label="Material"
+                  value={formData.material_nombre}
+                  onChange={(e) => setFormData(prev => ({ ...prev, material_nombre: e.target.value }))}
+                  placeholder="Nombre del material"
+                  required
+                />
                 
                 <Input
-                  label="Cantidad Solicitada"
+                  label="Descripción"
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+                  placeholder="Descripción del material"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Input
+                  label="Cantidad"
                   type="number"
+                  value={formData.cantidad}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cantidad: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0"
                   min="0"
                   step="0.01"
-                  value={formData.cantidad_solicitada}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cantidad_solicitada: parseFloat(e.target.value) || 0 }))}
                   required
                 />
                 
@@ -715,77 +650,111 @@ export default function Requerimientos() {
                   label="Unidad"
                   value={formData.unidad}
                   onChange={(e) => setFormData(prev => ({ ...prev, unidad: e.target.value }))}
-                  placeholder="Unidad de medida"
-                  readOnly
-                  className="bg-gray-100"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Select
-                  label="Prioridad"
-                  value={formData.prioridad}
-                  onChange={(e) => setFormData(prev => ({ ...prev, prioridad: e.target.value as 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE' }))}
-                  options={PRIORIDADES.filter(p => p.value !== '')}
+                  placeholder="Ej: UND, KG, M"
                   required
                 />
                 
                 <Input
-                  label="Presupuesto Referencial"
+                  label="Cantidad Atendida"
                   type="number"
+                  value={formData.cantidad_atendida}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cantidad_atendida: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0"
                   min="0"
                   step="0.01"
-                  value={formData.presupuesto_referencial}
-                  onChange={(e) => setFormData(prev => ({ ...prev, presupuesto_referencial: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0.00"
                 />
               </div>
             </div>
 
-            {/* Sección: Detalles Adicionales */}
-            <div className="bg-yellow-50 rounded-lg p-6 space-y-6">
-              <h3 className="text-lg font-semibold text-gray-900 border-b border-yellow-200 pb-2">
-                Detalles Adicionales
+            {/* Sección: Compras y Proveedores */}
+            <div className="bg-blue-50 rounded-lg p-6 space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-blue-200 pb-2">
+                Compras y Proveedores
               </h3>
               
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Especificaciones Técnicas
-                  </label>
-                  <textarea
-                    value={formData.especificaciones_tecnicas}
-                    onChange={(e) => setFormData(prev => ({ ...prev, especificaciones_tecnicas: e.target.value }))}
-                    placeholder="Especificaciones técnicas del material"
-                    className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  />
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Input
+                  label="Fecha Atención"
+                  type="date"
+                  value={formData.fecha_atencion}
+                  onChange={(e) => setFormData(prev => ({ ...prev, fecha_atencion: e.target.value }))}
+                />
+                
+                <Input
+                  label="Precio Unitario"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.precio_unitario}
+                  onChange={(e) => setFormData(prev => ({ ...prev, precio_unitario: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Justificación
-                  </label>
-                  <textarea
-                    value={formData.justificacion}
-                    onChange={(e) => setFormData(prev => ({ ...prev, justificacion: e.target.value }))}
-                    placeholder="Justificación del requerimiento"
-                    className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  />
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Input
+                  label="N° Solicitud de Compra"
+                  value={formData.numero_solicitud_compra}
+                  onChange={(e) => setFormData(prev => ({ ...prev, numero_solicitud_compra: e.target.value }))}
+                  placeholder="Número de solicitud de compra"
+                />
+                
+                <Input
+                  label="Orden de Compra"
+                  value={formData.orden_compra}
+                  onChange={(e) => setFormData(prev => ({ ...prev, orden_compra: e.target.value }))}
+                  placeholder="Número de orden de compra"
+                />
+                
+                <Input
+                  label="Proveedor"
+                  value={formData.proveedor}
+                  onChange={(e) => setFormData(prev => ({ ...prev, proveedor: e.target.value }))}
+                  placeholder="Nombre del proveedor"
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Observaciones
-                  </label>
-                  <textarea
-                    value={formData.observaciones}
-                    onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
-                    placeholder="Observaciones adicionales"
-                    className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  />
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Input
+                  label="Subtotal"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.subtotal}
+                  onChange={(e) => setFormData(prev => ({ ...prev, subtotal: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                  readOnly
+                  className="bg-gray-100"
+                />
+                
+                <Select
+                  label="Estado"
+                  value={formData.estado}
+                  onChange={(e) => setFormData(prev => ({ ...prev, estado: e.target.value as 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO' }))}
+                  options={[
+                    { value: '', label: 'Seleccionar estado' },
+                    { value: 'PENDIENTE', label: 'Pendiente' },
+                    { value: 'EN_PROCESO', label: 'En Proceso' },
+                    { value: 'ATENDIDO', label: 'Atendido' },
+                    { value: 'CANCELADO', label: 'Cancelado' }
+                  ]}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Observaciones
+                </label>
+                <textarea
+                  value={formData.observaciones}
+                  onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
+                  placeholder="Observaciones adicionales"
+                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
               </div>
             </div>
+
+
 
             {/* Botones de acción */}
             <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">

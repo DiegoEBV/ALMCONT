@@ -4,12 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, Users, Package, Clock, AlertTriangle, CheckCircle, Activity, Building2, ShoppingCart, Download, RefreshCw } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { Package, Clock, AlertTriangle, Building2, ShoppingCart, Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { httpService, DashboardMetrics as ServiceDashboardMetrics } from '@/services/httpService';
+import { httpService } from '@/services/httpService';
 
 interface KPIData {
   totalWorks: number;
@@ -57,14 +55,12 @@ interface DashboardMetrics {
   };
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
 
 const CoordinationDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState('30d');
   const mountedRef = useRef(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -72,7 +68,7 @@ const CoordinationDashboard: React.FC = () => {
     try {
       setLoading(true);
       setRefreshing(true);
-      setError(null);
+
       
       if (!mountedRef.current) return;
       
@@ -80,7 +76,7 @@ const CoordinationDashboard: React.FC = () => {
       // Convertir los datos para que coincidan con el tipo esperado
       const convertedMetrics: DashboardMetrics = {
         kpis: response.data.kpis,
-        workComparisons: response.data.workComparisons.map((work: any) => ({
+        workComparisons: response.data.workComparisons.map((work: { workId: string; workName: string; totalTasks?: number; completedTasks?: number; efficiency: number }) => ({
           workId: work.workId,
           workName: work.workName,
           totalRequests: work.totalTasks || 0,
@@ -91,7 +87,7 @@ const CoordinationDashboard: React.FC = () => {
           efficiency: work.efficiency,
           lastActivity: new Date().toISOString()
         })),
-        workerEfficiency: response.data.workerEfficiency.map((worker: any) => ({
+        workerEfficiency: response.data.workerEfficiency.map((worker: { workerId: string; workerName: string; tasksCompleted: number; averageTime: number; efficiency: number }) => ({
           workerId: worker.workerId,
           workerName: worker.workerName,
           workerEmail: `${worker.workerName.toLowerCase().replace(' ', '.')}@empresa.com`,
@@ -103,15 +99,15 @@ const CoordinationDashboard: React.FC = () => {
           lastActivity: new Date().toISOString()
         })),
         trends: {
-          requestsTrend: response.data.trends.map((trend: any) => ({
+          requestsTrend: response.data.trends.map((trend: { date: string; requests: number }) => ({
             date: trend.date,
             count: trend.requests
           })),
-          stockTrend: response.data.trends.map((trend: any) => ({
+          stockTrend: response.data.trends.map((trend: { date: string }) => ({
             date: trend.date,
             value: Math.floor(Math.random() * 1000) + 500
           })),
-          efficiencyTrend: response.data.trends.map((trend: any) => ({
+          efficiencyTrend: response.data.trends.map((trend: { date: string; efficiency: number }) => ({
             date: trend.date,
             efficiency: trend.efficiency
           }))
@@ -122,9 +118,6 @@ const CoordinationDashboard: React.FC = () => {
       setMetrics(convertedMetrics);
     } catch (err) {
       console.error('Error fetching metrics:', err);
-      if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : 'Error desconocido');
-      }
     } finally {
       if (mountedRef.current) {
         setLoading(false);
@@ -189,7 +182,7 @@ const CoordinationDashboard: React.FC = () => {
         intervalRef.current = null;
       }
     };
-  }, [selectedPeriod]);
+  }, []);
 
   if (loading) {
     return (

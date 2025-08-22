@@ -155,8 +155,8 @@ export const stockService = {
           obra:obras(*),
           material:materiales(*)
         `)
-        .lt('cantidad_actual', threshold)
-        .order('cantidad_actual', { ascending: true })
+        .lt('stock_actual', threshold)
+        .order('stock_actual', { ascending: true })
       
       if (error) throw error
       return data || []
@@ -218,7 +218,7 @@ export const stockService = {
       }
 
       if (filters?.soloConStock) {
-        query = query.gt('cantidad_actual', 0)
+        query = query.gt('stock_actual', 0)
       }
 
       const { data: stocks, error } = await query.order('created_at', { ascending: false })
@@ -259,14 +259,14 @@ export const stockService = {
           obra:obras(*),
           material:materiales(*)
         `)
-        .lt('cantidad_actual', cantidadMinima)
-        .gt('cantidad_actual', 0)
+        .lt('stock_actual', cantidadMinima)
+        .gt('stock_actual', 0)
 
       if (obraId) {
         query = query.eq('obra_id', obraId)
       }
 
-      const { data, error } = await query.order('cantidad_actual', { ascending: true })
+      const { data, error } = await query.order('stock_actual', { ascending: true })
       
       if (error) throw error
       return data || []
@@ -297,7 +297,7 @@ export const stockService = {
       
       const todosMateriales = stocks || []
       const totalMateriales = todosMateriales.length
-      const materialesConStock = todosMateriales.filter(m => m.cantidad_actual > 0).length
+      const materialesConStock = todosMateriales.filter(m => m.stock_actual > 0).length
       const materialesSinStock = totalMateriales - materialesConStock
 
       // Agrupar por categorías
@@ -309,7 +309,7 @@ export const stockService = {
         
         categorias.set(categoria, {
           cantidad_materiales: existing.cantidad_materiales + 1,
-          cantidad_total: existing.cantidad_total + item.cantidad_actual
+          cantidad_total: existing.cantidad_total + item.stock_actual
         })
       })
 
@@ -390,7 +390,7 @@ export const stockService = {
           const { error: updateError } = await supabase
             .from('stock_obra_material')
             .update({
-              cantidad_actual: Math.max(0, stockCalculado),
+              stock_actual: Math.max(0, stockCalculado),
               updated_at: new Date().toISOString()
             })
             .eq('id', stockExistente.id)
@@ -403,8 +403,8 @@ export const stockService = {
             .insert({
               obra_id: obraId,
               material_id: material.id,
-              cantidad_actual: stockCalculado,
-              cantidad_minima: 10,
+              stock_actual: stockCalculado,
+              stock_minimo: 10,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             })
@@ -524,7 +524,7 @@ export const stockService = {
         'Descripción',
         'Unidad',
         'Categoría',
-        'Cantidad Actual',
+        'Stock Actual',
         'Última Actualización'
       ]
 
@@ -536,7 +536,7 @@ export const stockService = {
         item.material?.descripcion || '',
         item.material?.unidad || '',
         item.material?.categoria || '',
-        item.cantidad_actual.toString(),
+        item.stock_actual.toString(),
         item.updated_at || item.created_at
       ])
 

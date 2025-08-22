@@ -255,7 +255,7 @@ router.get('/reports/efficiency', authenticateToken, validateRole(['coordinacion
  */
 router.get('/reports/works', authenticateToken, validateRole(['coordinacion', 'admin']), async (req, res) => {
   try {
-    const { workIds, includeInactive } = req.query;
+    const { workIds } = req.query;
     
     // Obtener comparaciones entre obras
     let workComparisons = await analyticsService.getWorkComparisons();

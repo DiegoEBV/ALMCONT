@@ -1,15 +1,22 @@
-import { localDB } from '../lib/localDB'
+import { supabase } from '../lib/supabase'
 import { NumberGeneratorService } from './numberGenerator'
 import type { OrdenCompra, OrdenCompraFormData, ScOc, SolicitudCompra } from '../types'
 
 export const ordenesCompraService = {
   async getAll(): Promise<OrdenCompra[]> {
     try {
-      return localDB.getWithRelations('ordenes_compra', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        usuario: { table: 'usuarios', key: 'usuario_id' },
-        solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-      })
+      const { data, error } = await supabase
+        .from('ordenes_compra')
+        .select(`
+          *,
+          obra:obras(*),
+          usuario:usuarios(*),
+          solicitud_compra:solicitudes_compra(*)
+        `)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error fetching ordenes compra:', error)
       throw new Error('Error al obtener órdenes de compra')
@@ -18,12 +25,19 @@ export const ordenesCompraService = {
 
   async getById(id: string): Promise<OrdenCompra | null> {
     try {
-      const ordenes = await localDB.getWithRelations('ordenes_compra', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        usuario: { table: 'usuarios', key: 'usuario_id' },
-        solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-      })
-      return ordenes.find(o => o.id === id) || null
+      const { data, error } = await supabase
+        .from('ordenes_compra')
+        .select(`
+          *,
+          obra:obras(*),
+          usuario:usuarios(*),
+          solicitud_compra:solicitudes_compra(*)
+        `)
+        .eq('id', id)
+        .single()
+      
+      if (error && error.code !== 'PGRST116') throw error
+      return data || null
     } catch (error) {
       console.error('Error fetching orden compra:', error)
       return null
@@ -32,13 +46,19 @@ export const ordenesCompraService = {
 
   async getByObra(obraId: string): Promise<OrdenCompra[]> {
     try {
-      const ordenes = await localDB.getWithRelations('ordenes_compra', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        usuario: { table: 'usuarios', key: 'usuario_id' },
-        solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-      })
-      return ordenes.filter(o => o.obra_id === obraId)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      const { data, error } = await supabase
+        .from('ordenes_compra')
+        .select(`
+          *,
+          obra:obras(*),
+          usuario:usuarios(*),
+          solicitud_compra:solicitudes_compra(*)
+        `)
+        .eq('obra_id', obraId)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al obtener órdenes por obra:', error)
       return []
@@ -47,15 +67,19 @@ export const ordenesCompraService = {
 
   async searchByNumeroOC(numeroOc: string): Promise<OrdenCompra[]> {
     try {
-      const ordenes = await localDB.getWithRelations('ordenes_compra', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        usuario: { table: 'usuarios', key: 'usuario_id' },
-        solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-      })
-      return ordenes.filter(o => 
-        o.oc_numero?.toLowerCase().includes(numeroOc.toLowerCase())
-      ).sort((a, b) => (a.oc_numero || '').localeCompare(b.oc_numero || ''))
-        .slice(0, 50)
+      const { data, error } = await supabase
+        .from('ordenes_compra')
+        .select(`
+          *,
+          obra:obras(*),
+          usuario:usuarios(*),
+          solicitud_compra:solicitudes_compra(*)
+        `)
+        .ilike('oc_numero', `%${numeroOc}%`)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al buscar por número OC:', error)
       return []
@@ -64,14 +88,19 @@ export const ordenesCompraService = {
 
   async getByProveedor(proveedor: string): Promise<OrdenCompra[]> {
     try {
-      const ordenes = await localDB.getWithRelations('ordenes_compra', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        usuario: { table: 'usuarios', key: 'usuario_id' },
-        solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-      })
-      return ordenes.filter(o => 
-        o.proveedor?.toLowerCase().includes(proveedor.toLowerCase())
-      ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      const { data, error } = await supabase
+        .from('ordenes_compra')
+        .select(`
+          *,
+          obra:obras(*),
+          usuario:usuarios(*),
+          solicitud_compra:solicitudes_compra(*)
+        `)
+        .ilike('proveedor', `%${proveedor}%`)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al obtener órdenes por proveedor:', error)
       return []
@@ -80,13 +109,19 @@ export const ordenesCompraService = {
 
   async getByEstado(estado: 'PENDIENTE' | 'APROBADA' | 'ENVIADA' | 'RECIBIDA' | 'CANCELADA'): Promise<OrdenCompra[]> {
     try {
-      const ordenes = await localDB.getWithRelations('ordenes_compra', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        usuario: { table: 'usuarios', key: 'usuario_id' },
-        solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-      })
-      return ordenes.filter(o => o.estado === estado)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      const { data, error } = await supabase
+        .from('ordenes_compra')
+        .select(`
+          *,
+          obra:obras(*),
+          usuario:usuarios(*),
+          solicitud_compra:solicitudes_compra(*)
+        `)
+        .eq('estado', estado)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al obtener órdenes por estado:', error)
       return []
@@ -101,24 +136,20 @@ export const ordenesCompraService = {
       const newOrden = {
         ...orden,
         oc_numero: ocNumero,
-        id: crypto.randomUUID(),
-        estado: 'PENDIENTE' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        estado: 'PENDIENTE' as const
       }
       
-      const created = await localDB.create('ordenes_compra', newOrden)
+      const { data: created, error } = await supabase
+        .from('ordenes_compra')
+        .insert(newOrden)
+        .select()
+        .single()
       
-      if (created) {
-        const ordenes = await localDB.getWithRelations('ordenes_compra', undefined, {
-          obra: { table: 'obras', key: 'obra_id' },
-          usuario: { table: 'usuarios', key: 'usuario_id' },
-          solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-        })
-        return ordenes.find(o => o.id === created.id) || null
-      }
+      if (error) throw error
       
-      return null
+      // Obtener la orden creada con relaciones
+      const ordenWithRelations = await this.getById(created.id)
+      return ordenWithRelations
     } catch (error) {
       console.error('Error al crear orden de compra:', error)
       return null
@@ -127,21 +158,16 @@ export const ordenesCompraService = {
 
   async update(id: string, updates: Partial<OrdenCompraFormData>): Promise<OrdenCompra | null> {
     try {
-      const updated = await localDB.update('ordenes_compra', id, {
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
+      const { error } = await supabase
+        .from('ordenes_compra')
+        .update(updates)
+        .eq('id', id)
       
-      if (updated) {
-        const ordenes = await localDB.getWithRelations('ordenes_compra', undefined, {
-          obra: { table: 'obras', key: 'obra_id' },
-          usuario: { table: 'usuarios', key: 'usuario_id' },
-          solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-        })
-        return ordenes.find(o => o.id === id) || null
-      }
+      if (error) throw error
       
-      return null
+      // Obtener la orden actualizada con relaciones
+      const ordenWithRelations = await this.getById(id)
+      return ordenWithRelations
     } catch (error) {
       console.error('Error al actualizar orden de compra:', error)
       return null
@@ -150,11 +176,13 @@ export const ordenesCompraService = {
 
   async updateEstado(id: string, estado: 'PENDIENTE' | 'APROBADA' | 'ENVIADA' | 'RECIBIDA' | 'CANCELADA'): Promise<boolean> {
     try {
-      const updated = await localDB.update('ordenes_compra', id, { 
-        estado,
-        updated_at: new Date().toISOString()
-      })
-      return !!updated
+      const { error } = await supabase
+        .from('ordenes_compra')
+        .update({ estado })
+        .eq('id', id)
+      
+      if (error) throw error
+      return true
     } catch (error) {
       console.error('Error al actualizar estado:', error)
       return false
@@ -163,7 +191,13 @@ export const ordenesCompraService = {
 
   async delete(id: string): Promise<boolean> {
     try {
-      return await localDB.delete('ordenes_compra', id)
+      const { error } = await supabase
+        .from('ordenes_compra')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      return true
     } catch (error) {
       console.error('Error al eliminar orden de compra:', error)
       return false
@@ -172,11 +206,19 @@ export const ordenesCompraService = {
 
   async checkNumeroOCExists(ocNumero: string, excludeId?: string): Promise<boolean> {
     try {
-      const ordenes = await localDB.get('ordenes_compra')
-      const existing = ordenes.filter(o => 
-        o.oc_numero === ocNumero && (!excludeId || o.id !== excludeId)
-      )
-      return existing.length > 0
+      let query = supabase
+        .from('ordenes_compra')
+        .select('id')
+        .eq('oc_numero', ocNumero)
+      
+      if (excludeId) {
+        query = query.neq('id', excludeId)
+      }
+      
+      const { data, error } = await query.limit(1)
+      
+      if (error) throw error
+      return (data && data.length > 0) || false
     } catch (error) {
       console.error('Error al verificar número OC:', error)
       return false
@@ -185,13 +227,19 @@ export const ordenesCompraService = {
 
   async getBySolicitudCompra(scId: string): Promise<OrdenCompra[]> {
     try {
-      const ordenes = await localDB.getWithRelations('ordenes_compra', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        usuario: { table: 'usuarios', key: 'usuario_id' },
-        solicitud_compra: { table: 'solicitudes_compra', key: 'sc_id' }
-      })
-      return ordenes.filter(o => o.sc_id === scId)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      const { data, error } = await supabase
+        .from('ordenes_compra')
+        .select(`
+          *,
+          obra:obras(*),
+          usuario:usuarios(*),
+          solicitud_compra:solicitudes_compra(*)
+        `)
+        .eq('sc_id', scId)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al obtener órdenes por solicitud de compra:', error)
       return []
@@ -199,85 +247,71 @@ export const ordenesCompraService = {
   }
 }
 
-// Servicio para asociar solicitudes de compra con órdenes de compra
-export class ScOcService {
-  // Asociar solicitudes de compra a una orden de compra
-  static async asociarSolicitudes(ocId: string, solicitudIds: string[]): Promise<boolean> {
+export const ScOcService = {
+  async associate(scId: string, ocId: string): Promise<ScOc> {
     try {
-      // Primero eliminar asociaciones existentes
-      const existingAssociations = await localDB.getWhere('sc_oc', (item: ScOc) => item.oc_id === ocId)
-      for (const association of existingAssociations) {
-        await localDB.delete('sc_oc', association.id)
+      const association = {
+        sc_id: scId,
+        oc_id: ocId
       }
+      
+      const { data, error } = await supabase
+        .from('sc_oc')
+        .insert(association)
+        .select()
+        .single()
+      
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error associating SC with OC:', error)
+      throw new Error('Error al asociar solicitud con orden de compra')
+    }
+  },
 
-      // Crear nuevas asociaciones
-      for (const scId of solicitudIds) {
-        await localDB.create('sc_oc', {
-          id: crypto.randomUUID(),
-          sc_id: scId,
-          oc_id: ocId,
-          created_at: new Date().toISOString()
-        })
-      }
-
+  async disassociate(scId: string, ocId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('sc_oc')
+        .delete()
+        .eq('sc_id', scId)
+        .eq('oc_id', ocId)
+      
+      if (error) throw error
       return true
     } catch (error) {
-      console.error('Error al asociar solicitudes:', error)
-      return false
+      console.error('Error disassociating SC from OC:', error)
+      throw new Error('Error al desasociar solicitud de orden de compra')
     }
-  }
+  },
 
-  // Obtener solicitudes asociadas a una OC
-  static async getSolicitudesByOC(ocId: string): Promise<SolicitudCompra[]> {
+  async getBySolicitudCompra(scId: string): Promise<ScOc[]> {
     try {
-      const associations = await localDB.getWhere('sc_oc', (item: ScOc) => item.oc_id === ocId)
-      const solicitudIds = associations.map(a => a.sc_id)
+      const { data, error } = await supabase
+        .from('sc_oc')
+        .select('*')
+        .eq('sc_id', scId)
       
-      if (solicitudIds.length === 0) return []
-      
-      const solicitudes = await localDB.getWithRelations('solicitudes_compra', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        usuario: { table: 'usuarios', key: 'created_by' }
-      })
-      
-      return solicitudes.filter(s => solicitudIds.includes(s.id))
+      if (error) throw error
+      return data || []
     } catch (error) {
-      console.error('Error al obtener solicitudes por OC:', error)
+      console.error('Error getting associations by SC:', error)
       return []
     }
-  }
+  },
 
-  // Obtener OCs asociadas a una solicitud
-  static async getOCsBySolicitud(scId: string): Promise<OrdenCompra[]> {
+  async getByOrdenCompra(ocId: string): Promise<ScOc[]> {
     try {
-      const associations = await localDB.getWhere('sc_oc', (item: ScOc) => item.sc_id === scId)
-      const ocIds = associations.map(a => a.oc_id)
+      const { data, error } = await supabase
+        .from('sc_oc')
+        .select('*')
+        .eq('oc_id', ocId)
       
-      if (ocIds.length === 0) return []
-      
-      const ordenes = await localDB.get('ordenes_compra')
-      return ordenes.filter(o => ocIds.includes(o.id))
+      if (error) throw error
+      return data || []
     } catch (error) {
-      console.error('Error al obtener OCs por solicitud:', error)
+      console.error('Error getting associations by OC:', error)
       return []
-    }
-  }
-
-  // Desasociar una solicitud de una OC
-  static async desasociarSolicitud(scId: string, ocId: string): Promise<boolean> {
-    try {
-      const associations = await localDB.getWhere('sc_oc', (item: ScOc) => 
-        item.sc_id === scId && item.oc_id === ocId
-      )
-      
-      for (const association of associations) {
-        await localDB.delete('sc_oc', association.id)
-      }
-      
-      return true
-    } catch (error) {
-      console.error('Error al desasociar solicitud:', error)
-      return false
     }
   }
 }

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Clock, Eye, AlertTriangle, User, Calendar, DollarSign } from 'lucide-react';
 import { ApprovalService } from '../services/approvalService';
 import type { Approval } from '../types';
 import { Button } from './ui/button';
-import { CustomModal as Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalDescription } from './ui/modal';
+import { CustomModal as Modal, ModalDescription } from './ui/modal';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';
@@ -19,14 +19,10 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({ className })
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
+  const [filter, setFilter] = useState<'all' | 'alta' | 'media' | 'baja'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'priority'>('date');
 
-  useEffect(() => {
-    loadPendingApprovals();
-  }, [user]);
-
-  const loadPendingApprovals = async () => {
+  const loadPendingApprovals = useCallback(async () => {
     if (!user?.id) return;
     
     try {
@@ -39,7 +35,11 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({ className })
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadPendingApprovals();
+  }, [loadPendingApprovals]);
 
   const handleApprove = async (approvalId: string, observaciones?: string) => {
     if (!user?.id) return;
@@ -135,10 +135,11 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({ className })
       switch (sortBy) {
         case 'amount':
           return (b.datos_solicitud?.monto || 0) - (a.datos_solicitud?.monto || 0);
-        case 'priority':
+        case 'priority': {
           const priorityOrder = { 'alta': 3, 'media': 2, 'baja': 1 };
           return (priorityOrder[(b.datos_solicitud?.prioridad || 'media') as keyof typeof priorityOrder] || 0) -
                  (priorityOrder[(a.datos_solicitud?.prioridad || 'media') as keyof typeof priorityOrder] || 0);
+        }
         case 'date':
         default:
           return new Date(a.fecha_solicitud).getTime() - new Date(b.fecha_solicitud).getTime();
@@ -168,7 +169,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({ className })
           {/* Filtros */}
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
+            onChange={(e) => setFilter(e.target.value as 'all' | 'alta' | 'media' | 'baja')}
             className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todas las prioridades</option>
@@ -179,7 +180,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({ className })
           
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
+            onChange={(e) => setSortBy(e.target.value as 'date' | 'amount' | 'priority')}
             className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="date">Ordenar por Fecha</option>

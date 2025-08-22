@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline'
-import { useAuth } from '../hooks/useAuth'
 import { ordenesCompraService } from '../services/ordenesCompra'
 import { solicitudesCompraService } from '../services/solicitudesCompra'
 import { obrasService } from '../services/obras'
@@ -10,8 +9,8 @@ import { OrdenCompra, OrdenCompraFormData, Obra, SolicitudCompra, TableColumn } 
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import { CustomModal as Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '../components/ui/modal'
+import { Table } from '../components/ui/table'
+import { CustomModal as Modal } from '../components/ui/modal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { toast } from 'sonner'
 
@@ -30,7 +29,6 @@ const MONEDAS = [
 ]
 
 export default function OrdenesCompra() {
-  const { user } = useAuth()
   const [ordenesCompra, setOrdenesCompra] = useState<OrdenCompra[]>([])
   const [obras, setObras] = useState<Obra[]>([])
   const [solicitudesCompra, setSolicitudesCompra] = useState<SolicitudCompra[]>([])
@@ -156,7 +154,7 @@ export default function OrdenesCompra() {
     } catch (error) {
       console.error('Error al cargar órdenes de compra:', error)
     }
-  }, [filters])
+  }, [])
 
   const loadObras = useCallback(async () => {
     try {
@@ -441,7 +439,7 @@ export default function OrdenesCompra() {
             <Select
               label="Estado"
               value={formData.estado}
-              onChange={(e) => setFormData({ ...formData, estado: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'PENDIENTE' | 'APROBADA' | 'ENVIADA' | 'RECIBIDA' | 'CANCELADA' })}
               options={ESTADOS_ORDEN_COMPRA.filter(e => e.value !== '')}
               required
             />

@@ -1,15 +1,30 @@
-import { localDB } from '../lib/localDB'
+import { supabase } from '../lib/supabase'
 import type { Salida, SalidaFormData } from '../types'
 
 export const salidasService = {
   async getById(id: string): Promise<Salida | null> {
     try {
-      const salidas = await localDB.getWithRelations('salidas', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        usuario: { table: 'usuarios', key: 'created_by' }
-      })
-      return salidas.find(s => s.id === id) || null
+      const { data, error } = await supabase
+        .from('salidas')
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
+          )
+        `)
+        .eq('id', id)
+        .single()
+      
+      if (error) {
+        if (error.code === 'PGRST116') return null
+        throw error
+      }
+      return data
     } catch (error) {
       console.error('Error fetching salida:', error)
       return null
@@ -18,11 +33,23 @@ export const salidasService = {
 
   async getAll(): Promise<Salida[]> {
     try {
-      return localDB.getWithRelations('salidas', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        usuario: { table: 'usuarios', key: 'created_by' }
-      })
+      const { data, error } = await supabase
+        .from('salidas')
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
+          )
+        `)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error fetching salidas:', error)
       throw new Error('Error al obtener salidas')
@@ -32,24 +59,30 @@ export const salidasService = {
   // Obtener salidas por solicitante
   async getBySolicitante(solicitante: string, obraId?: string): Promise<Salida[]> {
     try {
-      const salidas = await localDB.getWithRelations('salidas', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        requerimiento: { table: 'requerimientos', key: 'requerimiento_id' }
-      })
-
-      let filteredSalidas = salidas.filter(salida => 
-        salida.solicitante?.toLowerCase().includes(solicitante.toLowerCase())
-      )
+      let query = supabase
+        .from('salidas')
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
+          )
+        `)
+        .ilike('responsable_recepcion', `%${solicitante}%`)
+        .order('fecha_entrega', { ascending: false })
 
       if (obraId) {
-        filteredSalidas = filteredSalidas.filter(salida => salida.obra_id === obraId)
+        query = query.eq('obra_id', obraId)
       }
 
-      // Ordenar por fecha descendente
-      filteredSalidas.sort((a, b) => new Date(b.fecha_entrega).getTime() - new Date(a.fecha_entrega).getTime())
-
-      return filteredSalidas
+      const { data, error } = await query
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al obtener salidas por solicitante:', error)
       return []
@@ -59,18 +92,24 @@ export const salidasService = {
   // Obtener salidas por requerimiento
   async getByRequerimiento(requerimientoId: string): Promise<Salida[]> {
     try {
-      const salidas = await localDB.getWithRelations('salidas', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        requerimiento: { table: 'requerimientos', key: 'requerimiento_id' }
-      })
-
-      const filteredSalidas = salidas.filter(salida => salida.requerimiento_id === requerimientoId)
-
-      // Ordenar por fecha descendente
-      filteredSalidas.sort((a, b) => new Date(b.fecha_entrega).getTime() - new Date(a.fecha_entrega).getTime())
-
-      return filteredSalidas
+      const { data, error } = await supabase
+        .from('salidas')
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
+          )
+        `)
+        .eq('documento_referencia', requerimientoId)
+        .order('fecha_entrega', { ascending: false })
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al obtener salidas por requerimiento:', error)
       return []
@@ -80,20 +119,25 @@ export const salidasService = {
   // Buscar salidas por número RQ
   async searchByNumeroRQ(numeroRq: string): Promise<Salida[]> {
     try {
-      const salidas = await localDB.getWithRelations('salidas', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        requerimiento: { table: 'requerimientos', key: 'requerimiento_id' }
-      })
-
-      const filteredSalidas = salidas.filter(salida => 
-        salida.requerimiento?.numero_rq?.toLowerCase().includes(numeroRq.toLowerCase())
-      )
-
-      // Ordenar por fecha descendente y limitar a 50
-      filteredSalidas.sort((a, b) => new Date(b.fecha_entrega).getTime() - new Date(a.fecha_entrega).getTime())
-
-      return filteredSalidas.slice(0, 50)
+      const { data, error } = await supabase
+        .from('salidas')
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
+          )
+        `)
+        .ilike('documento_referencia', `%${numeroRq}%`)
+        .order('fecha_entrega', { ascending: false })
+        .limit(50)
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al buscar salidas por número RQ:', error)
       return []
@@ -103,22 +147,30 @@ export const salidasService = {
   // Obtener salidas por material
   async getByMaterial(materialId: string, obraId?: string): Promise<Salida[]> {
     try {
-      const salidas = await localDB.getWithRelations('salidas', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        requerimiento: { table: 'requerimientos', key: 'requerimiento_id' }
-      })
-
-      let filteredSalidas = salidas.filter(salida => salida.material_id === materialId)
+      let query = supabase
+        .from('salidas')
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
+          )
+        `)
+        .eq('salida_items.material_id', materialId)
+        .order('fecha_entrega', { ascending: false })
 
       if (obraId) {
-        filteredSalidas = filteredSalidas.filter(salida => salida.obra_id === obraId)
+        query = query.eq('obra_id', obraId)
       }
 
-      // Ordenar por fecha descendente
-      filteredSalidas.sort((a, b) => new Date(b.fecha_entrega).getTime() - new Date(a.fecha_entrega).getTime())
-
-      return filteredSalidas
+      const { data, error } = await query
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al obtener salidas por material:', error)
       return []
@@ -128,24 +180,31 @@ export const salidasService = {
   // Obtener salidas por rango de fechas
   async getByDateRange(fechaDesde: string, fechaHasta: string, obraId?: string): Promise<Salida[]> {
     try {
-      const salidas = await localDB.getWithRelations('salidas', undefined, {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        requerimiento: { table: 'requerimientos', key: 'requerimiento_id' }
-      })
-
-      let filteredSalidas = salidas.filter(salida => 
-        salida.fecha_entrega >= fechaDesde && salida.fecha_entrega <= fechaHasta
-      )
+      let query = supabase
+        .from('salidas')
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
+          )
+        `)
+        .gte('fecha_entrega', fechaDesde)
+        .lte('fecha_entrega', fechaHasta)
+        .order('fecha_entrega', { ascending: false })
 
       if (obraId) {
-        filteredSalidas = filteredSalidas.filter(salida => salida.obra_id === obraId)
+        query = query.eq('obra_id', obraId)
       }
 
-      // Ordenar por fecha descendente
-      filteredSalidas.sort((a, b) => new Date(b.fecha_entrega).getTime() - new Date(a.fecha_entrega).getTime())
-
-      return filteredSalidas
+      const { data, error } = await query
+      
+      if (error) throw error
+      return data || []
     } catch (error) {
       console.error('Error al obtener salidas por rango de fechas:', error)
       return []
@@ -159,12 +218,18 @@ export const salidasService = {
     mensaje: string
   }> {
     try {
-      const stockItems = await localDB.get('stock_obra_material')
-      const stockItem = stockItems.find(item => 
-        item.obra_id === obraId && item.material_id === materialId
-      )
+      const { data: stockItem, error } = await supabase
+        .from('stock_obra_material')
+        .select('stock_actual')
+        .eq('obra_id', obraId)
+        .eq('material_id', materialId)
+        .single()
 
-      const stockActual = stockItem?.cantidad_actual || 0
+      if (error && error.code !== 'PGRST116') {
+        throw error
+      }
+
+      const stockActual = stockItem?.stock_actual || 0
       const disponible = stockActual >= cantidadSolicitada
 
       return {
@@ -184,185 +249,134 @@ export const salidasService = {
     }
   },
 
-  // Crear salida con validación de stock
-  async create(salida: SalidaFormData): Promise<Salida | null> {
+  // Crear nueva salida
+  async create(salidaData: SalidaFormData): Promise<Salida> {
     try {
       // Verificar stock disponible
       const stockCheck = await this.verificarStockDisponible(
-        salida.obra_id,
-        salida.material_id,
-        salida.cantidad
+        salidaData.obra_id,
+        salidaData.material_id,
+        salidaData.cantidad_entregada
       )
 
       if (!stockCheck.disponible) {
-        console.error('Stock insuficiente:', stockCheck.mensaje)
         throw new Error(stockCheck.mensaje)
       }
 
-      // Crear la salida
-      const salidaData = await localDB.create('salidas', {
-        ...salida,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      // Generar número de salida automático
+      const { count } = await supabase
+        .from('salidas')
+        .select('*', { count: 'exact', head: true })
+      
+      const numeroSalida = `SAL-${String((count || 0) + 1).padStart(6, '0')}`
 
-      if (!salidaData) {
-        console.error('Error al crear salida')
-        return null
-      }
+      const { data, error } = await supabase
+        .from('salidas')
+        .insert({
+          ...salidaData,
+          numero_salida: numeroSalida
+        })
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
+          )
+        `)
+        .single()
 
-      // Obtener con relaciones
-      const salidaCompleta = await localDB.getWithRelations('salidas', [salidaData.id], {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        requerimiento: { table: 'requerimientos', key: 'requerimiento_id' }
-      })
+      if (error) throw error
 
-      // Actualizar stock (restar cantidad)
-      await this.updateStock(salida.obra_id, salida.material_id, -salida.cantidad_entregada)
+      // Actualizar stock
+      await this.updateStock(salidaData.obra_id, salidaData.material_id, -salidaData.cantidad_entregada)
 
-      return salidaCompleta && salidaCompleta[0] ? salidaCompleta[0] : null
+      return data
     } catch (error) {
       console.error('Error al crear salida:', error)
-      return null
+      throw error
     }
   },
 
   // Crear múltiples salidas
-  async createBatch(salidas: SalidaFormData[]): Promise<Salida[]> {
+  async createBatch(salidasData: SalidaFormData[]): Promise<Salida[]> {
     try {
-      // Verificar stock para todas las salidas
-      for (const salida of salidas) {
-        const stockCheck = await this.verificarStockDisponible(
-          salida.obra_id,
-          salida.material_id,
-          salida.cantidad
-        )
-
-        if (!stockCheck.disponible) {
-          throw new Error(`Stock insuficiente para material ${salida.material_id}: ${stockCheck.mensaje}`)
-        }
-      }
-
-      const salidasCreadas = []
+      const salidas: Salida[] = []
       
-      for (const salida of salidas) {
-        const salidaData = await localDB.create('salidas', {
-          ...salida,
-          id: crypto.randomUUID(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-
-        if (salidaData) {
-          // Obtener con relaciones
-          const salidaCompleta = await localDB.getWithRelations('salidas', [salidaData.id], {
-            obra: { table: 'obras', key: 'obra_id' },
-            material: { table: 'materiales', key: 'material_id' },
-            requerimiento: { table: 'requerimientos', key: 'requerimiento_id' }
-          })
-          
-          if (salidaCompleta && salidaCompleta[0]) {
-            salidasCreadas.push(salidaCompleta[0])
-          }
-        }
+      for (const salidaData of salidasData) {
+        const salida = await this.create(salidaData)
+        salidas.push(salida)
       }
-
-      // Actualizar stock para cada salida
-      for (const salida of salidas) {
-        await this.updateStock(salida.obra_id, salida.material_id, -salida.cantidad_entregada)
-      }
-
-      return salidasCreadas
+      
+      return salidas
     } catch (error) {
       console.error('Error al crear salidas en lote:', error)
-      return []
+      throw error
     }
   },
 
   // Actualizar salida
-  async update(id: string, updates: Partial<SalidaFormData>): Promise<Salida | null> {
+  async update(id: string, salidaData: Partial<SalidaFormData>): Promise<Salida> {
     try {
-      // Obtener salida actual para calcular diferencia de stock
-      const salidaActual = await this.getById(id)
-      if (!salidaActual) {
-        console.error('Salida no encontrada')
-        return null
+      const salidaExistente = await this.getById(id)
+      if (!salidaExistente) {
+        throw new Error('Salida no encontrada')
       }
 
-      // Si se está cambiando la cantidad, verificar stock
-      if (updates.cantidad_entregada !== undefined && updates.cantidad_entregada !== salidaActual.cantidad_entregada) {
-        const diferencia = updates.cantidad_entregada - salidaActual.cantidad_entregada
-        
-        if (diferencia > 0) {
-          // Se está aumentando la cantidad, verificar stock disponible
-          const stockCheck = await this.verificarStockDisponible(
-            salidaActual.obra_id,
-            salidaActual.material_id,
-            diferencia
+      // Si se cambia la cantidad, ajustar el stock
+      if (salidaData.cantidad_entregada && salidaData.cantidad_entregada !== salidaExistente.cantidad_entregada) {
+        const diferencia = salidaData.cantidad_entregada - salidaExistente.cantidad_entregada
+        await this.updateStock(salidaExistente.obra_id, salidaExistente.material_id, -diferencia)
+      }
+
+      const { data, error } = await supabase
+        .from('salidas')
+        .update(salidaData)
+        .eq('id', id)
+        .select(`
+          *,
+          obra:obras(*),
+          solicitado_por_usuario:usuarios!salidas_solicitado_por_fkey(*),
+          autorizado_por_usuario:usuarios!salidas_autorizado_por_fkey(*),
+          entregado_por_usuario:usuarios!salidas_entregado_por_fkey(*),
+          salida_items(
+            *,
+            material:materiales(*)
           )
+        `)
+        .single()
 
-          if (!stockCheck.disponible) {
-            throw new Error(stockCheck.mensaje)
-          }
-        }
-      }
-
-      const salidaActualizada = await localDB.update('salidas', id, {
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-
-      if (!salidaActualizada) {
-        console.error('Error al actualizar salida')
-        return null
-      }
-
-      // Obtener con relaciones
-      const salidaCompleta = await localDB.getWithRelations('salidas', [id], {
-        obra: { table: 'obras', key: 'obra_id' },
-        material: { table: 'materiales', key: 'material_id' },
-        requerimiento: { table: 'requerimientos', key: 'requerimiento_id' }
-      })
-
-      // Si cambió la cantidad, actualizar stock
-      if (updates.cantidad_entregada !== undefined && updates.cantidad_entregada !== salidaActual.cantidad_entregada) {
-        const diferencia = updates.cantidad_entregada - salidaActual.cantidad_entregada
-        await this.updateStock(salidaActual.obra_id, salidaActual.material_id, -diferencia)
-      }
-
-      return salidaCompleta && salidaCompleta[0] ? salidaCompleta[0] : null
+      if (error) throw error
+      return data
     } catch (error) {
       console.error('Error al actualizar salida:', error)
-      return null
+      throw error
     }
   },
 
   // Eliminar salida
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string): Promise<void> {
     try {
-      // Obtener salida para revertir stock
       const salida = await this.getById(id)
       if (!salida) {
-        console.error('Salida no encontrada')
-        return false
+        throw new Error('Salida no encontrada')
       }
 
-      const eliminado = await localDB.delete('salidas', id)
-
-      if (!eliminado) {
-        console.error('Error al eliminar salida')
-        return false
-      }
-
-      // Revertir stock (sumar la cantidad de la salida)
+      // Restaurar stock
       await this.updateStock(salida.obra_id, salida.material_id, salida.cantidad_entregada)
 
-      return true
+      const { error } = await supabase
+        .from('salidas')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
     } catch (error) {
       console.error('Error al eliminar salida:', error)
-      return false
+      throw error
     }
   },
 
@@ -370,30 +384,41 @@ export const salidasService = {
   async updateStock(obraId: string, materialId: string, cantidadDelta: number): Promise<void> {
     try {
       // Verificar si existe registro de stock
-      const stockData = await localDB.get('stock_obra_material')
-      const stockExistente = stockData.find(stock => 
-        stock.obra_id === obraId && stock.material_id === materialId
-      )
+      const { data: stockExistente, error: selectError } = await supabase
+        .from('stock_obra_material')
+        .select('*')
+        .eq('obra_id', obraId)
+        .eq('material_id', materialId)
+        .single()
+
+      if (selectError && selectError.code !== 'PGRST116') {
+        throw selectError
+      }
 
       if (stockExistente) {
         // Actualizar stock existente
-        const nuevaCantidad = stockExistente.cantidad_actual + cantidadDelta
+        const nuevaCantidad = stockExistente.stock_actual + cantidadDelta
 
-      await localDB.update('stock_obra_material', stockExistente.id, {
-        cantidad_actual: Math.max(0, nuevaCantidad), // No permitir stock negativo
-          updated_at: new Date().toISOString()
-        })
+        const { error: updateError } = await supabase
+          .from('stock_obra_material')
+          .update({
+            stock_actual: Math.max(0, nuevaCantidad) // No permitir stock negativo
+          })
+          .eq('id', stockExistente.id)
+
+        if (updateError) throw updateError
       } else if (cantidadDelta > 0) {
         // Solo crear nuevo registro si la cantidad es positiva
-        await localDB.create('stock_obra_material', {
-          id: crypto.randomUUID(),
-          obra_id: obraId,
-          material_id: materialId,
-          cantidad_actual: cantidadDelta,
-        cantidad_minima: 10,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        const { error: insertError } = await supabase
+          .from('stock_obra_material')
+          .insert({
+            obra_id: obraId,
+            material_id: materialId,
+            stock_actual: cantidadDelta,
+            stock_minimo: 10
+          })
+
+        if (insertError) throw insertError
       }
     } catch (error) {
       console.error('Error al actualizar stock:', error)
@@ -407,14 +432,18 @@ export const salidasService = {
     ultima_salida: string | null
   }> {
     try {
-      const salidas = await localDB.get('salidas')
-      const salidasFiltradas = salidas
-        .filter(salida => salida.obra_id === obraId && salida.material_id === materialId)
-        .sort((a, b) => new Date(b.fecha_entrega).getTime() - new Date(a.fecha_entrega).getTime())
+      const { data: salidas, error } = await supabase
+        .from('salidas')
+        .select('cantidad_entregada, fecha_entrega')
+        .eq('obra_id', obraId)
+        .eq('material_id', materialId)
+        .order('fecha_entrega', { ascending: false })
 
-      const totalSalidas = salidasFiltradas.length
-      const cantidadTotal = salidasFiltradas.reduce((sum, salida) => sum + salida.cantidad_entregada, 0)
-      const ultimaSalida = salidasFiltradas[0]?.fecha_entrega || null
+      if (error) throw error
+
+      const totalSalidas = salidas?.length || 0
+      const cantidadTotal = salidas?.reduce((sum, salida) => sum + salida.cantidad_entregada, 0) || 0
+      const ultimaSalida = salidas?.[0]?.fecha_entrega || null
 
       return {
         total_salidas: totalSalidas,

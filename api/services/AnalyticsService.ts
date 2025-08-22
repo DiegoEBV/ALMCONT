@@ -56,6 +56,18 @@ export interface DashboardMetrics {
   };
 }
 
+export interface CalculatedMetric {
+  id?: string;
+  metric_type: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  metric_value: number;
+  metadata: Record<string, unknown>;
+  calculated_at?: string;
+}
+
 class AnalyticsService {
   /**
    * Obtiene los KPIs principales del sistema
@@ -355,8 +367,8 @@ class AnalyticsService {
     periodStart: string | null,
     periodEnd: string | null,
     metricValue: number,
-    metadata: Record<string, any> = {}
-  ): Promise<any> {
+    metadata: Record<string, unknown> = {}
+  ): Promise<CalculatedMetric> {
     try {
       const { data, error } = await supabase
         .from('calculated_metrics')
@@ -388,7 +400,7 @@ class AnalyticsService {
     entityType?: string,
     entityId?: string,
     limit: number = 100
-  ): Promise<any[]> {
+  ): Promise<CalculatedMetric[]> {
     try {
       let query = supabase
         .from('calculated_metrics')
@@ -418,10 +430,11 @@ class AnalyticsService {
   /**
    * Agrupa datos por fecha
    */
-  private groupByDate(data: any[], dateField: string) {
+  private groupByDate(data: Record<string, unknown>[], dateField: string) {
     const grouped = data.reduce((acc, item) => {
-      const date = new Date(item[dateField]).toISOString().split('T')[0];
-      acc[date] = (acc[date] || 0) + 1;
+      const dateValue = item[dateField] as string | Date;
+      const date = new Date(dateValue).toISOString().split('T')[0];
+      acc[date] = ((acc[date] as number) || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 

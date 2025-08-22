@@ -36,6 +36,11 @@ const AdminUsuarios: React.FC = () => {
     activo: true
   });
 
+  // Hook debe estar antes de cualquier return condicional
+  useEffect(() => {
+    loadData();
+  }, []);
+
   // Verificar permisos
   if (user?.rol !== 'COORDINACION') {
     return (
@@ -50,10 +55,6 @@ const AdminUsuarios: React.FC = () => {
       </div>
     );
   }
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const loadData = async () => {
     try {
@@ -76,10 +77,10 @@ const AdminUsuarios: React.FC = () => {
     e.preventDefault();
     try {
       if (editingUsuario) {
-        const updateData = { ...formData };
+        const updateData: Partial<UsuarioFormData> = { ...formData };
         // No actualizar password si está vacío
         if (!updateData.password) {
-          delete (updateData as any).password;
+          delete updateData.password;
         }
         await usuariosService.update(editingUsuario.id, updateData);
         toast.success('Usuario actualizado exitosamente');

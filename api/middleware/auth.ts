@@ -1,6 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+interface JwtPayload {
+  id?: string;
+  sub?: string;
+  email: string;
+  role?: string;
+}
+
 interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
@@ -22,16 +29,16 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
 
   try {
     const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
-    const decoded = jwt.verify(token, jwtSecret) as any;
+    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
     
     req.user = {
-      id: decoded.id || decoded.sub,
+      id: decoded.id || decoded.sub || '',
       email: decoded.email,
       role: decoded.role || 'user'
     };
     
     next();
-  } catch (error) {
+  } catch {
     return res.status(403).json({
       success: false,
       message: 'Invalid or expired token'
@@ -70,14 +77,14 @@ export const optionalAuth = (req: AuthenticatedRequest, res: Response, next: Nex
 
   try {
     const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
-    const decoded = jwt.verify(token, jwtSecret) as any;
+    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
     
     req.user = {
-      id: decoded.id || decoded.sub,
+      id: decoded.id || decoded.sub || '',
       email: decoded.email,
       role: decoded.role || 'user'
     };
-  } catch (error) {
+  } catch {
     // Ignore token errors in optional auth
   }
   
