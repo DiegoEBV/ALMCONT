@@ -69,7 +69,8 @@ export const dashboardService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!requerimientos_created_by_fkey(*),
+          aprobado_por_user:usuarios!requerimientos_aprobado_por_fkey(*)
         `)
         .order('created_at', { ascending: false })
         .limit(10)
@@ -83,7 +84,8 @@ export const dashboardService = {
           *,
           obra:obras(*),
           material:materiales(*),
-          usuario:usuarios(*)
+          recibido_por_user:usuarios!entradas_recibido_por_fkey(*),
+          verificado_por_user:usuarios!entradas_verificado_por_fkey(*)
         `)
         .order('created_at', { ascending: false })
         .limit(10)

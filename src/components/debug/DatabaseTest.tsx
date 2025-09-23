@@ -35,7 +35,7 @@ export default function DatabaseTest() {
         
         const sampleSolicitudes = solicitudes.slice(0, 5).map(s => ({
           id: s.id,
-          sc_numero: s.sc_numero,
+          numero_sc: s.numero_sc,
           proveedor: s.proveedor,
           estado: s.estado
         }))
@@ -114,7 +114,7 @@ export default function DatabaseTest() {
         <div className="space-y-1">
           {stats.sampleSolicitudes.map((sc) => (
             <div key={sc.id} className="text-sm bg-white p-2 rounded border">
-              <span className="font-mono text-blue-600">{sc.sc_numero}</span> - 
+              <span className="font-mono text-blue-600">{sc.numero_sc}</span> - 
               <span className="text-gray-600">{sc.proveedor}</span> - 
               <span className={`px-2 py-1 rounded text-xs ${
                 sc.estado === 'PENDIENTE' ? 'bg-yellow-100 text-yellow-800' :

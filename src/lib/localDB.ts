@@ -318,16 +318,22 @@ class LocalDatabase {
       }
       
       // Cargar directamente desde database.json usando import
-      const jsonData = database as Partial<DatabaseTable>
+      const jsonData = database as any
       console.log('📁 Archivo database.json cargado, tamaño:', Object.keys(jsonData).length)
       
-      // Asignar datos directamente con type assertions seguras
+      // Asignar datos directamente con type assertions seguras y mapeo de campos
       this.data = {
         usuarios: (jsonData.usuarios || []) as unknown as Usuario[],
         obras: (jsonData.obras || []) as unknown as Obra[],
         materiales: (jsonData.materiales || []) as unknown as Material[],
         requerimientos: (jsonData.requerimientos || []) as unknown as Requerimiento[],
-        solicitudes_compra: (jsonData.solicitudes_compra || []) as unknown as SolicitudCompra[],
+        solicitudes_compra: ((jsonData.solicitudes_compra || []) as any[]).map((sc: any) => {
+          const { sc_numero, ...rest } = sc;
+          return {
+            ...rest,
+            numero_sc: sc_numero || sc.numero_sc // Mapear sc_numero a numero_sc
+          };
+        }) as unknown as SolicitudCompra[],
         rq_sc: (jsonData.rq_sc || []) as unknown as RqSc[],
         ordenes_compra: (jsonData.ordenes_compra || []) as unknown as OrdenCompra[],
         sc_oc: (jsonData.sc_oc || []) as unknown as ScOc[]
@@ -478,7 +484,7 @@ export const localDB = new LocalDatabase({
     // Verificar datos cargados
     const solicitudes = await localDB.get('solicitudes_compra')
     console.log('Solicitudes de compra cargadas:', solicitudes.length)
-    console.log('Primeras 3 solicitudes:', solicitudes.slice(0, 3).map(s => ({ id: s.id, sc_numero: s.sc_numero })))
+    console.log('Primeras 3 solicitudes:', solicitudes.slice(0, 3).map(s => ({ id: s.id, numero_sc: s.numero_sc })))
     
     const requerimientos = await localDB.get('requerimientos')
     console.log('Requerimientos cargados:', requerimientos.length)

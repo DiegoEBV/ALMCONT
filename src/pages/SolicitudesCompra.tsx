@@ -2,29 +2,27 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline'
-import { useAuth } from '../hooks/useAuth'
 import { solicitudesCompraService } from '../services/solicitudesCompra'
 import { obrasService } from '../services/obras'
 import { SolicitudCompra, SolicitudCompraFormData, Obra, TableColumn } from '../types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
-import { CustomModal as Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter } from '../components/ui/modal'
+import { Table } from '../components/ui/table'
+import { CustomModal as Modal } from '../components/ui/modal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { toast } from 'sonner'
 
 const ESTADOS_SOLICITUD_COMPRA = [
   { value: '', label: 'Todos los estados' },
   { value: 'PENDIENTE', label: 'Pendiente' },
-  { value: 'APROBADA', label: 'Aprobada' },
-  { value: 'RECHAZADA', label: 'Rechazada' },
-  { value: 'EN_PROCESO', label: 'En Proceso' },
-  { value: 'COMPLETADA', label: 'Completada' }
+  { value: 'APROBADO', label: 'Aprobado' },
+  { value: 'RECHAZADO', label: 'Rechazado' },
+  { value: 'PROCESADO', label: 'Procesado' },
+  { value: 'CANCELADO', label: 'Cancelado' }
 ]
 
 export default function SolicitudesCompra() {
-  const { user } = useAuth()
   const [solicitudesCompra, setSolicitudesCompra] = useState<SolicitudCompra[]>([])
   const [obras, setObras] = useState<Obra[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,8 +42,8 @@ export default function SolicitudesCompra() {
 
   // Estados del formulario
   const [formData, setFormData] = useState<SolicitudCompraFormData>({
-    sc_numero: '',
     obra_id: '',
+    numero_sc: '',
     proveedor: '',
     fecha_solicitud: new Date().toISOString().split('T')[0],
     fecha_entrega: '',
@@ -57,11 +55,11 @@ export default function SolicitudesCompra() {
   // Definir columnas de la tabla
   const columns: TableColumn<SolicitudCompra>[] = [
     {
-      key: 'sc_numero',
+      key: 'numero_sc',
       title: 'N° SC',
       sortable: true,
       render: (value: string, item: SolicitudCompra) => (
-        <span className="font-mono text-sm">{item.sc_numero}</span>
+        <span className="font-mono text-sm">{item.numero_sc}</span>
       )
     },
     {
@@ -155,7 +153,7 @@ export default function SolicitudesCompra() {
     } catch (error) {
       console.error('Error al cargar solicitudes de compra:', error)
     }
-  }, [filters])
+  }, [])
 
   const loadObras = useCallback(async () => {
     try {
@@ -200,15 +198,15 @@ export default function SolicitudesCompra() {
   const handleEdit = (solicitud: SolicitudCompra) => {
     setEditingSolicitud(solicitud)
     setFormData({
-      sc_numero: solicitud.sc_numero,
-      obra_id: solicitud.obra_id,
-      proveedor: solicitud.proveedor,
-      fecha_solicitud: solicitud.fecha_solicitud,
-      fecha_entrega: solicitud.fecha_entrega || '',
-      estado: solicitud.estado,
-      total: solicitud.total,
-      observaciones: solicitud.observaciones || ''
-    })
+        obra_id: solicitud.obra_id,
+        numero_sc: solicitud.numero_sc,
+        proveedor: solicitud.proveedor,
+        fecha_solicitud: solicitud.fecha_solicitud,
+        fecha_entrega: solicitud.fecha_entrega || '',
+        estado: solicitud.estado,
+        total: solicitud.total,
+        observaciones: solicitud.observaciones || ''
+      })
     setShowModal(true)
   }
 
@@ -227,8 +225,8 @@ export default function SolicitudesCompra() {
 
   const resetForm = () => {
     setFormData({
-      sc_numero: '',
       obra_id: '',
+      numero_sc: '',
       proveedor: '',
       fecha_solicitud: new Date().toISOString().split('T')[0],
       fecha_entrega: '',
@@ -373,8 +371,8 @@ export default function SolicitudesCompra() {
             <Input
               label="Número SC"
               type="text"
-              value={formData.sc_numero}
-              onChange={(e) => setFormData({ ...formData, sc_numero: e.target.value })}
+              value={formData.numero_sc}
+                  onChange={(e) => setFormData({ ...formData, numero_sc: e.target.value })}
               required
             />
             <Select
@@ -410,7 +408,7 @@ export default function SolicitudesCompra() {
             <Select
               label="Estado"
               value={formData.estado}
-              onChange={(e) => setFormData({ ...formData, estado: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'PROCESADO' | 'CANCELADO' })}
               options={ESTADOS_SOLICITUD_COMPRA.filter(e => e.value !== '')}
               required
             />

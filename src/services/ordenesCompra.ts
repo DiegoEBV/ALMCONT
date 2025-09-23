@@ -10,7 +10,7 @@ export const ordenesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*),
+          created_by_user:usuarios!ordenes_compra_created_by_fkey(*),
           solicitud_compra:solicitudes_compra(*)
         `)
         .order('created_at', { ascending: false })
@@ -30,7 +30,7 @@ export const ordenesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*),
+          created_by_user:usuarios!ordenes_compra_created_by_fkey(*),
           solicitud_compra:solicitudes_compra(*)
         `)
         .eq('id', id)
@@ -51,7 +51,7 @@ export const ordenesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*),
+          created_by_user:usuarios!ordenes_compra_created_by_fkey(*),
           solicitud_compra:solicitudes_compra(*)
         `)
         .eq('obra_id', obraId)
@@ -72,7 +72,7 @@ export const ordenesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*),
+          created_by_user:usuarios!ordenes_compra_created_by_fkey(*),
           solicitud_compra:solicitudes_compra(*)
         `)
         .ilike('oc_numero', `%${numeroOc}%`)
@@ -93,7 +93,7 @@ export const ordenesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*),
+          created_by_user:usuarios!ordenes_compra_created_by_fkey(*),
           solicitud_compra:solicitudes_compra(*)
         `)
         .ilike('proveedor', `%${proveedor}%`)
@@ -114,7 +114,7 @@ export const ordenesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*),
+          created_by_user:usuarios!ordenes_compra_created_by_fkey(*),
           solicitud_compra:solicitudes_compra(*)
         `)
         .eq('estado', estado)
@@ -232,7 +232,7 @@ export const ordenesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*),
+          created_by_user:usuarios!ordenes_compra_created_by_fkey(*),
           solicitud_compra:solicitudes_compra(*)
         `)
         .eq('sc_id', scId)

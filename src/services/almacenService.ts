@@ -83,9 +83,9 @@ class AlmacenService {
       const solicitudesCompra = await solicitudesCompraService.getAll()
       console.log('Total solicitudes encontradas:', solicitudesCompra.length)
       console.log('Buscando SC:', numeroSC)
-      console.log('Primeras 3 SCs:', solicitudesCompra.slice(0, 3).map(s => ({ id: s.id, sc_numero: s.sc_numero })))
-      
-      const sc = solicitudesCompra.find(s => s.sc_numero === numeroSC)
+      console.log('Primeras 3 SCs:', solicitudesCompra.slice(0, 3).map(s => ({ id: s.id, numero_sc: s.numero_sc })))
+    
+    const sc = solicitudesCompra.find(s => s.numero_sc === numeroSC)
       console.log('SC encontrada:', sc)
       
       if (!sc) {

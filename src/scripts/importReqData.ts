@@ -183,10 +183,8 @@ export async function importReqData(): Promise<void> {
       try {
         console.log(`Processing item ${i + 1}/${reqData.length}: ${item['N° REQ.']}`);
         
-        // Get or create obra (now returns obra ID and location)
-        const obraResult = await getOrCreateObra(item.BLOQUE, item.EMPRESA);
-        const obraId = obraResult.obraId;
-        const ubicacion = obraResult.ubicacion;
+        // Get or create obra
+        const obraId = await getOrCreateObra(item.BLOQUE, item.EMPRESA);
         
         // Get or create material - skip if material is null/empty
         if (!item.MATERIAL || item.MATERIAL.trim() === '') {
@@ -227,10 +225,10 @@ export async function importReqData(): Promise<void> {
               fecha_necesidad: fechaNecesidad,
               solicitante: normalizeText(item.SOLICITANTE),
               area_solicitante: item.TIPO,
-              justificacion: `Requerimiento para ${item.MATERIAL} - Ubicación: ${ubicacion}`,
+              justificacion: `Requerimiento para ${item.MATERIAL}`,
               prioridad: 'MEDIA',
               estado: mapEstado(item.ESTADO),
-              observaciones: `Ubicación: ${ubicacion}${item.OBSERVACIONES ? ' - ' + item.OBSERVACIONES : ''}`,
+              observaciones: item.OBSERVACIONES || null,
               created_by: defaultUserId
             })
             .select('id')

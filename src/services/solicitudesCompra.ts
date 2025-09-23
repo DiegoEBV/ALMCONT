@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { NumberGeneratorService } from './numberGenerator'
-import type { SolicitudCompra, SolicitudCompraFormData, RqSc, Requerimiento } from '../types'
+import type { SolicitudCompra, SolicitudCompraFormData, Requerimiento } from '../types'
 
 export const solicitudesCompraService = {
   async getAll(): Promise<SolicitudCompra[]> {
@@ -10,7 +10,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .order('created_at', { ascending: false })
 
@@ -29,7 +30,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .eq('id', id)
         .single()
@@ -37,7 +39,7 @@ export const solicitudesCompraService = {
       if (error) throw error
       return data
     } catch (error) {
-      console.error('Error fetching solicitud compra:', error)
+      console.error('Error al obtener solicitud de compra:', error)
       return null
     }
   },
@@ -49,7 +51,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .eq('obra_id', obraId)
         .order('created_at', { ascending: false })
@@ -62,24 +65,105 @@ export const solicitudesCompraService = {
     }
   },
 
-  async searchByNumeroSC(numeroSc: string): Promise<SolicitudCompra[]> {
+  async searchByNumeroSC(numeroSC: string): Promise<SolicitudCompra[]> {
     try {
-      const { data, error } = await supabase
+      console.log('Buscando SC:', numeroSC)
+      
+      // Buscar directamente en la tabla requerimientos usando la columna numero_solicitud_compra
+      // Sin hacer JOIN con obras para evitar errores de relación
+      const { data: requerimientos, error: rqError } = await supabase
+        .from('requerimientos')
+        .select('*')
+        .eq('numero_solicitud_compra', numeroSC)
+      
+      if (rqError) {
+        console.error('Error al buscar requerimientos:', rqError)
+        throw rqError
+      }
+      
+      if (!requerimientos || requerimientos.length === 0) {
+        console.log('No se encontraron requerimientos para SC:', numeroSC)
+        throw new Error('No se encontró la solicitud de compra')
+      }
+      
+      console.log('Requerimientos encontrados:', requerimientos.length)
+      
+      // Obtener información de materiales por separado si es necesario
+      const materialIds = requerimientos
+        .map(req => req.material_id)
+        .filter(id => id)
+      
+      let materiales = []
+      if (materialIds.length > 0) {
+        const { data: materialesData, error: matError } = await supabase
+          .from('materiales')
+          .select('*')
+          .in('id', materialIds)
+        
+        if (!matError) {
+          materiales = materialesData || []
+        }
+      }
+      
+      // Obtener información de obras por separado si es necesario
+      const obraIds = requerimientos
+        .map(req => req.obra_id)
+        .filter(id => id)
+      
+      let obras = []
+      if (obraIds.length > 0) {
+        const { data: obrasData, error: obraError } = await supabase
+          .from('obras')
+          .select('*')
+          .in('id', obraIds)
+        
+        if (!obraError) {
+          obras = obrasData || []
+        }
+      }
+      
+      // Enriquecer requerimientos con información de materiales y obras
+      const requerimientosEnriquecidos = requerimientos.map(req => ({
+        ...req,
+        material: materiales.find(mat => mat.id === req.material_id) || null,
+        obra: obras.find(obra => obra.id === req.obra_id) || null
+      }))
+      
+      // Buscar la solicitud de compra para obtener información adicional
+      const { data: solicitud } = await supabase
         .from('solicitudes_compra')
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
-        .ilike('sc_numero', `%${numeroSc}%`)
-        .order('sc_numero')
-        .limit(50)
-
-      if (error) throw error
-      return data || []
+        .eq('numero_sc', numeroSC)
+        .single()
+      
+      // Si no encontramos la solicitud, crear una estructura básica
+      const solicitudBase = solicitud || {
+        id: `temp-${numeroSC}`,
+        numero_sc: numeroSC,
+        estado: 'PENDIENTE' as const,
+        fecha_solicitud: new Date().toISOString(),
+        obra: null,
+        created_by_user: null,
+        aprobado_por_user: null
+      }
+      
+      console.log('Solicitud base:', solicitudBase)
+      
+      // Agregar los requerimientos a la solicitud
+      const solicitudConRequerimientos = {
+        ...solicitudBase,
+        requerimientos: requerimientosEnriquecidos
+      }
+      
+      return [solicitudConRequerimientos]
     } catch (error) {
-      console.error('Error al buscar por número SC:', error)
-      return []
+      console.error('Error al buscar solicitud por número SC:', error)
+      throw error
     }
   },
 
@@ -90,7 +174,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .ilike('proveedor', `%${proveedor}%`)
         .order('created_at', { ascending: false })
@@ -110,7 +195,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .eq('estado', estado)
         .order('created_at', { ascending: false })
@@ -126,11 +212,11 @@ export const solicitudesCompraService = {
   async create(solicitud: SolicitudCompraFormData): Promise<SolicitudCompra | null> {
     try {
       // Generar número automático si no se proporciona
-      const scNumero = solicitud.sc_numero || await NumberGeneratorService.generateUniqueNumber('SC')
+      const scNumero = solicitud.numero_sc || await NumberGeneratorService.generateUniqueNumber('SC')
       
       const newSolicitud = {
         ...solicitud,
-        sc_numero: scNumero,
+        numero_sc: scNumero,
         estado: 'PENDIENTE' as const,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -142,7 +228,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .single()
       
@@ -166,7 +253,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .single()
       
@@ -191,7 +279,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .single()
       
@@ -215,7 +304,8 @@ export const solicitudesCompraService = {
         .select(`
           *,
           obra:obras(*),
-          usuario:usuarios(*)
+          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
         `)
         .single()
       
@@ -247,7 +337,7 @@ export const solicitudesCompraService = {
       let query = supabase
         .from('solicitudes_compra')
         .select('id')
-        .eq('sc_numero', scNumero)
+        .eq('numero_sc', scNumero)
       
       if (excludeId) {
         query = query.neq('id', excludeId)
@@ -286,22 +376,25 @@ export const RqScService = {
     }
   },
 
-  async getRequerimientosBySC(scId: string): Promise<any[]> {
+  async getRequerimientosBySC(scId: string): Promise<Requerimiento[]> {
     try {
       const { data, error } = await supabase
         .from('rq_sc')
         .select(`
-          rq_id,
-          requerimiento:requerimientos(
+          requerimientos!inner(
             *,
             obra:obras(*),
-            materiales:materiales(*)
+            material:materiales(*)
           )
         `)
         .eq('sc_id', scId)
       
       if (error) throw error
-      return data?.map(item => item.requerimiento).filter(Boolean) || []
+      
+      // Extraer los requerimientos de la estructura anidada
+      const requerimientos = (data?.map(item => item.requerimientos).filter(Boolean) || []) as unknown as Requerimiento[]
+      console.log('Requerimientos obtenidos para SC:', scId, requerimientos)
+      return requerimientos
     } catch (error) {
       console.error('Error al obtener requerimientos por SC:', error)
       return []
@@ -317,7 +410,8 @@ export const RqScService = {
           solicitud_compra:solicitudes_compra(
             *,
             obra:obras(*),
-            usuario:usuarios(*)
+            created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
+            aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
           )
         `)
         .eq('rq_id', rqId)

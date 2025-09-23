@@ -41,26 +41,22 @@ export default function Entradas() {
     try {
       const solicitudes = await solicitudesCompraService.searchByNumeroSC(numeroSC.trim())
       const solicitud = solicitudes.length > 0 ? solicitudes[0] : null
-       if (solicitud && solicitud.requerimientos) {
+       if (solicitud && solicitud.requerimientos && solicitud.requerimientos.length > 0) {
          const lineas = solicitud.requerimientos.map(req => ({
-           codigoMaterial: req.material?.codigo || '',
-           nombreMaterial: req.material?.nombre || '',
+           codigoMaterial: req.material?.codigo || req.material_id || '',
+           nombreMaterial: req.material?.nombre || req.descripcion || '',
            cantidadPedida: req.cantidad_solicitada || 0,
            cantidadAtendida: 0,
            atendido: false,
            solicitante: req.solicitante || '',
            numeroRQ: req.numero_rq || '',
-           unidad: req.material?.unidad || ''
+           unidad: req.material?.unidad || req.unidad || ''
          }))
          setLineasSC(lineas)
-         if (lineas.length === 0) {
-           toast.warning('No se encontraron requerimientos para esta SC')
-         } else {
-           toast.success(`Se encontraron ${lineas.length} requerimientos`)
-         }
+         toast.success(`Se encontraron ${lineas.length} requerimientos para SC: ${numeroSC}`)
        } else {
          setLineasSC([])
-         toast.warning('No se encontraron requerimientos para esta SC')
+         toast.warning(`No se encontraron requerimientos para la SC: ${numeroSC}`)
        }
     } catch (error) {
       console.error('Error al buscar SC:', error)

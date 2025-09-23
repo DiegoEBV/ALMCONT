@@ -178,7 +178,7 @@ export interface SalidaFormData {
 
 export interface SolicitudCompraFormData {
   obra_id: string
-  sc_numero?: string
+  numero_sc?: string
   oc_numero?: string
   proveedor?: string
   fecha_solicitud: string
@@ -191,7 +191,7 @@ export interface SolicitudCompraFormData {
 
 export interface SolicitudCompra {
   id: string
-  sc_numero: string
+  numero_sc: string
   obra_id: string
   proveedor: string
   fecha_solicitud: string

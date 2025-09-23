@@ -402,7 +402,7 @@ export default function OrdenesCompra() {
               onChange={(e) => setFormData({ ...formData, sc_id: e.target.value })}
               options={[
                 { value: '', label: 'Seleccionar SC' },
-                ...solicitudesCompra.map(sc => ({ value: sc.id, label: `${sc.sc_numero} - ${sc.proveedor}` }))
+                ...solicitudesCompra.map(sc => ({ value: sc.id, label: `${sc.numero_sc} - ${sc.proveedor}` }))
               ]}
               required
             />

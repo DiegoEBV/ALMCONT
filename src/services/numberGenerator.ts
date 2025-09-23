@@ -55,13 +55,13 @@ export class NumberGeneratorService {
       
       // Filtrar solicitudes del año actual
       const currentYearSCs = solicitudes.filter(sc => 
-        sc.sc_numero?.startsWith(prefix)
+        sc.numero_sc?.startsWith(prefix)
       )
       
       // Encontrar el número más alto
       let maxNumber = 0
       currentYearSCs.forEach(sc => {
-        const match = sc.sc_numero?.match(/SC-\d{4}-(\d{4})$/)
+        const match = sc.numero_sc?.match(/SC-\d{4}-(\d{4})$/)
         if (match) {
           const num = parseInt(match[1], 10)
           if (num > maxNumber) {
@@ -129,7 +129,7 @@ export class NumberGeneratorService {
         }
         case 'SC': {
           const solicitudes = await localDB.get('solicitudes_compra')
-          return solicitudes.some(sc => sc.sc_numero === number)
+          return solicitudes.some(sc => sc.numero_sc === number)
         }
         case 'OC': {
           const ordenes = await localDB.get('ordenes_compra')
