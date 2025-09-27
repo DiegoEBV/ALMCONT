@@ -3,7 +3,6 @@ import { useAuth } from '../hooks/useAuth'
 import { dashboardService, DashboardStats } from '../services/dashboardService'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import type { Requerimiento, Entrada } from '../types'
-import DatabaseTest from '../components/debug/DatabaseTest'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -89,9 +88,6 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600">Resumen general del sistema de almacén</p>
       </div>
-
-      {/* Componente de prueba de base de datos */}
-      <DatabaseTest />
 
       {/* Indicador de datos mock */}
       {usingMockData && (
