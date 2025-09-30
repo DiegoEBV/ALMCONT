@@ -77,6 +77,11 @@ const SelectContent = React.forwardRef<
         className
       )}
       position={position}
+      // Prevent aria-hidden conflicts by ensuring proper focus management
+      onCloseAutoFocus={(event) => {
+        // Prevent focus issues that can cause aria-hidden conflicts
+        event.preventDefault()
+      }}
       {...props}
     >
       <SelectScrollUpButton />

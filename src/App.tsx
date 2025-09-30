@@ -1,4 +1,5 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { AuthProvider } from './hooks/useAuth'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import Login from './components/auth/Login'
@@ -24,6 +25,9 @@ import AdvancedAnalytics from './pages/AdvancedAnalytics'
 import Perfil from './pages/Perfil'
 import AdminObras from './pages/AdminObras'
 import AdminUsuarios from './pages/AdminUsuarios'
+import ProductionDashboard from './pages/ProductionDashboard'
+import CreateRequirement from './pages/CreateRequirement'
+import RequirementsTracking from './pages/RequirementsTracking'
 import './App.css'
 
 function App() {
@@ -64,11 +68,21 @@ function App() {
               }
             />
             
+            {/* Solicitudes de Compra - Accesible para COORDINACION y LOGISTICA */}
+            <Route
+              path="solicitudes-compra"
+              element={
+                <ProtectedRoute allowedRoles={['COORDINACION', 'LOGISTICA']}>
+                  <SolicitudesCompra />
+                </ProtectedRoute>
+              }
+            />
+            
             {/* Módulo Logística - Solo LOGISTICA */}
             <Route
               path="logistica/solicitudes-compra"
               element={
-                <ProtectedRoute allowedRoles={['LOGISTICA']}>
+                <ProtectedRoute allowedRoles={['COORDINACION','LOGISTICA']}>
                   <SolicitudesCompra />
                 </ProtectedRoute>
               }
@@ -112,6 +126,32 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['ALMACENERO']}>
                   <WarehouseDashboard />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Módulo Producción - Solo PRODUCCION */}
+            <Route
+              path="produccion/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['PRODUCCION']}>
+                  <ProductionDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="produccion/crear-requerimiento"
+              element={
+                <ProtectedRoute allowedRoles={['PRODUCCION']}>
+                  <CreateRequirement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="produccion/seguimiento"
+              element={
+                <ProtectedRoute allowedRoles={['PRODUCCION']}>
+                  <RequirementsTracking />
                 </ProtectedRoute>
               }
             />
@@ -196,6 +236,12 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
+      <Toaster 
+        position="top-right" 
+        richColors 
+        closeButton 
+        duration={4000}
+      />
     </AuthProvider>
   )
 }

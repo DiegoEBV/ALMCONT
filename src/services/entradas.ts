@@ -54,29 +54,32 @@ export const entradasService = {
     }
   },
 
-  async create(data: Omit<Entrada, 'id' | 'created_at' | 'updated_at'>): Promise<Entrada> {
-    try {
-      const { data: newEntrada, error } = await supabase
-        .from('entradas')
-        .insert([data])
-        .select(`
-          *,
-          obra:obras(*),
-          recibido_por_usuario:usuarios!entradas_recibido_por_fkey(*),
-          verificado_por_usuario:usuarios!entradas_verificado_por_fkey(*),
-          entrada_items(
-            *,
-            material:materiales(*)
-          )
-        `)
-        .single()
-      
-      if (error) throw error
-      return newEntrada
-    } catch (error) {
-      console.error('Error creating entrada:', error)
-      throw new Error('Error al crear entrada')
+  async create(entrada: {
+    numero_entrada: string
+    obra_id: string
+    fecha_entrada: string
+    proveedor?: string
+    documento_referencia?: string
+    observaciones?: string
+    estado?: string
+    recibido_por: string
+  }) {
+    const { data, error } = await supabase
+      .from('entradas')
+      .insert(entrada)
+      .select(`
+        *,
+        obra:obras(*),
+        recibido_por_usuario:usuarios!recibido_por(*)
+      `)
+      .single()
+
+    if (error) {
+      console.error('Error al crear entrada:', error)
+      throw error
     }
+
+    return data
   },
 
   async update(id: string, data: Partial<Omit<Entrada, 'id' | 'created_at'>>): Promise<Entrada> {

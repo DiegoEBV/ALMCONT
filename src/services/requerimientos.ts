@@ -1,11 +1,30 @@
-import { supabase } from '../lib/supabase'
+import { supabase, setSupabaseUserContext } from '../lib/supabase'
 import { NumberGeneratorService } from './numberGenerator'
+import { localAuth } from './localAuth'
+import { mapLocalIdToUUID } from '../utils/idMapper'
 import type { Requerimiento, RequerimientoFormData, RequerimientoFilters } from '../types'
+
+// Función auxiliar para establecer contexto de usuario con mapeo de UUID
+async function setUserContextWithMapping(): Promise<void> {
+  const currentUser = localAuth.getCurrentUser()
+  if (currentUser) {
+    // Mapear ID local a UUID de Supabase
+    const userUUID = await mapLocalIdToUUID(currentUser.id, 'usuario')
+    if (userUUID) {
+      await setSupabaseUserContext(userUUID)
+    } else {
+      console.warn('No se pudo mapear el usuario local a UUID de Supabase:', currentUser.id)
+    }
+  }
+}
 
 export const requerimientosService = {
   // Obtener requerimiento por ID
   async getById(id: string): Promise<Requerimiento | null> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('requerimientos')
         .select('*')
@@ -28,6 +47,9 @@ export const requerimientosService = {
   async getAll(filters?: RequerimientoFilters): Promise<Requerimiento[]> {
     try {
       console.log('🔄 Iniciando carga de requerimientos con filtros:', filters)
+      
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
       
       let query = supabase
         .from('requerimientos')
@@ -123,6 +145,9 @@ export const requerimientosService = {
   async create(requerimiento: RequerimientoFormData): Promise<Requerimiento | null> {
     try {
       console.log('🔄 Iniciando creación de requerimiento:', requerimiento)
+      
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
       
       // Generar número automático si no se proporciona
       const numeroReq = requerimiento.numero_requerimiento || await NumberGeneratorService.generateUniqueNumber('RQ')

@@ -56,3 +56,34 @@
   --input: 217.2 32.6% 17.5%;
   --ring: 212.7 26.8% 83.9%;
 }
+
+/* Dropdown and Select improvements */
+[data-radix-select-content] {
+  z-index: 9999 !important;
+  position: fixed !important;
+}
+
+[data-radix-dropdown-menu-content] {
+  z-index: 9999 !important;
+  position: fixed !important;
+}
+
+/* Improve dropdown positioning */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+/* Prevent focus trapping issues in dropdowns */
+[data-radix-select-content] [data-radix-select-item] {
+  outline: none;
+}
+
+[data-radix-select-content] [data-radix-select-item]:focus {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* Ensure parent containers don't clip dropdowns */
+.container {
+  overflow: visible !important;
+}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug LocalDB User</title>
+</head>
+<body>
+    <h1>Debug LocalDB User</h1>
+    <p>Verificando si el usuario existe en la base de datos local</p>
+    
+    <script>
+        function debugLocalDBUser() {
+            console.log('=== DEBUG LOCALDB USER ===');
+            
+            // 1. Verificar localStorage de sesión
+            const sessionData = localStorage.getItem('almacen_auth_session');
+            if (!sessionData) {
+                console.log('❌ No hay sesión en localStorage');
+                return;
+            }
+            
+            const session = JSON.parse(sessionData);
+            const userId = session.user.id;
+            console.log('1. Usuario ID de la sesión:', userId);
+            
+            // 2. Verificar localStorage de la base de datos
+            const dbData = localStorage.getItem('almacen_obra_db');
+            console.log('2. Datos de la base de datos en localStorage:', dbData ? 'Existen' : 'No existen');
+            
+            if (dbData) {
+                try {
+                    const db = JSON.parse(dbData);
+                    console.log('3. Estructura de la base de datos:', Object.keys(db));
+                    
+                    if (db.usuarios) {
+                        console.log('4. Número de usuarios en la base de datos:', db.usuarios.length);
+                        console.log('5. Usuarios disponibles:', db.usuarios.map(u => ({ id: u.id, email: u.email, rol: u.rol })));
+                        
+                        // Buscar el usuario específico
+                        const user = db.usuarios.find(u => u.id === userId);
+                        if (user) {
+                            console.log('✅ Usuario encontrado en la base de datos:', user);
+                            console.log('6. refreshUser() debería funcionar correctamente');
+                        } else {
+                            console.log('❌ Usuario NO encontrado en la base de datos');
+                            console.log('7. Este es el problema: refreshUser() falla porque no encuentra el usuario');
+                            console.log('8. Usuarios disponibles por ID:');
+                            db.usuarios.forEach(u => {
+                                console.log(`   - ID: ${u.id}, Email: ${u.email}`);
+                            });
+                            console.log('9. Usuario buscado:', userId);
+                            
+                            // Verificar si hay un usuario con el mismo email
+                            const userByEmail = db.usuarios.find(u => u.email === session.user.email);
+                            if (userByEmail) {
+                                console.log('10. ✅ Encontrado usuario con el mismo email pero diferente ID:', userByEmail);
+                                console.log('11. Solución: Actualizar la sesión con el ID correcto');
+                                
+                                // Crear nueva sesión con el ID correcto
+                                const newSession = {
+                                    ...session,
+                                    user: {
+                                        ...session.user,
+                                        id: userByEmail.id
+                                    }
+                                };
+                                
+                                localStorage.setItem('almacen_auth_session', JSON.stringify(newSession));
+                                console.log('12. ✅ Sesión actualizada con ID correcto');
+                                console.log('13. Recarga la página principal para ver los cambios');
+                            } else {
+                                console.log('10. ❌ No se encontró usuario con el mismo email');
+                                console.log('11. Solución: Crear el usuario en la base de datos o usar un ID existente');
+                            }
+                        }
+                    } else {
+                        console.log('❌ No hay tabla de usuarios en la base de datos');
+                    }
+                } catch (error) {
+                    console.error('❌ Error al parsear datos de la base de datos:', error);
+                }
+            } else {
+                console.log('❌ No hay datos de la base de datos en localStorage');
+                console.log('3. La base de datos local no se ha inicializado');
+                console.log('4. Solución: Forzar la inicialización de la base de datos');
+            }
+        }
+        
+        // Ejecutar automáticamente
+        window.addEventListener('load', () => {
+            setTimeout(debugLocalDBUser, 1000);
+        });
+        
+        window.debugLocalDBUser = debugLocalDBUser;
+    </script>
+</body>
+</html>

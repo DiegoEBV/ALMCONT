@@ -206,7 +206,7 @@ const ImportErrorDisplay: React.FC<ImportErrorDisplayProps> = ({
           Problemas Encontrados {groupedIssues.length > maxDisplayItems && `(Mostrando ${maxDisplayItems} de ${groupedIssues.length})`}
         </h4>
         
-        <div className="space-y-2 max-h-96 overflow-y-auto">
+        <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-visible">
           {groupedIssues.slice(0, maxDisplayItems).map((group, index) => (
             <div
               key={index}

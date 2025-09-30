@@ -1,4 +1,7 @@
 import { localDB } from '../lib/localDB'
+import { syncService } from './syncService'
+import { setSupabaseUserContext } from '../lib/supabase'
+import { mapLocalIdToUUID } from '../utils/idMapper'
 import { Usuario, AuthUser, AuthSession } from '../types'
 
 // Re-exportar tipos para uso externo
@@ -44,6 +47,19 @@ class LocalAuthService {
       this.currentSession = session
       this.saveSession()
 
+      // Establecer contexto de usuario en Supabase para RLS
+      try {
+        const userUUID = await mapLocalIdToUUID(usuario.id, 'usuario')
+        if (userUUID) {
+          await setSupabaseUserContext(userUUID)
+        } else {
+          console.warn('No se pudo mapear el usuario local a UUID de Supabase:', usuario.id)
+        }
+      } catch (error) {
+        console.warn('Error al establecer contexto de usuario en Supabase:', error)
+        // No fallar la autenticación por este error
+      }
+
       return { user: authUser, session }
     } catch (error) {
       console.error('Error en signIn:', error)
@@ -85,36 +101,53 @@ class LocalAuthService {
 
   // Refrescar datos del usuario
   async refreshUser(): Promise<AuthUser | null> {
-    const currentUser = this.getCurrentUser()
-    if (!currentUser) {
+    try {
+      const currentUser = this.getCurrentUser()
+      if (!currentUser) {
+        return null
+      }
+
+      // Obtener datos actualizados del usuario desde la base de datos local
+      const updatedUserData = await localDB.getById('usuarios', currentUser.id)
+      if (!updatedUserData) {
+        return null
+      }
+
+      // Obtener información de la obra si está asignada
+      let obra = null
+      if (updatedUserData.obra_id) {
+        // Primero intentar obtener la obra localmente
+        obra = await localDB.getById('obras', updatedUserData.obra_id)
+        
+        // Si no existe localmente, sincronizar desde Supabase
+        if (!obra) {
+          console.log(`Obra ${updatedUserData.obra_id} no encontrada localmente, sincronizando desde Supabase...`)
+          obra = await syncService.syncObraById(updatedUserData.obra_id)
+        }
+      }
+
+      const updatedUser: AuthUser = {
+        id: updatedUserData.id,
+        email: updatedUserData.email,
+        nombre: updatedUserData.nombre,
+        apellido: updatedUserData.apellido,
+        rol: updatedUserData.rol,
+        obra_id: updatedUserData.obra_id,
+        activo: updatedUserData.activo,
+        obra: obra
+      }
+
+      // Actualizar la sesión con los datos frescos
+      this.saveSession({
+        user: updatedUser,
+        token: this.loadSession()?.token || ''
+      })
+
+      return updatedUser
+    } catch (error) {
+      console.error('Error refreshing user:', error)
       return null
     }
-
-    // Obtener datos actualizados del usuario
-    const usuarios = await localDB.get('usuarios')
-    const usuario = usuarios.find(u => u.id === currentUser.id)
-    if (!usuario || !usuario.activo) {
-      await this.signOut()
-      return null
-    }
-
-    // Actualizar sesión con datos frescos
-    const updatedUser: AuthUser = {
-      id: usuario.id,
-      email: usuario.email,
-      nombre: usuario.nombre,
-      apellido: usuario.apellido,
-      rol: usuario.rol,
-      obra_id: usuario.obra_id,
-      activo: usuario.activo
-    }
-
-    if (this.currentSession) {
-      this.currentSession.user = updatedUser
-      this.saveSession()
-    }
-
-    return updatedUser
   }
 
   // Actualizar perfil del usuario actual
@@ -222,14 +255,23 @@ class LocalAuthService {
     }
   }
 
-  // Obtener usuarios (solo para administración)
+  // Obtener usuarios (solo para administración o durante autenticación)
   async getUsers(): Promise<Usuario[]> {
     const currentUser = this.getCurrentUser()
-    if (!currentUser || currentUser.rol !== 'COORDINACION') {
+    
+    // SIEMPRE permitir acceso durante autenticación (cuando no hay usuario actual)
+    // También permitir si el usuario actual tiene rol de COORDINACION
+    if (currentUser !== null && currentUser.rol !== 'COORDINACION') {
       throw new Error('No tienes permisos para ver usuarios')
     }
 
     return await localDB.get('usuarios')
+  }
+
+  // Guardar sesión de Supabase
+  async saveSupabaseSession(session: AuthSession): Promise<void> {
+    this.currentSession = session
+    this.saveSession()
   }
 
   // Crear usuario (solo para administración)
@@ -277,6 +319,49 @@ class LocalAuthService {
     }
 
     return await localDB.delete('usuarios', id)
+  }
+
+  // Actualizar obra asignada del usuario actual
+  async updateObraAsignada(obraId: string | null): Promise<boolean> {
+    try {
+      const currentUser = this.getCurrentUser()
+      if (!currentUser) {
+        return false
+      }
+
+      // Actualizar en la base de datos local
+      await localDB.update('usuarios', currentUser.id, { obra_id: obraId })
+
+      // Obtener información completa de la obra
+      let obra = null
+      if (obraId) {
+        // Primero intentar obtener la obra localmente
+        obra = await localDB.getById('obras', obraId)
+        
+        // Si no existe localmente, sincronizar desde Supabase
+        if (!obra) {
+          console.log(`Obra ${obraId} no encontrada localmente, sincronizando desde Supabase...`)
+          obra = await syncService.syncObraById(obraId)
+        }
+      }
+
+      // Actualizar la sesión actual
+      const updatedUser = {
+        ...currentUser,
+        obra_id: obraId,
+        obra: obra
+      }
+      
+      this.saveSession({
+        user: updatedUser,
+        token: this.loadSession()?.token || ''
+      })
+
+      return true
+    } catch (error) {
+      console.error('Error updating obra asignada:', error)
+      return false
+    }
   }
 }
 

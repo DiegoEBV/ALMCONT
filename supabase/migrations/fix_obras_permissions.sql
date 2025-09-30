@@ -1,63 +1,33 @@
--- Verificar y corregir permisos para la tabla obras
+-- Verificar permisos actuales para la tabla obras
+SELECT grantee, table_name, privilege_type 
+FROM information_schema.role_table_grants 
+WHERE table_schema = 'public' 
+AND table_name = 'obras' 
+AND grantee IN ('anon', 'authenticated') 
+ORDER BY table_name, grantee;
 
--- Otorgar permisos básicos a los roles anon y authenticated
+-- Otorgar permisos de lectura a los roles anon y authenticated
 GRANT SELECT ON obras TO anon;
 GRANT ALL PRIVILEGES ON obras TO authenticated;
 
--- Crear políticas RLS para permitir operaciones CRUD
--- Eliminar políticas existentes si existen
-DROP POLICY IF EXISTS "obras_select_policy" ON obras;
-DROP POLICY IF EXISTS "obras_insert_policy" ON obras;
-DROP POLICY IF EXISTS "obras_update_policy" ON obras;
-DROP POLICY IF EXISTS "obras_delete_policy" ON obras;
+-- Verificar permisos después de otorgarlos
+SELECT grantee, table_name, privilege_type 
+FROM information_schema.role_table_grants 
+WHERE table_schema = 'public' 
+AND table_name = 'obras' 
+AND grantee IN ('anon', 'authenticated') 
+ORDER BY table_name, grantee;
 
--- Política para SELECT (lectura) - permitir a usuarios autenticados
-CREATE POLICY "obras_select_policy" ON obras
+-- Crear política RLS para permitir lectura de obras
+DROP POLICY IF EXISTS "Allow read access to obras" ON obras;
+CREATE POLICY "Allow read access to obras" ON obras
     FOR SELECT
-    TO authenticated
     USING (true);
 
--- Política para INSERT (creación) - permitir a usuarios autenticados
-CREATE POLICY "obras_insert_policy" ON obras
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (true);
-
--- Política para UPDATE (actualización) - permitir a usuarios autenticados
-CREATE POLICY "obras_update_policy" ON obras
-    FOR UPDATE
+-- Crear política RLS para permitir inserción/actualización a usuarios autenticados
+DROP POLICY IF EXISTS "Allow authenticated users to manage obras" ON obras;
+CREATE POLICY "Allow authenticated users to manage obras" ON obras
+    FOR ALL
     TO authenticated
     USING (true)
     WITH CHECK (true);
-
--- Política para DELETE (eliminación) - permitir a usuarios autenticados
-CREATE POLICY "obras_delete_policy" ON obras
-    FOR DELETE
-    TO authenticated
-    USING (true);
-
--- Verificar que RLS esté habilitado
-ALTER TABLE obras ENABLE ROW LEVEL SECURITY;
-
--- Mostrar las políticas creadas
-SELECT 
-    schemaname, 
-    tablename, 
-    policyname, 
-    permissive, 
-    roles, 
-    cmd, 
-    qual 
-FROM pg_policies 
-WHERE tablename = 'obras';
-
--- Verificar permisos otorgados
-SELECT 
-    grantee, 
-    table_name, 
-    privilege_type 
-FROM information_schema.role_table_grants 
-WHERE table_schema = 'public' 
-    AND table_name = 'obras' 
-    AND grantee IN ('anon', 'authenticated') 
-ORDER BY table_name, grantee;

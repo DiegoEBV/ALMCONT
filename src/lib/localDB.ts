@@ -137,8 +137,8 @@ class LocalDatabase {
       obras: [
         {
           id: '1',
-          nombre: 'Obra Principal',
-          codigo: 'OP-001',
+          nombre: 'Proyecto CHAVIN',
+          codigo: 'PROYECTO-CHAVIN',
           ubicacion: 'Lima, Perú',
           estado: 'ACTIVA',
           fecha_inicio: '2024-01-01',
@@ -475,28 +475,28 @@ export const localDB = new LocalDatabase({
   version: '1.0.0'
 })
 
-// Forzar la inicialización inmediata desde database.json
-;(async () => {
-  try {
-    await localDB.forceReloadFromDatabase()
-    console.log('✅ Base de datos inicializada correctamente desde database.json')
-    
-    // Verificar datos cargados
-    const solicitudes = await localDB.get('solicitudes_compra')
-    console.log('Solicitudes de compra cargadas:', solicitudes.length)
-    console.log('Primeras 3 solicitudes:', solicitudes.slice(0, 3).map(s => ({ id: s.id, numero_sc: s.numero_sc })))
-    
-    const requerimientos = await localDB.get('requerimientos')
-    console.log('Requerimientos cargados:', requerimientos.length)
-    
-    const materiales = await localDB.get('materiales')
-    console.log('Materiales cargados:', materiales.length)
-    
-    const rqSc = await localDB.get('rq_sc')
-    console.log('Relaciones RQ-SC cargadas:', rqSc.length)
-  } catch (error) {
-    console.error('❌ Error inicializando base de datos:', error)
-  }
-})()
+// Forzar la inicialización inmediata desde database.json - DESHABILITADO PARA USAR SUPABASE
+// ;(async () => {
+//   try {
+//     await localDB.forceReloadFromDatabase()
+//     console.log('✅ Base de datos inicializada correctamente desde database.json')
+//     
+//     // Verificar datos cargados
+//     const solicitudes = await localDB.get('solicitudes_compra')
+//     console.log('Solicitudes de compra cargadas:', solicitudes.length)
+//     console.log('Primeras 3 solicitudes:', solicitudes.slice(0, 3).map(s => ({ id: s.id, numero_sc: s.numero_sc })))
+//     
+//     const requerimientos = await localDB.get('requerimientos')
+//     console.log('Requerimientos cargados:', requerimientos.length)
+//     
+//     const materiales = await localDB.get('materiales')
+//     console.log('Materiales cargados:', materiales.length)
+//     
+//     const rqSc = await localDB.get('rq_sc')
+//     console.log('Relaciones RQ-SC cargadas:', rqSc.length)
+//   } catch (error) {
+//     console.error('❌ Error inicializando base de datos:', error)
+//   }
+// })()
 
 export default localDB

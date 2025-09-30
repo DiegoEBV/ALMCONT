@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Auth</title>
+</head>
+<body>
+    <h1>Debug de Autenticación</h1>
+    <div id="output"></div>
+    <script>
+        const output = document.getElementById('output');
+        
+        // Verificar localStorage
+        const authUser = localStorage.getItem('auth_user');
+        const authSession = localStorage.getItem('auth_session');
+        
+        output.innerHTML += '<h2>LocalStorage:</h2>';
+        output.innerHTML += '<p><strong>auth_user:</strong> ' + (authUser || 'null') + '</p>';
+        output.innerHTML += '<p><strong>auth_session:</strong> ' + (authSession || 'null') + '</p>';
+        
+        // Verificar si hay datos en localStorage
+        output.innerHTML += '<h2>Todos los datos de localStorage:</h2>';
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const value = localStorage.getItem(key);
+            output.innerHTML += '<p><strong>' + key + ':</strong> ' + value + '</p>';
+        }
+        
+        // Intentar cargar datos desde database.json
+        fetch('./database.json')
+            .then(response => response.json())
+            .then(data => {
+                output.innerHTML += '<h2>Datos de database.json:</h2>';
+                output.innerHTML += '<h3>Usuarios:</h3>';
+                data.usuarios.forEach(user => {
+                    output.innerHTML += '<p>' + user.email + ' - ' + user.rol + '</p>';
+                });
+            })
+            .catch(error => {
+                output.innerHTML += '<p>Error cargando database.json: ' + error.message + '</p>';
+            });
+    </script>
+</body>
+</html>

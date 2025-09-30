@@ -1,10 +1,41 @@
-import { supabase } from '../lib/supabase'
+import { supabase, setSupabaseUserContext } from '../lib/supabase'
 import { NumberGeneratorService } from './numberGenerator'
+import { localAuth } from './localAuth'
+import { mapLocalIdToUUID } from '../utils/idMapper'
 import type { SolicitudCompra, SolicitudCompraFormData, Requerimiento } from '../types'
+
+// Función auxiliar para establecer contexto de usuario con mapeo de UUID
+async function setUserContextWithMapping(): Promise<void> {
+  const currentUser = localAuth.getCurrentUser()
+  if (currentUser) {
+    // Si el usuario tiene supabaseId, usarlo directamente
+    if (currentUser.supabaseId) {
+      console.log('Usando supabaseId directamente:', currentUser.supabaseId)
+      await supabase.rpc('set_user_context', {
+        user_id: currentUser.supabaseId,
+        user_role: currentUser.rol
+      })
+    } else {
+      // Fallback: mapear ID local a UUID de Supabase
+      const userUUID = await mapLocalIdToUUID(currentUser.id, 'usuario')
+      if (userUUID) {
+        await supabase.rpc('set_user_context', {
+          user_id: userUUID,
+          user_role: currentUser.rol
+        })
+      } else {
+        console.warn('No se pudo mapear el usuario local a UUID de Supabase:', currentUser.id)
+      }
+    }
+  }
+}
 
 export const solicitudesCompraService = {
   async getAll(): Promise<SolicitudCompra[]> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('solicitudes_compra')
         .select(`
@@ -25,6 +56,9 @@ export const solicitudesCompraService = {
 
   async getById(id: string): Promise<SolicitudCompra | null> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('solicitudes_compra')
         .select(`
@@ -46,6 +80,9 @@ export const solicitudesCompraService = {
 
   async getByObra(obraId: string): Promise<SolicitudCompra[]> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('solicitudes_compra')
         .select(`
@@ -67,6 +104,9 @@ export const solicitudesCompraService = {
 
   async searchByNumeroSC(numeroSC: string): Promise<SolicitudCompra[]> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       console.log('Buscando SC:', numeroSC)
       
       // Buscar directamente en la tabla requerimientos usando la columna numero_solicitud_compra
@@ -130,16 +170,16 @@ export const solicitudesCompraService = {
       }))
       
       // Buscar la solicitud de compra para obtener información adicional
-      const { data: solicitud } = await supabase
+      const { data: solicitud, error: solicitudError } = await supabase
         .from('solicitudes_compra')
-        .select(`
-          *,
-          obra:obras(*),
-          created_by_user:usuarios!solicitudes_compra_created_by_fkey(*),
-          aprobado_por_user:usuarios!solicitudes_compra_aprobado_por_fkey(*)
-        `)
+        .select('*')
         .eq('numero_sc', numeroSC)
         .single()
+      
+      // Si hay error, no es crítico, continuamos sin la solicitud
+      if (solicitudError) {
+        console.warn('No se encontró solicitud de compra:', solicitudError.message)
+      }
       
       // Si no encontramos la solicitud, crear una estructura básica
       const solicitudBase = solicitud || {
@@ -169,6 +209,9 @@ export const solicitudesCompraService = {
 
   async getByProveedor(proveedor: string): Promise<SolicitudCompra[]> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('solicitudes_compra')
         .select(`
@@ -190,6 +233,9 @@ export const solicitudesCompraService = {
 
   async getByEstado(estado: 'PENDIENTE' | 'ASIGNADA' | 'ATENDIDA' | 'CANCELADA'): Promise<SolicitudCompra[]> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('solicitudes_compra')
         .select(`
@@ -211,6 +257,19 @@ export const solicitudesCompraService = {
 
   async create(solicitud: SolicitudCompraFormData): Promise<SolicitudCompra | null> {
     try {
+      // Verificar permisos - solo COORDINACION puede crear solicitudes
+    const currentUser = localAuth.getCurrentUser()
+    if (!currentUser || currentUser.rol !== 'COORDINACION') {
+        throw new Error('No tienes permisos para crear solicitudes de compra')
+      }
+      
+      // Establecer contexto de usuario para RLS
+      const userUUID = await mapLocalIdToUUID(currentUser.id, 'usuario')
+      if (!userUUID) {
+        throw new Error('No se pudo mapear el usuario a UUID de Supabase')
+      }
+      await setSupabaseUserContext(userUUID)
+      
       // Generar número automático si no se proporciona
       const scNumero = solicitud.numero_sc || await NumberGeneratorService.generateUniqueNumber('SC')
       
@@ -218,6 +277,7 @@ export const solicitudesCompraService = {
         ...solicitud,
         numero_sc: scNumero,
         estado: 'PENDIENTE' as const,
+        created_by: userUUID,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -237,12 +297,21 @@ export const solicitudesCompraService = {
       return data
     } catch (error) {
       console.error('Error al crear solicitud de compra:', error)
-      return null
+      throw error
     }
   },
 
   async update(id: string, updates: Partial<SolicitudCompraFormData>): Promise<SolicitudCompra | null> {
     try {
+      // Verificar permisos - solo COORDINACION puede actualizar solicitudes
+    const currentUser = localAuth.getCurrentUser()
+    if (!currentUser || currentUser.rol !== 'COORDINACION') {
+        throw new Error('No tienes permisos para actualizar solicitudes de compra')
+      }
+      
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('solicitudes_compra')
         .update({
@@ -262,12 +331,15 @@ export const solicitudesCompraService = {
       return data
     } catch (error) {
       console.error('Error al actualizar solicitud de compra:', error)
-      return null
+      throw error
     }
   },
 
   async asignar(id: string, asignadoA: string): Promise<SolicitudCompra | null> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('solicitudes_compra')
         .update({
@@ -294,6 +366,9 @@ export const solicitudesCompraService = {
 
   async updateEstado(id: string, estado: 'PENDIENTE' | 'ASIGNADA' | 'ATENDIDA' | 'CANCELADA'): Promise<SolicitudCompra | null> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('solicitudes_compra')
         .update({
@@ -319,6 +394,15 @@ export const solicitudesCompraService = {
 
   async delete(id: string): Promise<boolean> {
     try {
+      // Verificar permisos - solo COORDINACION puede eliminar solicitudes
+    const currentUser = localAuth.getCurrentUser()
+    if (!currentUser || currentUser.rol !== 'COORDINACION') {
+        throw new Error('No tienes permisos para eliminar solicitudes de compra')
+      }
+      
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { error } = await supabase
         .from('solicitudes_compra')
         .delete()
@@ -328,12 +412,15 @@ export const solicitudesCompraService = {
       return true
     } catch (error) {
       console.error('Error al eliminar solicitud de compra:', error)
-      return false
+      throw error
     }
   },
 
   async checkNumeroSCExists(scNumero: string, excludeId?: string): Promise<boolean> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       let query = supabase
         .from('solicitudes_compra')
         .select('id')
@@ -357,6 +444,9 @@ export const solicitudesCompraService = {
 export const RqScService = {
   async asociarRequerimientos(scId: string, requerimientoIds: string[]): Promise<boolean> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       // Crear las asociaciones
       const asociaciones = requerimientoIds.map(rqId => ({
         sc_id: scId,
@@ -378,6 +468,9 @@ export const RqScService = {
 
   async getRequerimientosBySC(scId: string): Promise<Requerimiento[]> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('rq_sc')
         .select(`
@@ -403,6 +496,9 @@ export const RqScService = {
 
   async getSCsByRequerimiento(rqId: string): Promise<SolicitudCompra[]> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { data, error } = await supabase
         .from('rq_sc')
         .select(`
@@ -426,6 +522,9 @@ export const RqScService = {
 
   async desasociarRequerimiento(scId: string, rqId: string): Promise<boolean> {
     try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+      
       const { error } = await supabase
         .from('rq_sc')
         .delete()

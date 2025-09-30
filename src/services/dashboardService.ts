@@ -9,49 +9,88 @@ export interface DashboardStats {
 
 export const dashboardService = {
   async getStats(): Promise<DashboardStats> {
+    console.log('📊 DashboardService: Iniciando getStats...')
+    console.log('📊 Supabase client configurado:', !!supabase)
+    
     try {
       // Obtener requerimientos pendientes
+      console.log('📊 Consultando requerimientos pendientes...')
       const { data: requerimientos, error: reqError } = await supabase
-        .from('requerimientos')
-        .select('id')
-        .eq('estado', 'pendiente')
+        .from('requerimiento_materiales')
+        .select('id, estado')
+        .eq('estado', 'PENDIENTE')
       
-      if (reqError) throw reqError
-      
-      // Obtener stock bajo (cantidad < 10)
+      if (reqError) {
+        console.error('❌ Error consultando requerimientos:', reqError)
+        console.error('❌ Detalles del error:', JSON.stringify(reqError, null, 2))
+      } else {
+        console.log('✅ Requerimientos obtenidos:', requerimientos?.length || 0)
+        console.log('✅ Datos requerimientos:', requerimientos)
+      }
+
+      // Obtener stock bajo (menos de 10 unidades)
+      console.log('📊 Consultando stock bajo...')
       const { data: stockBajo, error: stockError } = await supabase
         .from('stock_obra_material')
-        .select('id')
-        .lt('cantidad_actual', 10)
+        .select('id, stock_actual')
+        .lt('stock_actual', 10)
       
-      if (stockError) throw stockError
-      
+      if (stockError) {
+        console.error('❌ Error consultando stock:', stockError)
+        console.error('❌ Detalles del error:', JSON.stringify(stockError, null, 2))
+      } else {
+        console.log('✅ Items con stock bajo:', stockBajo?.length || 0)
+        console.log('✅ Datos stock bajo:', stockBajo)
+      }
+
       // Obtener entradas del mes actual
-      const currentMonth = new Date()
-      const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+      console.log('📊 Consultando entradas del mes...')
+      const inicioMes = new Date()
+      inicioMes.setDate(1)
+      inicioMes.setHours(0, 0, 0, 0)
+      console.log('📊 Fecha inicio mes:', inicioMes.toISOString())
+      
       const { data: entradas, error: entradasError } = await supabase
         .from('entradas')
-        .select('id')
-        .gte('fecha_recepcion', firstDayOfMonth.toISOString())
+        .select('id, created_at')
+        .gte('created_at', inicioMes.toISOString())
       
-      if (entradasError) throw entradasError
-      
+      if (entradasError) {
+        console.error('❌ Error consultando entradas:', entradasError)
+        console.error('❌ Detalles del error:', JSON.stringify(entradasError, null, 2))
+      } else {
+        console.log('✅ Entradas del mes:', entradas?.length || 0)
+        console.log('✅ Datos entradas:', entradas)
+      }
+
       // Obtener salidas del mes actual
+      console.log('📊 Consultando salidas del mes...')
       const { data: salidas, error: salidasError } = await supabase
         .from('salidas')
-        .select('id')
-        .gte('fecha_entrega', firstDayOfMonth.toISOString())
+        .select('id, created_at')
+        .gte('created_at', inicioMes.toISOString())
       
-      if (salidasError) throw salidasError
-      
-      return {
+      if (salidasError) {
+        console.error('❌ Error consultando salidas:', salidasError)
+        console.error('❌ Detalles del error:', JSON.stringify(salidasError, null, 2))
+      } else {
+        console.log('✅ Salidas del mes:', salidas?.length || 0)
+        console.log('✅ Datos salidas:', salidas)
+      }
+
+      const stats = {
         requerimientosPendientes: requerimientos?.length || 0,
         stockBajo: stockBajo?.length || 0,
         entradasMes: entradas?.length || 0,
         salidasMes: salidas?.length || 0
       }
+      
+      console.log('📊 Stats finales calculadas:', stats)
+      
+      return stats
     } catch (error) {
-      console.error('Error obteniendo estadísticas:', error)
+      console.error('❌ Error general en getStats:', error)
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack available')
       return {
         requerimientosPendientes: 0,
         stockBajo: 0,
@@ -65,27 +104,29 @@ export const dashboardService = {
     try {
       // Obtener requerimientos recientes (últimos 10)
       const { data: requerimientos, error: reqError } = await supabase
-        .from('requerimientos')
+        .from('requerimiento_materiales')
         .select(`
-          *,
-          obra:obras(*),
-          created_by_user:usuarios!requerimientos_created_by_fkey(*),
-          aprobado_por_user:usuarios!requerimientos_aprobado_por_fkey(*)
+          id,
+          codigo,
+          estado,
+          comentarios,
+          created_at,
+          fecha_solicitud
         `)
         .order('created_at', { ascending: false })
         .limit(10)
       
       if (reqError) throw reqError
       
-      // Obtener entradas recientes (últimas 10)
+      // Obtener entradas recientes (últimas 10) con items
       const { data: entradas, error: entradasError } = await supabase
         .from('entradas')
         .select(`
-          *,
-          obra:obras(*),
-          material:materiales(*),
-          recibido_por_user:usuarios!entradas_recibido_por_fkey(*),
-          verificado_por_user:usuarios!entradas_verificado_por_fkey(*)
+          id,
+          numero_entrada,
+          proveedor,
+          created_at,
+          recibido_por
         `)
         .order('created_at', { ascending: false })
         .limit(10)

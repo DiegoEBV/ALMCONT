@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Edit, Trash2, Search, Filter, Shield, Building2, Mail, Calendar, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Users, UserPlus, Edit, Trash2, Search, Filter, Shield, Building2, Mail, Calendar, ToggleLeft, ToggleRight, Wrench } from 'lucide-react';
 import { usuariosService } from '../services/usuarios';
 import { obrasService } from '../services/obras';
+import { supabaseUsersService } from '../services/supabaseUsers';
+import { mapLocalIdToUUID } from '../utils/idMapper';
 import { useAuth } from '../hooks/useAuth';
 import type { Usuario, UserRole, Obra } from '../types';
 import { toast } from 'sonner';
@@ -82,10 +84,75 @@ const AdminUsuarios: React.FC = () => {
         if (!updateData.password) {
           delete updateData.password;
         }
+        
+        // Actualizar en la base de datos local
         await usuariosService.update(editingUsuario.id, updateData);
+        
+        // Si se cambió la obra asignada, actualizar también en Supabase
+        if (updateData.obra_id !== editingUsuario.obra_id) {
+          const obraId = updateData.obra_id || null;
+          // Convertir ID local a UUID de Supabase si es necesario
+          let obraUUID = null;
+          if (obraId) {
+            try {
+              obraUUID = await mapLocalIdToUUID(obraId, 'obra');
+              if (!obraUUID) {
+                throw new Error(`No se pudo mapear la obra con ID local: ${obraId}`);
+              }
+              console.log('Obra mapeada exitosamente:', { localId: obraId, uuid: obraUUID });
+            } catch (error) {
+              console.error('Error mapeando obra ID:', error);
+              toast.error('Error: No se pudo asignar la obra seleccionada');
+              return;
+            }
+          }
+          
+          // Convertir ID local del usuario a UUID de Supabase
+          let userUUID = null;
+          try {
+            userUUID = await mapLocalIdToUUID(editingUsuario.id, 'usuario');
+            if (!userUUID) {
+              throw new Error(`No se pudo mapear el usuario con ID local: ${editingUsuario.id}`);
+            }
+            console.log('Usuario mapeado exitosamente:', { localId: editingUsuario.id, uuid: userUUID });
+          } catch (error) {
+            console.error('Error mapeando usuario ID:', error);
+            toast.error('Error: No se pudo identificar el usuario en Supabase');
+            return;
+          }
+          
+          await supabaseUsersService.updateObraAsignada(userUUID, obraUUID);
+        }
+        
         toast.success('Usuario actualizado exitosamente');
       } else {
-        await usuariosService.create(formData);
+        // Crear usuario
+        const newUser = await usuariosService.create(formData);
+        
+        // Si se asignó una obra, actualizar también en Supabase
+        if (formData.obra_id) {
+          try {
+            // Convertir ID local a UUID de Supabase
+            const obraUUID = await mapLocalIdToUUID(formData.obra_id, 'obra');
+            if (!obraUUID) {
+              throw new Error(`No se pudo mapear la obra con ID local: ${formData.obra_id}`);
+            }
+            console.log('Obra mapeada para nuevo usuario:', { localId: formData.obra_id, uuid: obraUUID });
+            
+            // Convertir ID local del nuevo usuario a UUID de Supabase
+            const userUUID = await mapLocalIdToUUID(newUser.id, 'usuario');
+            if (!userUUID) {
+              throw new Error(`No se pudo mapear el nuevo usuario con ID local: ${newUser.id}`);
+            }
+            console.log('Nuevo usuario mapeado exitosamente:', { localId: newUser.id, uuid: userUUID });
+            
+            await supabaseUsersService.updateObraAsignada(userUUID, obraUUID);
+          } catch (error) {
+            console.error('Error mapeando IDs para nuevo usuario:', error);
+            toast.error('Usuario creado pero no se pudo asignar la obra');
+          }
+        }
+        
         toast.success('Usuario creado exitosamente');
       }
       await loadData();
@@ -173,7 +240,8 @@ const AdminUsuarios: React.FC = () => {
     const colors = {
       COORDINACION: 'bg-purple-100 text-purple-800',
       LOGISTICA: 'bg-blue-100 text-blue-800',
-      ALMACENERO: 'bg-green-100 text-green-800'
+      ALMACENERO: 'bg-green-100 text-green-800',
+      PRODUCCION: 'bg-orange-100 text-orange-800'
     };
     return colors[rol] || 'bg-gray-100 text-gray-800';
   };
@@ -186,6 +254,8 @@ const AdminUsuarios: React.FC = () => {
         return <Users className="h-4 w-4" />;
       case 'ALMACENERO':
         return <Building2 className="h-4 w-4" />;
+      case 'PRODUCCION':
+        return <Wrench className="h-4 w-4" />;
       default:
         return <Users className="h-4 w-4" />;
     }
@@ -255,6 +325,7 @@ const AdminUsuarios: React.FC = () => {
                   <option value="COORDINACION">Coordinación</option>
                   <option value="LOGISTICA">Logística</option>
                   <option value="ALMACENERO">Almacenero</option>
+                  <option value="PRODUCCION">Producción</option>
                 </select>
               </div>
               <div className="flex items-center space-x-2">
@@ -483,6 +554,7 @@ const AdminUsuarios: React.FC = () => {
                     <option value="ALMACENERO">Almacenero</option>
                     <option value="LOGISTICA">Logística</option>
                     <option value="COORDINACION">Coordinación</option>
+                    <option value="PRODUCCION">Producción</option>
                   </select>
                 </div>
 

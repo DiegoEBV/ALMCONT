@@ -1,19 +1,28 @@
 import React, { useState, useEffect } from 'react'
-import { useAuth } from '../hooks/useAuth'
-import { dashboardService, DashboardStats } from '../services/dashboardService'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
-import type { Requerimiento, Entrada } from '../types'
+import { useAuth } from '../hooks/useAuth'
+import { dashboardService } from '../services/dashboardService'
+import { obrasService } from '../services/obras'
+import type { Requerimiento, Entrada, Obra } from '../types'
 
 export default function Dashboard() {
+  console.log('🚀 Dashboard: Componente inicializándose...')
   const { user } = useAuth()
-  const [stats, setStats] = useState<DashboardStats>({
+  console.log('🚀 Dashboard: Usuario obtenido:', user)
+  
+  const [stats, setStats] = useState({
     requerimientosPendientes: 0,
     stockBajo: 0,
     entradasMes: 0,
     salidasMes: 0
   })
   const [loading, setLoading] = useState(true)
+  
+  console.log('🔍 Dashboard: Estado actual:', { stats, loading })
+  console.log('🔍 Dashboard: Stats detallados:', JSON.stringify(stats, null, 2))
+  console.log('🔍 Dashboard: Loading:', loading)
   const [usingMockData, setUsingMockData] = useState(false)
+  const [userObra, setUserObra] = useState<Obra | null>(null)
   const [recentActivity, setRecentActivity] = useState<{
     requerimientos: Array<{
       id: number;
@@ -39,13 +48,23 @@ export default function Dashboard() {
   })
 
   useEffect(() => {
+    console.log('🔄 Dashboard: Component initialized')
+    console.log('👤 Dashboard: User data:', user)
+    console.log('🔐 Dashboard: User authenticated:', !!user)
+    console.log('🏢 Dashboard: User obra_id:', user?.obra_id)
+    console.log('👥 Dashboard: User role:', user?.rol)
+    
     const loadDashboardData = async () => {
       try {
+        console.log('🔍 Dashboard: Iniciando carga de datos...')
+        console.log('🔍 Dashboard: Usuario actual:', user)
         setLoading(true)
         const [statsData, activityData] = await Promise.all([
           dashboardService.getStats(),
           dashboardService.getRecentActivity()
         ])
+        console.log('🔍 Dashboard: Stats obtenidas:', statsData)
+        console.log('🔍 Dashboard: Actividad obtenida:', activityData)
         setStats(statsData)
         setUsingMockData(dashboardService.isUsingMockData())
         setRecentActivity({
@@ -72,8 +91,9 @@ export default function Dashboard() {
             fecha_entrada: String(entrada.created_at || entrada.fecha_entrada)
           }))
         })
+        console.log('🔍 Dashboard: Datos procesados correctamente')
       } catch (error) {
-        console.error('Error cargando datos del dashboard:', error)
+        console.error('❌ Dashboard: Error cargando datos:', error)
       } finally {
         setLoading(false)
       }
@@ -81,6 +101,25 @@ export default function Dashboard() {
 
     loadDashboardData()
   }, [])
+
+  // Cargar información de la obra asignada
+  useEffect(() => {
+    const loadUserObra = async () => {
+      if (user?.obra_id) {
+        try {
+          const obra = await obrasService.getById(user.obra_id)
+          setUserObra(obra)
+        } catch (error) {
+          console.error('Error cargando obra del usuario:', error)
+          setUserObra(null)
+        }
+      } else {
+        setUserObra(null)
+      }
+    }
+
+    loadUserObra()
+  }, [user?.obra_id])
 
   return (
     <div className="space-y-6">
@@ -157,7 +196,7 @@ export default function Dashboard() {
           </div>
           <div>
             <p className="text-sm font-medium text-gray-500">Obra</p>
-            <p className="text-lg text-gray-900">{user?.obra?.nombre || 'No asignada'}</p>
+            <p className="text-lg text-gray-900">{userObra?.nombre || user?.obra?.nombre || 'Sin obra asignada'}</p>
           </div>
         </div>
       </div>

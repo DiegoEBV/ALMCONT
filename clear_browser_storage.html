@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpiar Storage del Navegador</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background-color: #dc3545;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background-color: #c82333;
+        }
+        .success {
+            background-color: #28a745;
+        }
+        .success:hover {
+            background-color: #218838;
+        }
+        .info {
+            background-color: #17a2b8;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Limpiar Storage del Navegador</h1>
+        
+        <div class="info">
+            <strong>⚠️ IMPORTANTE:</strong> Esta herramienta limpiará todos los datos almacenados localmente por la aplicación. 
+            Esto puede resolver problemas de autenticación causados por datos corruptos en localStorage.
+        </div>
+
+        <h3>Acciones disponibles:</h3>
+        
+        <button class="button" onclick="checkStorage()">
+            📊 Verificar Storage Actual
+        </button>
+        
+        <button class="button" onclick="clearAlmacenStorage()">
+            🗑️ Limpiar Solo Datos de Almacén
+        </button>
+        
+        <button class="button" onclick="clearAllStorage()">
+            💥 Limpiar Todo el Storage
+        </button>
+        
+        <button class="button success" onclick="reloadData()">
+            🔄 Recargar Datos Frescos
+        </button>
+
+        <div id="log" class="log"></div>
+
+        <div class="info">
+            <strong>Pasos recomendados:</strong><br>
+            1. Verificar storage actual<br>
+            2. Limpiar datos de almacén<br>
+            3. Recargar datos frescos<br>
+            4. Volver a la aplicación e intentar login
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function checkStorage() {
+            log('=== VERIFICANDO STORAGE ACTUAL ===');
+            
+            // Verificar localStorage
+            log(`localStorage items: ${localStorage.length}`);
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                if (key.includes('almacen') || key.includes('auth')) {
+                    log(`- ${key}: ${value ? value.substring(0, 100) + '...' : 'null'}`);
+                }
+            }
+            
+            // Verificar sessionStorage
+            log(`sessionStorage items: ${sessionStorage.length}`);
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key.includes('almacen') || key.includes('auth')) {
+                    log(`- ${key}: ${sessionStorage.getItem(key)?.substring(0, 100)}...`);
+                }
+            }
+            
+            log('✅ Verificación completada');
+        }
+
+        function clearAlmacenStorage() {
+            log('=== LIMPIANDO DATOS DE ALMACÉN ===');
+            
+            let cleared = 0;
+            const keysToRemove = [];
+            
+            // Identificar claves relacionadas con almacén
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('almacen') || key.includes('auth') || key.includes('session'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            // Remover las claves identificadas
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                log(`Removido: ${key}`);
+                cleared++;
+            });
+            
+            // Limpiar sessionStorage también
+            sessionStorage.clear();
+            log('SessionStorage limpiado');
+            
+            log(`✅ ${cleared} items removidos del localStorage`);
+        }
+
+        function clearAllStorage() {
+            log('=== LIMPIANDO TODO EL STORAGE ===');
+            
+            const localCount = localStorage.length;
+            const sessionCount = sessionStorage.length;
+            
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            log(`✅ ${localCount} items removidos del localStorage`);
+            log(`✅ ${sessionCount} items removidos del sessionStorage`);
+            log('⚠️ TODOS los datos del navegador han sido limpiados');
+        }
+
+        function reloadData() {
+            log('=== RECARGANDO DATOS FRESCOS ===');
+            
+            // Simular la carga inicial de datos
+            try {
+                // Esto forzará a la aplicación a recargar desde database.json
+                log('🔄 Datos limpiados - la aplicación recargará desde database.json');
+                log('✅ Listo para intentar login nuevamente');
+                log('');
+                log('👉 AHORA PUEDES VOLVER A LA APLICACIÓN E INTENTAR LOGIN CON:');
+                log('   Email: coordinador@obra.com');
+                log('   Password: password123');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Auto-verificar al cargar la página
+        window.onload = function() {
+            log('🚀 Herramienta de limpieza cargada');
+            log('Haz clic en "Verificar Storage Actual" para comenzar');
+        };
+    </script>
+</body>
+</html>

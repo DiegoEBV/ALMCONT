@@ -357,7 +357,7 @@ const LogisticsDashboard: React.FC = () => {
                     />
                   </div>
                   
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                  <div className="space-y-2 max-h-96 overflow-y-auto overflow-x-visible">
                     {deliveryLocations.map((location) => (
                       <div key={location.id} className="flex items-center space-x-2 p-2 border rounded">
                         <Checkbox

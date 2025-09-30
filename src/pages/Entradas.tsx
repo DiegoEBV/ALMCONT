@@ -1,12 +1,16 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Search, Package, CheckCircle, XCircle, Save, AlertTriangle, Camera as CameraIcon, Image } from 'lucide-react'
 import { entradasService } from '../services/entradas'
 import { solicitudesCompraService } from '../services/solicitudesCompra'
+import { materialesService } from '../services/materiales'
+import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
 import { Camera } from '../components/Camera';
 import { PhotoGallery, type GalleryPhoto } from '../components/PhotoGallery';
 import { usePhotoCapture, type CapturedPhoto } from '../hooks/usePhotoCapture';
-import type { SolicitudCompra } from '../types';
+import { useAuth } from '../hooks/useAuth';
+import { mapLocalIdToUUID } from '../utils/idMapper'
+
 
 interface LineaSCParaEntrada {
   codigoMaterial: string
@@ -17,9 +21,11 @@ interface LineaSCParaEntrada {
   solicitante: string
   numeroRQ: string
   unidad: string
+  proveedor?: string
 }
 
 export default function Entradas() {
+  const { user } = useAuth()
   const [numeroSC, setNumeroSC] = useState('SC-01')
   const [lineasSC, setLineasSC] = useState<LineaSCParaEntrada[]>([])
   const [loading, setLoading] = useState(false)
@@ -27,6 +33,9 @@ export default function Entradas() {
   const [showCamera, setShowCamera] = useState(false)
   const [selectedMaterial, setSelectedMaterial] = useState<LineaSCParaEntrada | null>(null)
   const [showPhotos, setShowPhotos] = useState<string | null>(null)
+  const [obraSeleccionada, setObraSeleccionada] = useState('')
+  const [fechaEntrada, setFechaEntrada] = useState(new Date().toISOString().split('T')[0])
+  const [observaciones, setObservaciones] = useState('')
   
   // Hook para gestionar fotos del movimiento de entrada
   const { photos: movementPhotos, capturePhoto, deletePhoto, downloadPhoto } = usePhotoCapture()
@@ -45,7 +54,7 @@ export default function Entradas() {
          const lineas = solicitud.requerimientos.map(req => ({
            codigoMaterial: req.material?.codigo || req.material_id || '',
            nombreMaterial: req.material?.nombre || req.descripcion || '',
-           cantidadPedida: req.cantidad_solicitada || 0,
+           cantidadPedida: req.cantidad || 0,
            cantidadAtendida: 0,
            atendido: false,
            solicitante: req.solicitante || '',
@@ -88,35 +97,121 @@ export default function Entradas() {
   }
 
   const guardarEntradas = async () => {
-    const lineasConEntrada = lineasSC.filter(l => l.cantidadAtendida > 0)
-    
-    if (lineasConEntrada.length === 0) {
-      toast.error('Debe registrar al menos una entrada con cantidad mayor a 0')
-      return
-    }
-
-    setGuardando(true)
     try {
-      // Filtrar líneas con cantidad > 0
-      const lineasConEntrada = lineasSC.filter(l => l.cantidadAtendida > 0)
+      setGuardando(true)
       
-      // Crear entradas para cada línea con cantidad > 0
-      for (const linea of lineasConEntrada) {
-        await entradasService.create({
-          obra_id: 'obra-1', // TODO: obtener obra_id del contexto
-          material_id: linea.codigoMaterial,
-          cantidad_recibida: linea.cantidadAtendida,
-          cantidad_atendida: linea.cantidadAtendida,
-          fecha_recepcion: new Date().toISOString().split('T')[0],
-          fecha_entrada: new Date().toISOString().split('T')[0],
-          numero_sc: numeroSC,
-          proveedor: 'Por definir',
-          recibido_por: 'Usuario actual', // TODO: obtener del contexto de usuario
-          observaciones: 'Entrada registrada desde módulo de entradas',
-          usuario_id: 'user-1'
-        })
+      // Verificar que el usuario tenga obra asignada
+      if (!user?.obra_id) {
+        toast.error('No tienes una obra asignada. Contacta al coordinador para que te asigne una obra.')
+        return
       }
-      toast.success(`Se registraron ${lineasConEntrada.length} entradas correctamente`)
+
+      // Validaciones
+      if (!obraSeleccionada.trim()) {
+        toast.error('Debe seleccionar una obra')
+        return
+      }
+
+      // Verificar que la obra seleccionada coincida con la obra asignada al usuario
+      if (obraSeleccionada !== user.obra_id) {
+        toast.error('Solo puedes registrar entradas para la obra que tienes asignada.')
+        return
+      }
+      
+      if (!fechaEntrada) {
+        toast.error('Debe seleccionar una fecha de entrada')
+        return
+      }
+      
+      // Filtrar solo las líneas que tienen cantidad atendida
+      const lineasConCantidad = lineasSC.filter(linea => linea.cantidadAtendida > 0)
+      
+      if (lineasConCantidad.length === 0) {
+        toast.error('Debe ingresar al menos una cantidad atendida')
+        return
+      }
+
+      // Generar número de entrada único
+      const numeroEntrada = `ENT-${Date.now()}`
+      
+      // Función para verificar si un string es un UUID válido
+      const isValidUUID = (str: string): boolean => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        return uuidRegex.test(str)
+      }
+
+      // Mapear IDs locales a UUIDs de Supabase (solo si no son UUIDs válidos)
+      let obraUUID: string
+      let usuarioUUID: string
+
+      if (isValidUUID(obraSeleccionada)) {
+        obraUUID = obraSeleccionada
+      } else {
+        const mappedObraUUID = await mapLocalIdToUUID(obraSeleccionada, 'obra')
+        if (!mappedObraUUID) {
+          throw new Error(`No se pudo mapear la obra con ID: ${obraSeleccionada}`)
+        }
+        obraUUID = mappedObraUUID
+      }
+
+      if (isValidUUID(user?.id || '')) {
+        usuarioUUID = user?.id || ''
+      } else {
+        const mappedUsuarioUUID = await mapLocalIdToUUID(user?.id || '', 'usuario')
+        if (!mappedUsuarioUUID) {
+          throw new Error(`No se pudo mapear el usuario con ID: ${user?.id}`)
+        }
+        usuarioUUID = mappedUsuarioUUID
+      }
+
+      // Crear la entrada principal (cabecera)
+       const nuevaEntrada = {
+         numero_entrada: numeroEntrada,
+         obra_id: obraUUID,
+         fecha_entrada: fechaEntrada,
+         proveedor: lineasConCantidad[0]?.proveedor || '',
+         documento_referencia: numeroSC,
+         observaciones: observaciones,
+         estado: 'PENDIENTE',
+         recibido_por: usuarioUUID
+       }
+
+      const entradaCreada = await entradasService.create(nuevaEntrada)
+      
+      if (!entradaCreada?.id) {
+        throw new Error('No se pudo crear la entrada principal')
+      }
+
+      // Crear los items de entrada
+      for (const linea of lineasConCantidad) {
+        // Buscar el material por código para obtener su UUID
+        const material = await materialesService.getByCodigo(linea.codigoMaterial)
+        
+        if (!material) {
+          throw new Error(`No se encontró el material con código: ${linea.codigoMaterial}`)
+        }
+
+        const entradaItem = {
+          entrada_id: entradaCreada.id,
+          material_id: material.id, // Usar el UUID del material
+          cantidad_recibida: linea.cantidadAtendida,
+          cantidad_aceptada: linea.cantidadAtendida,
+          precio_unitario: 0, // Se puede agregar después
+          estado: 'RECIBIDO'
+        }
+
+        // Crear el item en entrada_items
+        const { error: itemError } = await supabase
+          .from('entrada_items')
+          .insert(entradaItem)
+        
+        if (itemError) {
+          console.error('Error al crear item de entrada:', itemError)
+          throw itemError
+        }
+      }
+
+      toast.success('Entradas guardadas correctamente')
       
       // Mostrar resumen de fotos capturadas
       const totalPhotos = movementPhotos.length
@@ -125,11 +220,17 @@ export default function Entradas() {
       }
       
       // Limpiar formulario
-      setNumeroSC('')
       setLineasSC([])
+      setNumeroSC('')
+      // Solo limpiar obra seleccionada si el usuario no tiene una obra asignada
+      if (!user?.obra_id) {
+        setObraSeleccionada('')
+      }
+      setObservaciones('')
+      
     } catch (error) {
       console.error('Error al guardar entradas:', error)
-      toast.error('Error al guardar las entradas')
+      toast.error('Error al guardar entradas')
     } finally {
       setGuardando(false)
     }
@@ -140,6 +241,13 @@ export default function Entradas() {
       buscarSC()
     }
   }
+
+  // Efecto para pre-llenar la obra asignada al usuario
+  useEffect(() => {
+    if (user?.obra_id && !obraSeleccionada) {
+      setObraSeleccionada(user.obra_id);
+    }
+  }, [user, obraSeleccionada]);
 
   // Funciones para manejo de fotos
   const handleCapturePhoto = (material: LineaSCParaEntrada) => {
@@ -223,6 +331,62 @@ export default function Entradas() {
         </div>
       </div>
 
+      {/* Información adicional de entrada */}
+      {lineasSC.length > 0 && (
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Información de Entrada</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Obra *
+              </label>
+              {user?.obra_id && (
+                <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-700">
+                    <Package className="inline w-4 h-4 mr-1" />
+                    Obra asignada: {user.obra_id}
+                  </p>
+                </div>
+              )}
+              <input
+                type="text"
+                value={obraSeleccionada}
+                onChange={(e) => setObraSeleccionada(e.target.value)}
+                disabled={!!user?.obra_id}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  user?.obra_id ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
+                placeholder={user?.obra_id ? 'Obra asignada automáticamente' : 'Código o nombre de obra'}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fecha de Entrada *
+              </label>
+              <input
+                type="date"
+                value={fechaEntrada}
+                onChange={(e) => setFechaEntrada(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Observaciones
+              </label>
+              <input
+                type="text"
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                placeholder="Observaciones adicionales"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabla de materiales */}
       {lineasSC.length > 0 && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -265,7 +429,7 @@ export default function Entradas() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {lineasSC.map((linea, index) => (
-                  <tr key={`${linea.numeroRQ}-${linea.codigoMaterial}`} className="hover:bg-gray-50">
+                  <tr key={`${linea.numeroRQ || 'rq'}-${linea.codigoMaterial || 'mat'}-${index}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">

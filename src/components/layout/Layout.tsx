@@ -28,19 +28,19 @@ const Layout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex" style={{ overflow: 'visible' }}>
       {/* Sidebar */}
       <Sidebar />
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col" style={{ overflow: 'visible' }}>
         {/* Header */}
         <Header />
         
         {/* Page Content */}
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-6 overflow-visible" style={{ overflow: 'visible', position: 'relative' }}>
           {/* Key prop fuerza re-mount del componente al cambiar de ruta */}
-          <div key={location.pathname}>
+          <div key={location.pathname} style={{ overflow: 'visible' }}>
             <Outlet />
           </div>
         </main>

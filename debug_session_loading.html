@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Session Loading</title>
+</head>
+<body>
+    <h1>Debug Session Loading</h1>
+    <p>Verificando por qué la sesión no se carga en la aplicación</p>
+    
+    <script>
+        function debugSessionLoading() {
+            console.log('=== DEBUG SESSION LOADING ===');
+            
+            // 1. Verificar localStorage
+            const sessionData = localStorage.getItem('almacen_auth_session');
+            console.log('1. Datos en localStorage:', sessionData);
+            
+            if (sessionData) {
+                try {
+                    const session = JSON.parse(sessionData);
+                    console.log('2. Sesión parseada:', session);
+                    
+                    // Verificar expiración
+                    const now = Date.now();
+                    const isExpired = now > session.expiresAt;
+                    console.log('3. Tiempo actual:', now);
+                    console.log('4. Expira en:', session.expiresAt);
+                    console.log('5. ¿Está expirada?', isExpired);
+                    
+                    if (!isExpired) {
+                        console.log('✓ Sesión válida encontrada');
+                        console.log('6. Usuario en sesión:', session.user);
+                        
+                        // Simular lo que hace localAuth.getSession()
+                        console.log('7. Simulando localAuth.getSession() - debería retornar:', session);
+                        
+                        // Verificar si hay problemas con refreshUser
+                        console.log('8. Verificando si IndexedDB tiene el usuario...');
+                        
+                        // Abrir IndexedDB para verificar
+                        const dbRequest = indexedDB.open('almacen-db', 1);
+                        
+                        dbRequest.onsuccess = function(event) {
+                            const db = event.target.result;
+                            console.log('9. IndexedDB abierta, stores:', Array.from(db.objectStoreNames));
+                            
+                            if (db.objectStoreNames.contains('usuarios')) {
+                                const transaction = db.transaction(['usuarios'], 'readonly');
+                                const store = transaction.objectStore('usuarios');
+                                const request = store.get(session.user.id);
+                                
+                                request.onsuccess = function() {
+                                    const userData = request.result;
+                                    console.log('10. Usuario en IndexedDB:', userData);
+                                    
+                                    if (userData) {
+                                        console.log('✓ Usuario encontrado en IndexedDB');
+                                        console.log('11. refreshUser() debería funcionar correctamente');
+                                    } else {
+                                        console.log('❌ Usuario NO encontrado en IndexedDB');
+                                        console.log('12. Este es el problema: refreshUser() falla porque no encuentra el usuario');
+                                        console.log('13. Solución: Crear el usuario en IndexedDB o usar solo la sesión de localStorage');
+                                    }
+                                };
+                                
+                                request.onerror = function() {
+                                    console.error('❌ Error al buscar usuario en IndexedDB:', request.error);
+                                };
+                            } else {
+                                console.log('❌ Store "usuarios" no existe en IndexedDB');
+                                console.log('14. refreshUser() fallará porque no puede acceder a la base de datos');
+                                console.log('15. Solución: Inicializar IndexedDB o usar solo localStorage');
+                            }
+                        };
+                        
+                        dbRequest.onerror = function() {
+                            console.error('❌ Error al abrir IndexedDB:', dbRequest.error);
+                        };
+                        
+                    } else {
+                        console.log('❌ Sesión expirada');
+                    }
+                } catch (error) {
+                    console.error('❌ Error al parsear sesión:', error);
+                }
+            } else {
+                console.log('❌ No hay sesión en localStorage');
+            }
+        }
+        
+        // Ejecutar automáticamente
+        window.addEventListener('load', () => {
+            setTimeout(debugSessionLoading, 1000);
+        });
+        
+        window.debugSessionLoading = debugSessionLoading;
+    </script>
+</body>
+</html>

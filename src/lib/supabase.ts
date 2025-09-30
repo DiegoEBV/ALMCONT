@@ -8,4 +8,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
+// Cliente principal para operaciones normales
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+
+// Función para establecer contexto de usuario autenticado
+export const setSupabaseUserContext = async (userId: string) => {
+  try {
+    // Establecer el contexto del usuario en Supabase usando RPC
+    await supabase.rpc('set_user_context', { user_id: userId })
+  } catch (error) {
+    console.warn('No se pudo establecer el contexto de usuario:', error)
+  }
+}

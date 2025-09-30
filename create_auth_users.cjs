@@ -20,7 +20,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 const users = [
   {
     email: 'coordinador@obra.com',
-    password: '123456',
+    password: 'password123',
     user_metadata: {
       nombre: 'Coordinador',
       rol: 'COORDINACION'
@@ -28,7 +28,7 @@ const users = [
   },
   {
     email: 'logistica@obra.com',
-    password: '123456',
+    password: 'password123',
     user_metadata: {
       nombre: 'Logística',
       rol: 'LOGISTICA'
@@ -36,7 +36,7 @@ const users = [
   },
   {
     email: 'almacenero@obra.com',
-    password: '123456',
+    password: 'password123',
     user_metadata: {
       nombre: 'Almacenero',
       rol: 'ALMACENERO'
@@ -83,9 +83,9 @@ async function createAuthUsers() {
   
   console.log('\n🎉 Proceso completado!')
   console.log('Los usuarios pueden ahora hacer login con:')
-  console.log('- coordinador@obra.com / 123456')
-  console.log('- logistica@obra.com / 123456')
-  console.log('- almacenero@obra.com / 123456')
+  console.log('- coordinador@obra.com / password123')
+  console.log('- logistica@obra.com / password123')
+  console.log('- almacenero@obra.com / password123')
 }
 
 createAuthUsers().catch(console.error)

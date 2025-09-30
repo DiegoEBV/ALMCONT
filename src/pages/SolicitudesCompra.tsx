@@ -2,9 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline'
-import { solicitudesCompraService } from '../services/solicitudesCompra'
+import { Eye, Edit, Trash2 } from 'lucide-react'
+import { solicitudesCompraService, RqScService } from '../services/solicitudesCompra'
 import { obrasService } from '../services/obras'
-import { SolicitudCompra, SolicitudCompraFormData, Obra, TableColumn } from '../types'
+import { requerimientosService } from '../services/requerimientos'
+import { useAuth } from '../hooks/useAuth'
+import { SolicitudCompra, SolicitudCompraFormData, Obra, TableColumn, Requerimiento, Material } from '../types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
@@ -12,6 +15,7 @@ import { Table } from '../components/ui/table'
 import { CustomModal as Modal } from '../components/ui/modal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { toast } from 'sonner'
+
 
 const ESTADOS_SOLICITUD_COMPRA = [
   { value: '', label: 'Todos los estados' },
@@ -23,8 +27,13 @@ const ESTADOS_SOLICITUD_COMPRA = [
 ]
 
 export default function SolicitudesCompra() {
+  const { user } = useAuth()
   const [solicitudesCompra, setSolicitudesCompra] = useState<SolicitudCompra[]>([])
   const [obras, setObras] = useState<Obra[]>([])
+  const [requerimientos, setRequerimientos] = useState<Requerimiento[]>([])
+  const [selectedRequerimientos, setSelectedRequerimientos] = useState<string[]>([])
+  const [materialesDisponibles, setMaterialesDisponibles] = useState<Material[]>([])
+  const [selectedMateriales, setSelectedMateriales] = useState<{[key: string]: boolean}>({})
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingSolicitud, setEditingSolicitud] = useState<SolicitudCompra | null>(null)
@@ -35,7 +44,6 @@ export default function SolicitudesCompra() {
     busqueda: '',
     obra_id: '',
     estado: '',
-    proveedor: '',
     fecha_desde: '',
     fecha_hasta: ''
   })
@@ -44,11 +52,9 @@ export default function SolicitudesCompra() {
   const [formData, setFormData] = useState<SolicitudCompraFormData>({
     obra_id: '',
     numero_sc: '',
-    proveedor: '',
     fecha_solicitud: new Date().toISOString().split('T')[0],
     fecha_entrega: '',
     estado: 'PENDIENTE',
-    total: 0,
     observaciones: ''
   })
 
@@ -73,13 +79,28 @@ export default function SolicitudesCompra() {
         return format(date, 'dd/MM/yyyy', { locale: es })
       }
     },
+
     {
-      key: 'proveedor',
-      title: 'Proveedor',
-      sortable: true,
-      render: (value: string, item: SolicitudCompra) => (
-        <div className="max-w-xs truncate" title={item.proveedor}>
-          {item.proveedor}
+      key: 'requerimientos',
+      title: 'Requerimientos',
+      render: (value: unknown, item: SolicitudCompra) => (
+        <div className="max-w-xs">
+          {item.requerimientos && item.requerimientos.length > 0 ? (
+            <div className="space-y-1">
+              {item.requerimientos.slice(0, 2).map((req, index) => (
+                <div key={req.id} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                  {req.codigo}
+                </div>
+              ))}
+              {item.requerimientos.length > 2 && (
+                <div className="text-xs text-gray-500">
+                  +{item.requerimientos.length - 2} más
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400">Sin requerimientos</span>
+          )}
         </div>
       )
     },
@@ -94,18 +115,7 @@ export default function SolicitudesCompra() {
         return format(date, 'dd/MM/yyyy', { locale: es })
       }
     },
-    {
-      key: 'total',
-      title: 'Total',
-      sortable: true,
-      render: (value: number, item: SolicitudCompra) => (
-        <div className="text-right">
-          <span className="font-medium">
-            S/ {item.total.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-          </span>
-        </div>
-      )
-    },
+
     {
       key: 'estado',
       title: 'Estado',
@@ -130,17 +140,34 @@ export default function SolicitudesCompra() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleEdit(item)}
+            onClick={() => {
+              // Mostrar detalles para todos los usuarios
+              console.log('Ver detalles:', item)
+            }}
           >
-            Editar
+            <Eye className="w-4 h-4 mr-1" />
+            Ver
           </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => handleDelete(item.id)}
-          >
-            Eliminar
-          </Button>
+          {user?.rol === 'COORDINACION' && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleEdit(item)}
+              >
+                <Edit className="w-4 h-4 mr-1" />
+                Editar
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => handleDelete(item.id)}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Eliminar
+              </Button>
+            </>
+          )}
         </div>
       )
     }
@@ -148,12 +175,16 @@ export default function SolicitudesCompra() {
 
   const loadSolicitudesCompra = useCallback(async () => {
     try {
+      console.log('🔍 Cargando solicitudes de compra...')
+      console.log('👤 Usuario actual:', user)
       const data = await solicitudesCompraService.getAll()
+      console.log('✅ Solicitudes obtenidas:', data.length, data)
       setSolicitudesCompra(data)
     } catch (error) {
-      console.error('Error al cargar solicitudes de compra:', error)
+      console.error('❌ Error al cargar solicitudes de compra:', error)
+      toast.error('Error al cargar las solicitudes de compra')
     }
-  }, [])
+  }, [user])
 
   const loadObras = useCallback(async () => {
     try {
@@ -164,17 +195,41 @@ export default function SolicitudesCompra() {
     }
   }, [])
 
+  const loadRequerimientos = useCallback(async () => {
+    try {
+      const data = await requerimientosService.getAll({ estado: 'PENDIENTE' })
+      setRequerimientos(data)
+    } catch (error) {
+      console.error('Error al cargar requerimientos:', error)
+    }
+  }, [])
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       await Promise.all([
         loadSolicitudesCompra(),
-        loadObras()
+        loadObras(),
+        loadRequerimientos()
       ])
       setLoading(false)
     }
     loadData()
-  }, [loadSolicitudesCompra, loadObras])
+  }, [loadSolicitudesCompra, loadObras, loadRequerimientos])
+
+  // Actualizar materiales disponibles cuando se seleccionan requerimientos
+  useEffect(() => {
+    const materiales: Material[] = []
+    selectedRequerimientos.forEach(reqId => {
+      const requerimiento = requerimientos.find(r => r.id === reqId)
+      if (requerimiento?.materiales) {
+        materiales.push(...requerimiento.materiales)
+      }
+    })
+    setMaterialesDisponibles(materiales)
+  }, [selectedRequerimientos, requerimientos])
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -183,7 +238,13 @@ export default function SolicitudesCompra() {
         await solicitudesCompraService.update(editingSolicitud.id, formData)
         toast.success('Solicitud de compra actualizada correctamente')
       } else {
-        await solicitudesCompraService.create(formData)
+        const nuevaSolicitud = await solicitudesCompraService.create(formData)
+        
+        // Asociar requerimientos seleccionados si es una nueva solicitud
+        if (selectedRequerimientos.length > 0) {
+          await RqScService.asociarRequerimientos(nuevaSolicitud.id, selectedRequerimientos)
+        }
+        
         toast.success('Solicitud de compra creada correctamente')
       }
       setShowModal(false)
@@ -196,21 +257,31 @@ export default function SolicitudesCompra() {
   }
 
   const handleEdit = (solicitud: SolicitudCompra) => {
+    // Solo permitir edición a usuarios COORDINACION
+    if (user?.rol !== 'COORDINACION') {
+      toast.error('No tienes permisos para editar solicitudes de compra')
+      return
+    }
+    
     setEditingSolicitud(solicitud)
     setFormData({
         obra_id: solicitud.obra_id,
         numero_sc: solicitud.numero_sc,
-        proveedor: solicitud.proveedor,
         fecha_solicitud: solicitud.fecha_solicitud,
         fecha_entrega: solicitud.fecha_entrega || '',
         estado: solicitud.estado,
-        total: solicitud.total,
         observaciones: solicitud.observaciones || ''
       })
     setShowModal(true)
   }
 
   const handleDelete = async (id: string) => {
+    // Solo permitir eliminación a usuarios COORDINACION
+    if (user?.rol !== 'COORDINACION') {
+      toast.error('No tienes permisos para eliminar solicitudes de compra')
+      return
+    }
+    
     if (window.confirm('¿Está seguro de eliminar esta solicitud de compra?')) {
       try {
         await solicitudesCompraService.delete(id)
@@ -227,15 +298,42 @@ export default function SolicitudesCompra() {
     setFormData({
       obra_id: '',
       numero_sc: '',
-      proveedor: '',
       fecha_solicitud: new Date().toISOString().split('T')[0],
       fecha_entrega: '',
       estado: 'PENDIENTE',
-      total: 0,
       observaciones: ''
     })
+    setSelectedRequerimientos([])
+    setMaterialesDisponibles([])
+    setSelectedMateriales({})
     setEditingSolicitud(null)
   }
+
+  const handleRequerimientoSelection = (requerimientoId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedRequerimientos(prev => [...prev, requerimientoId])
+    } else {
+      setSelectedRequerimientos(prev => prev.filter(id => id !== requerimientoId))
+      // Limpiar materiales seleccionados de este requerimiento
+      const requerimiento = requerimientos.find(r => r.id === requerimientoId)
+      if (requerimiento?.materiales) {
+        const newSelectedMateriales = { ...selectedMateriales }
+        requerimiento.materiales.forEach(material => {
+          delete newSelectedMateriales[material.id]
+        })
+        setSelectedMateriales(newSelectedMateriales)
+      }
+    }
+  }
+
+  const handleMaterialSelection = (materialId: string, selected: boolean) => {
+    setSelectedMateriales(prev => ({
+      ...prev,
+      [materialId]: selected
+    }))
+  }
+
+
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -246,7 +344,6 @@ export default function SolicitudesCompra() {
       busqueda: '',
       obra_id: '',
       estado: '',
-      proveedor: '',
       fecha_desde: '',
       fecha_hasta: ''
     })
@@ -263,16 +360,18 @@ export default function SolicitudesCompra() {
           <h1 className="text-2xl font-bold text-gray-900">Solicitudes de Compra</h1>
           <p className="text-gray-600">Gestión de solicitudes de compra (SC) - Módulo de Logística</p>
         </div>
-        <Button
-          onClick={() => {
-            resetForm()
-            setShowModal(true)
-          }}
-          className="flex items-center space-x-2"
-        >
-          <PlusIcon className="h-5 w-5" />
-          <span>Nueva Solicitud</span>
-        </Button>
+        {user?.rol === 'COORDINACION' && (
+          <Button
+            onClick={() => {
+              resetForm()
+              setShowModal(true)
+            }}
+            className="flex items-center space-x-2"
+          >
+            <PlusIcon className="h-5 w-5" />
+            <span>Nueva Solicitud</span>
+          </Button>
+        )}
       </div>
 
       {/* Filtros */}
@@ -283,7 +382,7 @@ export default function SolicitudesCompra() {
               <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Buscar por número SC o proveedor..."
+                placeholder="Buscar por número SC..."
                 value={filters.busqueda}
                 onChange={(e) => handleFilterChange('busqueda', e.target.value)}
                 className="pl-10 w-80"
@@ -320,13 +419,7 @@ export default function SolicitudesCompra() {
               onChange={(e) => handleFilterChange('estado', e.target.value)}
               options={ESTADOS_SOLICITUD_COMPRA}
             />
-            <Input
-              label="Proveedor"
-              type="text"
-              value={filters.proveedor}
-              onChange={(e) => handleFilterChange('proveedor', e.target.value)}
-              placeholder="Filtrar por proveedor"
-            />
+
             <Input
               label="Fecha desde"
               type="date"
@@ -366,73 +459,130 @@ export default function SolicitudesCompra() {
         }}
         title={editingSolicitud ? 'Editar Solicitud de Compra' : 'Nueva Solicitud de Compra'}
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Número SC"
-              type="text"
-              value={formData.numero_sc}
-                  onChange={(e) => setFormData({ ...formData, numero_sc: e.target.value })}
-              required
-            />
-            <Select
-              label="Obra"
-              value={formData.obra_id}
-              onChange={(e) => setFormData({ ...formData, obra_id: e.target.value })}
-              options={[
-                { value: '', label: 'Seleccionar obra' },
-                ...obras.map(obra => ({ value: obra.id, label: obra.nombre }))
-              ]}
-              required
-            />
-            <Input
-              label="Proveedor"
-              type="text"
-              value={formData.proveedor}
-              onChange={(e) => setFormData({ ...formData, proveedor: e.target.value })}
-              required
-            />
-            <Input
-              label="Fecha Solicitud"
-              type="date"
-              value={formData.fecha_solicitud}
-              onChange={(e) => setFormData({ ...formData, fecha_solicitud: e.target.value })}
-              required
-            />
-            <Input
-              label="Fecha Entrega"
-              type="date"
-              value={formData.fecha_entrega}
-              onChange={(e) => setFormData({ ...formData, fecha_entrega: e.target.value })}
-            />
-            <Select
-              label="Estado"
-              value={formData.estado}
-              onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'PROCESADO' | 'CANCELADO' })}
-              options={ESTADOS_SOLICITUD_COMPRA.filter(e => e.value !== '')}
-              required
-            />
-            <Input
-              label="Total"
-              type="number"
-              step="0.01"
-              value={formData.total}
-              onChange={(e) => setFormData({ ...formData, total: parseFloat(e.target.value) || 0 })}
-              required
-            />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Sección 1: Datos básicos */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Datos Básicos de la Solicitud</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Número SC"
+                type="text"
+                value={formData.numero_sc}
+                onChange={(e) => setFormData({ ...formData, numero_sc: e.target.value })}
+                required
+              />
+              <Select
+                label="Obra"
+                value={formData.obra_id}
+                onChange={(e) => setFormData({ ...formData, obra_id: e.target.value })}
+                options={[
+                  { value: '', label: 'Seleccionar obra' },
+                  ...obras.map(obra => ({ value: obra.id, label: obra.nombre }))
+                ]}
+                required
+              />
+
+              <Input
+                label="Fecha Solicitud"
+                type="date"
+                value={formData.fecha_solicitud}
+                onChange={(e) => setFormData({ ...formData, fecha_solicitud: e.target.value })}
+                required
+              />
+              <Input
+                label="Fecha Entrega"
+                type="date"
+                value={formData.fecha_entrega}
+                onChange={(e) => setFormData({ ...formData, fecha_entrega: e.target.value })}
+              />
+              <Select
+                label="Estado"
+                value={formData.estado}
+                onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'PROCESADO' | 'CANCELADO' })}
+                options={ESTADOS_SOLICITUD_COMPRA.filter(e => e.value !== '')}
+                required
+              />
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Observaciones
+              </label>
+              <textarea
+                value={formData.observaciones}
+                onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Observaciones adicionales..."
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Observaciones
-            </label>
-            <textarea
-              value={formData.observaciones}
-              onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Observaciones adicionales..."
-            />
-          </div>
+
+          {/* Sección 2: Selección de requerimientos */}
+          {!editingSolicitud && (
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Seleccionar Requerimientos</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {requerimientos.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No hay requerimientos pendientes disponibles</p>
+                ) : (
+                  requerimientos.map(requerimiento => (
+                    <div key={requerimiento.id} className="flex items-center space-x-3 p-2 bg-white rounded border">
+                      <input
+                        type="checkbox"
+                        id={`req-${requerimiento.id}`}
+                        checked={selectedRequerimientos.includes(requerimiento.id)}
+                        onChange={(e) => handleRequerimientoSelection(requerimiento.id, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor={`req-${requerimiento.id}`} className="flex-1 text-sm">
+                        <div className="font-medium">{requerimiento.codigo}</div>
+                        <div className="text-gray-500">{requerimiento.descripcion}</div>
+                        <div className="text-xs text-gray-400">
+                          {requerimiento.materiales?.length || 0} material(es)
+                        </div>
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Sección 3: Selección de materiales */}
+          {!editingSolicitud && materialesDisponibles.length > 0 && (
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Seleccionar Materiales</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {materialesDisponibles.map(material => (
+                  <div key={material.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        id={`mat-${material.id}`}
+                        checked={selectedMateriales[material.id] || false}
+                        onChange={(e) => handleMaterialSelection(material.id, e.target.checked)}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor={`mat-${material.id}`} className="text-sm">
+                        <div className="font-medium">{material.codigo}</div>
+                        <div className="text-gray-500">{material.descripcion}</div>
+                        <div className="text-xs text-gray-400">
+                          Cantidad: {material.cantidad} {material.unidad}
+                        </div>
+                      </label>
+                    </div>
+                    <div className="text-right text-sm">
+                      <div className="font-medium">
+                        S/ {material.precio_unitario.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               type="button"
@@ -450,6 +600,7 @@ export default function SolicitudesCompra() {
           </div>
         </form>
       </Modal>
+      
     </div>
   )
 }

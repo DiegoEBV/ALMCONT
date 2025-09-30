@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { Package, Clock, AlertTriangle, Building2, ShoppingCart, Download, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { Package, Clock, AlertTriangle, Building2, ShoppingCart, Download, RefreshCw, Plus, Save, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { httpService } from '@/services/httpService';
+import { materialesService } from '@/services/materiales';
+import { MaterialFormData } from '@/types';
 
 interface KPIData {
   totalWorks: number;
@@ -58,11 +61,24 @@ interface DashboardMetrics {
 
 
 const CoordinationDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const mountedRef = useRef(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Material creation form state
+  const [materialForm, setMaterialForm] = useState<MaterialFormData>({
+    codigo: '',
+    nombre: '',
+    descripcion: '',
+    categoria: '',
+    unidad_medida: '',
+    precio_referencial: 0,
+    stock_minimo: 0
+  });
+  const [creatingMaterial, setCreatingMaterial] = useState(false);
 
   const fetchMetrics = async () => {
     try {
@@ -156,6 +172,37 @@ const CoordinationDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error exporting report:', error);
       toast.error('Error al exportar el reporte');
+    }
+  };
+
+  const handleCreateMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingMaterial(true);
+    
+    try {
+      const materialData = {
+        ...materialForm,
+        unidad: materialForm.unidad_medida,
+        activo: true
+      };
+      await materialesService.create(materialData);
+      toast.success('Material creado exitosamente');
+      
+      // Reset form
+      setMaterialForm({
+        codigo: '',
+        nombre: '',
+        descripcion: '',
+        categoria: '',
+        unidad_medida: '',
+        precio_referencial: 0,
+        stock_minimo: 0
+      });
+    } catch (error) {
+      console.error('Error creating material:', error);
+      toast.error('Error al crear el material');
+    } finally {
+      setCreatingMaterial(false);
     }
   };
 
@@ -289,6 +336,51 @@ const CoordinationDashboard: React.FC = () => {
         </Card>
       </div>
 
+      {/* Quick Access Navigation */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/solicitudes-compra')}>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <ShoppingCart className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Solicitudes de Compra</h3>
+                <p className="text-gray-600 text-sm">Gestionar solicitudes de compra</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/requerimientos')}>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <FileText className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Requerimientos</h3>
+                <p className="text-gray-600 text-sm">Ver requerimientos de obras</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/ordenes-compra')}>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Package className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Órdenes de Compra</h3>
+                <p className="text-gray-600 text-sm">Gestionar órdenes de compra</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
@@ -296,6 +388,7 @@ const CoordinationDashboard: React.FC = () => {
           <TabsTrigger value="works">Análisis de Obras</TabsTrigger>
           <TabsTrigger value="workers">Eficiencia Almaceneros</TabsTrigger>
           <TabsTrigger value="trends">Tendencias</TabsTrigger>
+          <TabsTrigger value="materials">Crear Materiales</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -531,6 +624,194 @@ const CoordinationDashboard: React.FC = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Materials Creation Tab */}
+        <TabsContent value="materials" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Crear Nuevo Material</h3>
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-blue-600" />
+              <span className="text-sm text-gray-600">Gestión de Materiales</span>
+            </div>
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Información del Material
+              </CardTitle>
+              <CardDescription>
+                Complete los datos del nuevo material para agregarlo al catálogo
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateMaterial} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Código *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={materialForm.codigo}
+                      onChange={(e) => setMaterialForm({ ...materialForm, codigo: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ej: MAT-001"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={materialForm.nombre}
+                      onChange={(e) => setMaterialForm({ ...materialForm, nombre: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Nombre del material"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Descripción
+                    </label>
+                    <textarea
+                      value={materialForm.descripcion}
+                      onChange={(e) => setMaterialForm({ ...materialForm, descripcion: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={3}
+                      placeholder="Descripción detallada del material"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Categoría *
+                    </label>
+                    <select
+                      required
+                      value={materialForm.categoria}
+                      onChange={(e) => setMaterialForm({ ...materialForm, categoria: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccionar categoría</option>
+                      <option value="Construcción">Construcción</option>
+                      <option value="Herramientas">Herramientas</option>
+                      <option value="Eléctrico">Eléctrico</option>
+                      <option value="Plomería">Plomería</option>
+                      <option value="Acabados">Acabados</option>
+                      <option value="Seguridad">Seguridad</option>
+                      <option value="Otros">Otros</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Unidad *
+                    </label>
+                    <select
+                      required
+                      value={materialForm.unidad_medida}
+                      onChange={(e) => setMaterialForm({ ...materialForm, unidad_medida: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Seleccionar unidad</option>
+                      <option value="Unidad">Unidad</option>
+                      <option value="Metro">Metro</option>
+                      <option value="Metro cuadrado">Metro cuadrado</option>
+                      <option value="Metro cúbico">Metro cúbico</option>
+                      <option value="Kilogramo">Kilogramo</option>
+                      <option value="Litro">Litro</option>
+                      <option value="Caja">Caja</option>
+                      <option value="Bolsa">Bolsa</option>
+                      <option value="Rollo">Rollo</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Precio Unitario (S/) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="0.01"
+                      value={materialForm.precio_referencial || 0}
+                      onChange={(e) => setMaterialForm({ ...materialForm, precio_referencial: parseFloat(e.target.value) || 0 })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Stock Mínimo *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={materialForm.stock_minimo}
+                      onChange={(e) => setMaterialForm({ ...materialForm, stock_minimo: parseInt(e.target.value) || 0 })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ubicación
+                    </label>
+                    <input
+                      type="text"
+                      value={materialForm.subcategoria || ''}
+                      onChange={(e) => setMaterialForm({ ...materialForm, subcategoria: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ej: Almacén A - Estante 1"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMaterialForm({
+                      codigo: '',
+                      nombre: '',
+                      descripcion: '',
+                      categoria: '',
+                      unidad_medida: '',
+                      precio_referencial: 0,
+                      stock_minimo: 0,
+                      subcategoria: ''
+                    })}
+                  >
+                    Limpiar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={creatingMaterial}
+                    className="flex items-center gap-2"
+                  >
+                    {creatingMaterial ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {creatingMaterial ? 'Creando...' : 'Crear Material'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

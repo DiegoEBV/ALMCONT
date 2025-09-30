@@ -351,7 +351,7 @@ const Templates: React.FC = () => {
 
       {/* Template Instances Dialog */}
       <Dialog open={showInstancesDialog} onOpenChange={setShowInstancesDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto overflow-x-visible">
           <DialogHeader>
             <DialogTitle>Instancias de Documentos Generados</DialogTitle>
             <DialogDescription>

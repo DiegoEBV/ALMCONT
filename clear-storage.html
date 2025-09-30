@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Storage</title>
+</head>
+<body>
+    <h1>Limpiando localStorage...</h1>
+    <script>
+        console.log('Limpiando localStorage...');
+        localStorage.clear();
+        sessionStorage.clear();
+        console.log('Storage limpiado exitosamente');
+        
+        // Mostrar mensaje en la página
+        document.body.innerHTML += '<p>localStorage y sessionStorage limpiados exitosamente.</p>';
+        document.body.innerHTML += '<p>Ahora puedes cerrar esta ventana y recargar la aplicación.</p>';
+        
+        // Opcional: redirigir automáticamente después de 3 segundos
+        setTimeout(() => {
+            window.location.href = 'http://localhost:5173';
+        }, 3000);
+    </script>
+</body>
+</html>

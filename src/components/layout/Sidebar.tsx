@@ -23,7 +23,10 @@ import {
   ChartPieIcon,
   BuildingOfficeIcon,
   UsersIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  WrenchScrewdriverIcon,
+  PlusCircleIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline'
 import { UserRole } from '../../types'
 
@@ -39,7 +42,7 @@ const navigation: NavItem[] = [
     name: 'Dashboard',
     href: '/',
     icon: HomeIcon,
-    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO']
+    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO', 'PRODUCCION']
   },
   {
     name: 'Panel Ejecutivo',
@@ -63,7 +66,7 @@ const navigation: NavItem[] = [
     name: 'Solicitudes de Compra',
     href: '/logistica/solicitudes-compra',
     icon: ClipboardDocumentListIcon,
-    roles: ['LOGISTICA']
+    roles: ['COORDINACION', 'LOGISTICA']
   },
   {
     name: 'Órdenes de Compra',
@@ -88,6 +91,24 @@ const navigation: NavItem[] = [
     href: '/almacen/salidas',
     icon: ArrowLeftOnRectangleIcon,
     roles: ['ALMACENERO']
+  },
+  {
+    name: 'Panel Producción',
+    href: '/produccion/dashboard',
+    icon: WrenchScrewdriverIcon,
+    roles: ['PRODUCCION']
+  },
+  {
+    name: 'Crear Requerimiento',
+    href: '/produccion/crear-requerimiento',
+    icon: PlusCircleIcon,
+    roles: ['PRODUCCION']
+  },
+  {
+    name: 'Seguimiento',
+    href: '/produccion/seguimiento',
+    icon: ClockIcon,
+    roles: ['PRODUCCION']
   },
   {
     name: 'Stock/Kardex',

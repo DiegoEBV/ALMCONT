@@ -3,7 +3,7 @@
     {
       "id": "1",
       "email": "coordinador@obra.com",
-      "password": "123456",
+      "password": "password123",
       "nombre": "Juan Carlos",
       "apellido": "Pérez",
       "rol": "COORDINACION",
@@ -15,7 +15,7 @@
     {
       "id": "2",
       "email": "logistica@obra.com",
-      "password": "123456",
+      "password": "password123",
       "nombre": "María",
       "apellido": "González",
       "rol": "LOGISTICA",
@@ -27,7 +27,7 @@
     {
       "id": "3",
       "email": "almacenero@obra.com",
-      "password": "123456",
+      "password": "password123",
       "nombre": "Carlos",
       "apellido": "Rodríguez",
       "rol": "ALMACENERO",
@@ -35,6 +35,18 @@
       "activo": true,
       "created_at": "2024-01-01T00:00:00Z",
       "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440004",
+      "email": "produccion@obra.com",
+      "password": "password123",
+      "nombre": "Carlos",
+      "apellido": "Ingeniero",
+      "rol": "PRODUCCION",
+      "obra_id": null,
+      "activo": true,
+      "created_at": "2025-09-27T17:53:34.154728+00:00",
+      "updated_at": "2025-09-27T17:53:34.154728+00:00"
     }
   ],
   "obras": [

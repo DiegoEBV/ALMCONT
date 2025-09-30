@@ -1,5 +1,5 @@
 // Agregar UserRole que falta
-export type UserRole = 'COORDINACION' | 'LOGISTICA' | 'ALMACENERO'
+export type UserRole = 'COORDINACION' | 'LOGISTICA' | 'ALMACENERO' | 'PRODUCCION'
 
 // Tipos de autenticación
 export interface AuthContextType {
@@ -9,6 +9,7 @@ export interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
+  updateObraAsignada: (obraId: string | null) => Promise<boolean>
 }
 
 // Tipos base
@@ -50,6 +51,7 @@ export interface Material {
   categoria: string
   subcategoria?: string
   unidad: string
+  unidad_medida?: string
   precio_referencial?: number
   precio_unitario?: number
   especificaciones?: string
@@ -180,11 +182,9 @@ export interface SolicitudCompraFormData {
   obra_id: string
   numero_sc?: string
   oc_numero?: string
-  proveedor?: string
   fecha_solicitud: string
   fecha_entrega?: string
   estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'PROCESADO' | 'CANCELADO'
-  total: number
   observaciones?: string
   created_by?: string
 }
@@ -218,27 +218,44 @@ export interface RqSc {
 
 export interface Entrada {
   id: string
-  obra_id: string
-  solicitud_compra_id?: string
-  material_id: string
-  cantidad_recibida: number
-  cantidad_atendida: number
-  fecha_recepcion: string
+  numero_entrada: string
   fecha_entrada: string
-  numero_factura?: string
-  numero_guia?: string
-  numero_sc?: string
-  proveedor: string
-  precio_unitario?: number
+  proveedor_id?: string
+  orden_compra_id?: string
+  obra_id?: string
+  usuario_responsable_id: string
+  estado: 'PENDIENTE' | 'PARCIAL' | 'COMPLETA' | 'CANCELADA'
   observaciones?: string
-  recibido_por: string
-  usuario_id?: string
   created_at: string
   updated_at: string
-  obra?: Obra
+  proveedor?: any
+  orden_compra?: OrdenCompra
+  usuario_responsable?: Usuario
+  items?: EntradaItem[]
+  fecha_revision?: string
+  cantidad_recibida?: number
+  cantidad_atendida?: number
   material?: Material
-  solicitud_compra?: SolicitudCompra
-  usuario?: AuthUser
+}
+
+export interface EntradaItem {
+  id: string
+  entrada_id: string
+  orden_item_id?: string
+  material_id: string
+  cantidad_esperada?: number
+  cantidad_recibida: number
+  cantidad_aceptada?: number
+  cantidad_rechazada?: number
+  precio_unitario?: number
+  lote?: string
+  fecha_vencimiento?: string
+  ubicacion_almacen?: string
+  observaciones?: string
+  estado?: 'RECIBIDO' | 'VERIFICADO' | 'RECHAZADO'
+  created_at: string
+  updated_at: string
+  material?: Material
 }
 
 export interface Salida {
@@ -401,6 +418,7 @@ export interface AuthUser {
   obra_id: string
   activo: boolean
   obra?: Obra
+  supabaseId?: string
 }
 
 export interface AuthSession {
@@ -794,4 +812,91 @@ export interface Approval {
   nivel_aprobacion: number;
   created_at: string;
   updated_at: string;
+}
+
+// Tipos para el rol PRODUCCION
+
+// Interfaz para requerimientos de materiales de producción
+export interface RequerimientoMaterial {
+  id: string
+  codigo: string
+  obra_id: string
+  solicitante_id: string
+  fecha_solicitud: string
+  fecha_requerida: string
+  fecha_revision?: string
+  prioridad?: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
+  estado: 'PENDIENTE' | 'EN_REVISION' | 'APROBADO' | 'RECHAZADO' | 'ATENDIDO'
+  comentarios?: string
+  aprobado_por?: string
+  fecha_aprobacion?: string
+  created_at: string
+  updated_at: string
+  obra?: Obra
+  solicitante?: Usuario
+  detalles?: DetalleRequerimiento[]
+}
+
+// Interfaz para detalles de requerimiento
+export interface DetalleRequerimiento {
+  id: string
+  requerimiento_id: string
+  material_id: string
+  cantidad: number
+  comentarios?: string
+  observaciones?: string
+  created_at: string
+  updated_at: string
+  material?: Material
+}
+
+// Interfaz para formulario de requerimiento de materiales
+export interface RequerimientoMaterialFormData {
+  obra_id: string
+  fecha_requerida?: string
+  prioridad?: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
+  comentarios?: string
+  detalles?: {
+    material_id: string
+    cantidad: number
+    comentarios?: string
+  }[]
+}
+
+// Interfaz para alertas del sistema
+export interface Alerta {
+  id: string
+  usuario_id: string
+  tipo: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS'
+  titulo: string
+  mensaje: string
+  leida: boolean
+  fecha_creacion: string
+  fecha_lectura?: string
+  referencia_tipo?: string
+  referencia_id?: string
+  created_at: string
+  updated_at: string
+}
+
+// Interfaz para crear nuevas alertas
+export interface AlertaFormData {
+  usuario_id: string
+  tipo: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS'
+  titulo: string
+  mensaje: string
+  referencia_tipo?: string
+  referencia_id?: string
+}
+
+// Interfaz para materiales con información adicional para coordinadores
+export interface MaterialFormData {
+  codigo: string
+  nombre: string
+  descripcion?: string
+  categoria: string
+  subcategoria?: string
+  unidad_medida: string
+  precio_referencial?: number
+  stock_minimo?: number
 }
