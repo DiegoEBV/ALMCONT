@@ -1,6 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
-import { syncService, SyncStatus, SyncResult } from '../services/syncService';
+import { syncService } from '../services/syncService';
 import { offlineService } from '../services/offlineService';
+
+// Definir tipos localmente ya que no están exportados desde syncService
+export interface SyncStatus {
+  isOnline: boolean;
+  isSyncing: boolean;
+  lastSync: number | null;
+  pendingOperations: number;
+  syncErrors: string[];
+}
+
+export interface SyncResult {
+  success: boolean;
+  errors: string[];
+  syncedItems: number;
+  syncedOperations?: number;
+  failedOperations?: number;
+}
 
 export interface OfflineHookReturn {
   // Estado de conexión
@@ -58,6 +75,7 @@ export const useOffline = (): OfflineHookReturn => {
       console.error('Error en sincronización forzada:', error);
       return {
         success: false,
+        syncedItems: 0,
         syncedOperations: 0,
         failedOperations: 0,
         errors: [String(error)]

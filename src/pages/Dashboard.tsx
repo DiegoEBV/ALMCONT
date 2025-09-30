@@ -79,16 +79,17 @@ export default function Dashboard() {
             estado: req.estado as 'PENDIENTE' | 'APROBADO' | 'RECHAZADO',
             fecha_creacion: String(req.created_at || req.fecha_requerimiento)
           })),
-          entradas: activityData.entradas.map((entrada: Entrada & { 
-            created_at?: string;
-            fecha_entrada?: string;
-            usuario_responsable?: string;
-          }) => ({
+          entradas: activityData.entradas.map((entrada: any) => ({
             id: Number(entrada.id) || 0,
+            numero_entrada: String(entrada.numero_entrada || ''),
+            proveedor: String(entrada.proveedor || ''),
+            fecha_entrada: String(entrada.created_at || entrada.fecha_entrada || ''),
+            usuario_responsable_id: String(entrada.usuario_responsable_id || ''),
+            estado: entrada.estado || 'PENDIENTE',
+            updated_at: String(entrada.updated_at || ''),
             material: { nombre: entrada.material?.nombre || 'Material desconocido' },
             cantidad: Number(entrada.cantidad_recibida) || 0,
-            usuario: { nombre: entrada.usuario_responsable || 'N/A' },
-            fecha_entrada: String(entrada.created_at || entrada.fecha_entrada)
+            usuario: { nombre: entrada.usuario_responsable || 'N/A' }
           }))
         })
         console.log('🔍 Dashboard: Datos procesados correctamente')

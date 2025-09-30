@@ -60,6 +60,10 @@ export interface Material {
   activo: boolean
   created_at: string
   updated_at: string
+  // Propiedades adicionales requeridas por algunos componentes
+  cantidad?: number
+  fecha_necesidad?: string
+  observaciones?: string
 }
 
 export interface Requerimiento {
@@ -820,6 +824,7 @@ export interface Approval {
 export interface RequerimientoMaterial {
   id: string
   codigo: string
+  numero_requerimiento?: string
   obra_id: string
   solicitante_id: string
   fecha_solicitud: string
@@ -828,6 +833,7 @@ export interface RequerimientoMaterial {
   prioridad?: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
   estado: 'PENDIENTE' | 'EN_REVISION' | 'APROBADO' | 'RECHAZADO' | 'ATENDIDO'
   comentarios?: string
+  observaciones?: string
   aprobado_por?: string
   fecha_aprobacion?: string
   created_at: string
@@ -835,6 +841,7 @@ export interface RequerimientoMaterial {
   obra?: Obra
   solicitante?: Usuario
   detalles?: DetalleRequerimiento[]
+  materiales?: Material[]
 }
 
 // Interfaz para detalles de requerimiento
@@ -854,12 +861,18 @@ export interface DetalleRequerimiento {
 export interface RequerimientoMaterialFormData {
   obra_id: string
   fecha_requerida?: string
+  fecha_necesidad?: string
+  observaciones?: string
   prioridad?: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE'
   comentarios?: string
   detalles?: {
     material_id: string
     cantidad: number
     comentarios?: string
+    // Propiedades adicionales requeridas
+    unidad?: string
+    fecha_necesidad?: string
+    observaciones?: string
   }[]
 }
 

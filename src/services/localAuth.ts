@@ -138,10 +138,10 @@ class LocalAuthService {
       }
 
       // Actualizar la sesión con los datos frescos
-      this.saveSession({
-        user: updatedUser,
-        token: this.loadSession()?.token || ''
-      })
+      if (this.currentSession) {
+        this.currentSession.user = updatedUser
+        this.saveSession()
+      }
 
       return updatedUser
     } catch (error) {
@@ -352,10 +352,10 @@ class LocalAuthService {
         obra: obra
       }
       
-      this.saveSession({
-        user: updatedUser,
-        token: this.loadSession()?.token || ''
-      })
+      if (this.currentSession) {
+        this.currentSession.user = updatedUser
+        this.saveSession()
+      }
 
       return true
     } catch (error) {

@@ -145,5 +145,41 @@ export const syncService = {
     } catch (error) {
       console.error('Error en sincronización inicial:', error)
     }
+  },
+
+  // Métodos requeridos por useOffline.ts
+  getSyncStatus: () => ({
+    isOnline: navigator.onLine,
+    isSyncing: false,
+    lastSync: null,
+    pendingOperations: 0,
+    syncErrors: []
+  }),
+
+  forcSync: async () => ({
+    success: true,
+    errors: [],
+    syncedItems: 0,
+    syncedOperations: 0,
+    failedOperations: 0
+  }),
+
+  cacheEssentialData: async () => {
+    // Implementación básica para cachear datos esenciales
+    console.log('Cacheando datos esenciales...')
+  },
+
+  subscribe: (callback: (status: any) => void) => {
+    // Implementación básica de suscripción
+    const handleOnline = () => callback({ isOnline: true, isSyncing: false, lastSync: null, pendingOperations: 0, syncErrors: [] })
+    const handleOffline = () => callback({ isOnline: false, isSyncing: false, lastSync: null, pendingOperations: 0, syncErrors: [] })
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
   }
 }

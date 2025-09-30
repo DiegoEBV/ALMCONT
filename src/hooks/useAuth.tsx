@@ -3,7 +3,7 @@ import { localAuth } from '../services/localAuth'
 import { supabaseUsersService } from '../services/supabaseUsers'
 import { syncService } from '../services/syncService'
 import { supabase } from '../lib/supabase'
-import type { AuthUser, AuthContextType } from '../types'
+import type { AuthUser, AuthContextType, AuthSession } from '../types'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 

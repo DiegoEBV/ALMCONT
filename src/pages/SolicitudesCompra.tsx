@@ -89,7 +89,7 @@ export default function SolicitudesCompra() {
             <div className="space-y-1">
               {item.requerimientos.slice(0, 2).map((req, index) => (
                 <div key={req.id} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                  {req.codigo}
+                  {String(req.codigo || 'Sin código')}
                 </div>
               ))}
               {item.requerimientos.length > 2 && (
@@ -222,7 +222,7 @@ export default function SolicitudesCompra() {
     const materiales: Material[] = []
     selectedRequerimientos.forEach(reqId => {
       const requerimiento = requerimientos.find(r => r.id === reqId)
-      if (requerimiento?.materiales) {
+      if (requerimiento?.materiales && Array.isArray(requerimiento.materiales)) {
         materiales.push(...requerimiento.materiales)
       }
     })
@@ -316,7 +316,7 @@ export default function SolicitudesCompra() {
       setSelectedRequerimientos(prev => prev.filter(id => id !== requerimientoId))
       // Limpiar materiales seleccionados de este requerimiento
       const requerimiento = requerimientos.find(r => r.id === requerimientoId)
-      if (requerimiento?.materiales) {
+      if (requerimiento?.materiales && Array.isArray(requerimiento.materiales)) {
         const newSelectedMateriales = { ...selectedMateriales }
         requerimiento.materiales.forEach(material => {
           delete newSelectedMateriales[material.id]
@@ -535,10 +535,10 @@ export default function SolicitudesCompra() {
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <label htmlFor={`req-${requerimiento.id}`} className="flex-1 text-sm">
-                        <div className="font-medium">{requerimiento.codigo}</div>
+                        <div className="font-medium">{String(requerimiento.codigo || 'Sin código')}</div>
                         <div className="text-gray-500">{requerimiento.descripcion}</div>
                         <div className="text-xs text-gray-400">
-                          {requerimiento.materiales?.length || 0} material(es)
+                          {Array.isArray(requerimiento.materiales) ? requerimiento.materiales.length : 0} material(es)
                         </div>
                       </label>
                     </div>
