@@ -4,6 +4,7 @@ import { obrasService } from '../services/obras';
 import { useAuth } from '../hooks/useAuth';
 import type { Obra } from '../types';
 import { toast } from 'sonner';
+import { supabase } from '../lib/supabase';
 
 interface ObraFormData {
   nombre: string;
@@ -145,39 +146,200 @@ const AdminObras: React.FC = () => {
   };
 
   const handleDelete = async (obra: Obra) => {
-    const confirmMessage = `¿Estás seguro de que deseas eliminar la obra "${obra.nombre}"?\n\nEsta acción no se puede deshacer y eliminará todos los datos relacionados con esta obra.`;
-    
-    if (window.confirm(confirmMessage)) {
-      try {
-        console.log('Iniciando eliminación de obra:', obra.id, obra.nombre);
+    try {
+      // Primero verificar si la obra tiene dependencias
+      console.log('Verificando dependencias para obra:', obra.id, obra.nombre);
+      
+      // Verificar usuarios asignados con detalles
+      const { data: usuariosAsignados, error: errorUsuarios } = await supabase
+        .from('usuarios')
+        .select('id, email, nombre, apellido')
+        .eq('obra_id', obra.id);
+      
+      if (errorUsuarios) {
+        console.error('Error verificando usuarios:', errorUsuarios);
+        toast.error('Error al verificar dependencias de la obra');
+        return;
+      }
+
+      // Verificar otras dependencias críticas con conteos exactos
+      const { data: ordenes, error: errorOrdenes } = await supabase
+        .from('ordenes_compra')
+        .select('id, numero_orden')
+        .eq('obra_id', obra.id);
+
+      const { data: entradas, error: errorEntradas } = await supabase
+        .from('entradas')
+        .select('id, numero_entrada, fecha')
+        .eq('obra_id', obra.id);
+
+      const { data: salidas, error: errorSalidas } = await supabase
+        .from('salidas')
+        .select('id, numero_salida, fecha')
+        .eq('obra_id', obra.id);
+
+      const { data: stock, error: errorStock } = await supabase
+        .from('stock_obra_material')
+        .select('id, cantidad')
+        .eq('obra_id', obra.id)
+        .gt('cantidad', 0);
+
+      const { data: requerimientos, error: errorRequerimientos } = await supabase
+        .from('requerimiento_materiales')
+        .select('id, numero_requerimiento')
+        .eq('obra_id', obra.id);
+
+      const { data: solicitudesCompra, error: errorSolicitudes } = await supabase
+        .from('solicitudes_compra')
+        .select('id, numero_sc')
+        .eq('obra_id', obra.id);
+
+      if (errorOrdenes || errorEntradas || errorSalidas || errorStock || errorRequerimientos || errorSolicitudes) {
+        console.error('Error verificando dependencias:', { 
+          errorOrdenes, errorEntradas, errorSalidas, errorStock, errorRequerimientos, errorSolicitudes 
+        });
+        toast.error('Error al verificar dependencias de la obra');
+        return;
+      }
+
+      // Construir mensaje detallado con información específica de dependencias
+      let dependenciasDetalladas = [];
+      let totalDependencias = 0;
+      
+      if (usuariosAsignados && usuariosAsignados.length > 0) {
+        totalDependencias += usuariosAsignados.length;
+        const usuarios = usuariosAsignados.map(u => `${u.nombre} ${u.apellido} (${u.email})`).join(', ');
+        dependenciasDetalladas.push(`👥 ${usuariosAsignados.length} usuario(s): ${usuarios}`);
+      }
+      
+      if (ordenes && ordenes.length > 0) {
+        totalDependencias += ordenes.length;
+        const numerosOrdenes = ordenes.slice(0, 3).map(o => o.numero_orden).join(', ');
+        const extra = ordenes.length > 3 ? ` y ${ordenes.length - 3} más` : '';
+        dependenciasDetalladas.push(`📋 ${ordenes.length} orden(es) de compra: ${numerosOrdenes}${extra}`);
+      }
+      
+      if (entradas && entradas.length > 0) {
+        totalDependencias += entradas.length;
+        const numerosEntradas = entradas.slice(0, 3).map(e => e.numero_entrada).join(', ');
+        const extra = entradas.length > 3 ? ` y ${entradas.length - 3} más` : '';
+        dependenciasDetalladas.push(`📦 ${entradas.length} entrada(s) de materiales: ${numerosEntradas}${extra}`);
+      }
+      
+      if (salidas && salidas.length > 0) {
+        totalDependencias += salidas.length;
+        const numerosSalidas = salidas.slice(0, 3).map(s => s.numero_salida).join(', ');
+        const extra = salidas.length > 3 ? ` y ${salidas.length - 3} más` : '';
+        dependenciasDetalladas.push(`📤 ${salidas.length} salida(s) de materiales: ${numerosSalidas}${extra}`);
+      }
+      
+      if (stock && stock.length > 0) {
+        totalDependencias += stock.length;
+        dependenciasDetalladas.push(`📊 ${stock.length} material(es) con stock activo`);
+      }
+
+      if (requerimientos && requerimientos.length > 0) {
+        totalDependencias += requerimientos.length;
+        const numerosReq = requerimientos.slice(0, 3).map(r => r.numero_requerimiento).join(', ');
+        const extra = requerimientos.length > 3 ? ` y ${requerimientos.length - 3} más` : '';
+        dependenciasDetalladas.push(`📝 ${requerimientos.length} requerimiento(s): ${numerosReq}${extra}`);
+      }
+
+      if (solicitudesCompra && solicitudesCompra.length > 0) {
+        totalDependencias += solicitudesCompra.length;
+        const numerosSC = solicitudesCompra.slice(0, 3).map(s => s.numero_sc).join(', ');
+        const extra = solicitudesCompra.length > 3 ? ` y ${solicitudesCompra.length - 3} más` : '';
+        dependenciasDetalladas.push(`🛒 ${solicitudesCompra.length} solicitud(es) de compra: ${numerosSC}${extra}`);
+      }
+
+      if (totalDependencias > 0) {
+        const mensaje = `🚨 ELIMINACIÓN BLOQUEADA 🚨\n\n` +
+          `La obra "${obra.nombre}" NO se puede eliminar porque tiene ${totalDependencias} registro(s) relacionado(s):\n\n` +
+          `${dependenciasDetalladas.join('\n\n')}\n\n` +
+          `💡 SOLUCIONES POSIBLES:\n` +
+          `• Reasignar usuarios a otra obra\n` +
+          `• Completar o cancelar órdenes de compra pendientes\n` +
+          `• Transferir stock a otra obra\n` +
+          `• Contactar al administrador del sistema\n\n` +
+          `❌ Esta obra no se puede eliminar hasta resolver estas dependencias.`;
         
-        // Verificar que el ID existe
-        if (!obra.id) {
-          throw new Error('ID de obra no válido');
-        }
-        
-        const result = await obrasService.delete(obra.id);
-        console.log('Resultado de eliminación:', result);
-        
-        toast.success(`Obra "${obra.nombre}" eliminada exitosamente`);
-        await loadObras();
-        console.log('Lista de obras recargada después de eliminación');
-      } catch (error: any) {
-        console.error('Error detallado al eliminar obra:', {
-          error,
-          obraId: obra.id,
-          obraNombre: obra.nombre,
-          errorMessage: error?.message,
-          errorDetails: error?.details,
-          errorHint: error?.hint
+        toast.error('No se puede eliminar la obra - Tiene registros relacionados', {
+          duration: 8000,
         });
         
-        let errorMessage = 'Error al eliminar obra';
-        if (error?.message) {
-          errorMessage += `: ${error.message}`;
-        }
+        alert(mensaje);
+        return;
+      } else {
+        const confirmMessage = `¿Estás seguro de que deseas eliminar la obra "${obra.nombre}"?\n\n` +
+          `✅ Esta obra no tiene registros relacionados.\n` +
+          `⚠️ Esta acción no se puede deshacer.`;
         
-        toast.error(errorMessage);
+        if (!window.confirm(confirmMessage)) {
+          return;
+        }
+      }
+
+      console.log('Iniciando eliminación de obra:', obra.id, obra.nombre);
+      
+      // Verificar que el ID existe
+      if (!obra.id) {
+        throw new Error('ID de obra no válido');
+      }
+      
+      const result = await obrasService.delete(obra.id);
+      console.log('Resultado de eliminación:', result);
+      
+      toast.success(`Obra "${obra.nombre}" eliminada exitosamente`);
+      await loadObras();
+      console.log('Lista de obras recargada después de eliminación');
+      
+    } catch (error: any) {
+      console.error('Error detallado al eliminar obra:', {
+        error,
+        obraId: obra.id,
+        obraNombre: obra.nombre,
+        errorMessage: error?.message,
+        errorDetails: error?.details,
+        errorHint: error?.hint,
+        errorCode: error?.code
+      });
+      
+      let errorMessage = 'Error al eliminar obra';
+      let errorDetails = '';
+      
+      // Mensajes más específicos según el tipo de error
+      if (error?.code === '23503') {
+        errorMessage = '🚫 ELIMINACIÓN BLOQUEADA';
+        errorDetails = 'La obra tiene registros relacionados que impiden su eliminación.\n\n' +
+          'Esto puede deberse a:\n' +
+          '• Usuarios asignados a la obra\n' +
+          '• Órdenes de compra activas\n' +
+          '• Entradas o salidas de materiales\n' +
+          '• Stock de materiales\n' +
+          '• Requerimientos o solicitudes\n\n' +
+          'Contacta al administrador del sistema para resolver estas dependencias.';
+      } else if (error?.message?.includes('foreign key')) {
+        errorMessage = '🔗 Error de Integridad de Datos';
+        errorDetails = 'La obra está siendo utilizada en otros registros del sistema.';
+      } else if (error?.message?.includes('permission') || error?.message?.includes('RLS')) {
+        errorMessage = '🔒 Sin Permisos';
+        errorDetails = 'No tienes permisos suficientes para eliminar esta obra.';
+      } else if (error?.message?.includes('not found')) {
+        errorMessage = '❓ Obra No Encontrada';
+        errorDetails = 'La obra que intentas eliminar ya no existe.';
+      } else if (error?.message) {
+        errorDetails = error.message;
+      }
+      
+      toast.error(errorMessage, {
+        duration: 6000,
+      });
+      
+      if (errorDetails) {
+        // Mostrar detalles adicionales en un alert
+        setTimeout(() => {
+          alert(`${errorMessage}\n\n${errorDetails}`);
+        }, 500);
       }
     }
   };

@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useCallback, useMemo } from 
 import { localAuth } from '../services/localAuth'
 import { supabaseUsersService } from '../services/supabaseUsers'
 import { supabase } from '../lib/supabase'
+import { obrasService } from '../services/obras'
 import type { AuthUser, AuthContextType, AuthSession } from '../types'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -11,6 +12,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<AuthSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Helper function to load obra information
+  const loadObraInfo = async (obraId: string) => {
+    try {
+      const obra = await obrasService.getById(obraId)
+      return obra
+    } catch (error) {
+      console.error('Error loading obra info:', error)
+      return null
+    }
+  }
 
   // Memoizar las funciones para evitar re-renderizados innecesarios
   const signIn = useCallback(async (email: string, password: string) => {
@@ -40,6 +52,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Usuario no encontrado o inactivo')
       }
 
+      // Cargar información de la obra si está asignada
+      let obra = null
+      if (localUser.obra_id) {
+        obra = await loadObraInfo(localUser.obra_id)
+      }
+
       const authUser: AuthUser = {
         id: localUser.id,
         email: localUser.email,
@@ -48,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         rol: localUser.rol,
         obra_id: localUser.obra_id,
         activo: localUser.activo,
+        obra: obra,
         supabaseId: data.user.id
       }
 
@@ -95,10 +114,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const refreshedUser = await localAuth.refreshUser()
       if (refreshedUser) {
-        setUser(refreshedUser)
-        if (session) {
-          setSession(prev => prev ? { ...prev, user: refreshedUser } : null)
+        // Cargar información de la obra si está asignada
+        let obra = null
+        if (refreshedUser.obra_id) {
+          obra = await loadObraInfo(refreshedUser.obra_id)
         }
+
+        const updatedUser = {
+          ...refreshedUser,
+          obra: obra
+        }
+
+        setUser(updatedUser)
+        if (session) {
+          setSession(prev => prev ? { ...prev, user: updatedUser } : null)
+        }
+        return updatedUser
       }
       return refreshedUser
     } catch (error) {
@@ -118,8 +149,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Verificar sesión local primero (más rápido)
         const localSession = localAuth.getSession()
         if (localSession && isMounted) {
-          setUser(localSession.user)
-          setSession(localSession)
+          // Cargar información de la obra si está asignada
+          let obra = null
+          if (localSession.user.obra_id) {
+            obra = await loadObraInfo(localSession.user.obra_id)
+          }
+
+          const userWithObra = {
+            ...localSession.user,
+            obra: obra
+          }
+
+          setUser(userWithObra)
+          setSession({
+            ...localSession,
+            user: userWithObra
+          })
           setLoading(false)
           return
         }
@@ -133,6 +178,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const localUser = usuarios.find(u => u.email === supabaseSession.user.email)
           
           if (localUser && isMounted) {
+            // Cargar información de la obra si está asignada
+            let obra = null
+            if (localUser.obra_id) {
+              obra = await loadObraInfo(localUser.obra_id)
+            }
+
             const authUser: AuthUser = {
               id: localUser.id,
               email: localUser.email,
@@ -141,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               rol: localUser.rol,
               obra_id: localUser.obra_id,
               activo: localUser.activo,
+              obra: obra,
               supabaseId: supabaseSession.user.id
             }
             
@@ -165,28 +217,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     initAuth()
-    
-    // Escuchar cambios de autenticación de Supabase (optimizado)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return
-      
-      // Solo cerrar sesión si es un logout explícito, no por otros eventos
-      if (event === 'SIGNED_OUT') {
-        console.log('🔄 onAuthStateChange: SIGNED_OUT detectado')
-        // NO llamar localAuth.signOut() aquí para evitar bucle infinito
-        // Solo limpiar el estado local
-        setUser(null)
-        setSession(null)
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        // No hacer nada, mantener la sesión actual
-      }
-    })
 
     return () => {
       isMounted = false
-      subscription.unsubscribe()
     }
-  }, []) // Dependencias vacías para ejecutar solo una vez
+  }, [])
 
   const updateObraAsignada = useCallback(async (obraId: string | null): Promise<boolean> => {
     try {

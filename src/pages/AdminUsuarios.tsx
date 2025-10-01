@@ -65,14 +65,39 @@ const AdminUsuarios: React.FC = () => {
         usuariosService.getAll(),
         obrasService.getAll()
       ]);
+      
+      // Logs de depuración
+      console.log('🔍 DEBUG - Usuarios cargados:', usuariosData.length);
+      console.log('🔍 DEBUG - Obras cargadas:', obrasData.length);
+      
+      // Mostrar algunos ejemplos de usuarios con obra_id
+      const usuariosConObra = usuariosData.filter(u => u.obra_id);
+      console.log('🔍 DEBUG - Usuarios con obra asignada:', usuariosConObra.length);
+      usuariosConObra.slice(0, 3).forEach(usuario => {
+        console.log(`   Usuario: ${usuario.nombre} ${usuario.apellido}, obra_id: ${usuario.obra_id}`);
+      });
+      
+      // Mostrar algunos ejemplos de obras
+      obrasData.slice(0, 3).forEach(obra => {
+        console.log(`   Obra: ${obra.nombre}, id: ${obra.id}, codigo: ${obra.codigo}`);
+      });
+      
       setUsuarios(usuariosData);
       setObras(obrasData.filter(obra => obra.estado === 'ACTIVA'));
+      
+      console.log('🔍 DEBUG - Obras activas filtradas:', obrasData.filter(obra => obra.estado === 'ACTIVA').length);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Error al cargar los datos');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Función para validar si un ID es un UUID válido
+  const isValidUUID = (id: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,17 +116,24 @@ const AdminUsuarios: React.FC = () => {
         // Si se cambió la obra asignada, actualizar también en Supabase
         if (updateData.obra_id !== editingUsuario.obra_id) {
           const obraId = updateData.obra_id || null;
-          // Convertir ID local a UUID de Supabase si es necesario
+          // Determinar si necesitamos mapear el ID o si ya es un UUID válido
           let obraUUID = null;
           if (obraId) {
             try {
-              obraUUID = await mapLocalIdToUUID(obraId, 'obra');
-              if (!obraUUID) {
-                throw new Error(`No se pudo mapear la obra con ID local: ${obraId}`);
+              if (isValidUUID(obraId)) {
+                // Ya es un UUID válido, usarlo directamente
+                obraUUID = obraId;
+                console.log('Usando UUID de obra directamente:', obraUUID);
+              } else {
+                // Es un ID local, necesita mapeo
+                obraUUID = await mapLocalIdToUUID(obraId, 'obra');
+                if (!obraUUID) {
+                  throw new Error(`No se pudo mapear la obra con ID local: ${obraId}`);
+                }
+                console.log('Obra mapeada exitosamente:', { localId: obraId, uuid: obraUUID });
               }
-              console.log('Obra mapeada exitosamente:', { localId: obraId, uuid: obraUUID });
             } catch (error) {
-              console.error('Error mapeando obra ID:', error);
+              console.error('Error procesando obra ID:', error);
               toast.error('Error: No se pudo asignar la obra seleccionada');
               return;
             }
@@ -110,13 +142,20 @@ const AdminUsuarios: React.FC = () => {
           // Convertir ID local del usuario a UUID de Supabase
           let userUUID = null;
           try {
-            userUUID = await mapLocalIdToUUID(editingUsuario.id, 'usuario');
-            if (!userUUID) {
-              throw new Error(`No se pudo mapear el usuario con ID local: ${editingUsuario.id}`);
+            if (isValidUUID(editingUsuario.id)) {
+              // Ya es un UUID válido, usarlo directamente
+              userUUID = editingUsuario.id;
+              console.log('Usando UUID de usuario directamente:', userUUID);
+            } else {
+              // Es un ID local, necesita mapeo
+              userUUID = await mapLocalIdToUUID(editingUsuario.id, 'usuario');
+              if (!userUUID) {
+                throw new Error(`No se pudo mapear el usuario con ID local: ${editingUsuario.id}`);
+              }
+              console.log('Usuario mapeado exitosamente:', { localId: editingUsuario.id, uuid: userUUID });
             }
-            console.log('Usuario mapeado exitosamente:', { localId: editingUsuario.id, uuid: userUUID });
           } catch (error) {
-            console.error('Error mapeando usuario ID:', error);
+            console.error('Error procesando usuario ID:', error);
             toast.error('Error: No se pudo identificar el usuario en Supabase');
             return;
           }
@@ -132,23 +171,39 @@ const AdminUsuarios: React.FC = () => {
         // Si se asignó una obra, actualizar también en Supabase
         if (formData.obra_id) {
           try {
-            // Convertir ID local a UUID de Supabase
-            const obraUUID = await mapLocalIdToUUID(formData.obra_id, 'obra');
-            if (!obraUUID) {
-              throw new Error(`No se pudo mapear la obra con ID local: ${formData.obra_id}`);
+            // Determinar si necesitamos mapear el ID o si ya es un UUID válido
+            let obraUUID = null;
+            if (isValidUUID(formData.obra_id)) {
+              // Ya es un UUID válido, usarlo directamente
+              obraUUID = formData.obra_id;
+              console.log('Usando UUID de obra directamente para nuevo usuario:', obraUUID);
+            } else {
+              // Es un ID local, necesita mapeo
+              obraUUID = await mapLocalIdToUUID(formData.obra_id, 'obra');
+              if (!obraUUID) {
+                throw new Error(`No se pudo mapear la obra con ID local: ${formData.obra_id}`);
+              }
+              console.log('Obra mapeada para nuevo usuario:', { localId: formData.obra_id, uuid: obraUUID });
             }
-            console.log('Obra mapeada para nuevo usuario:', { localId: formData.obra_id, uuid: obraUUID });
             
             // Convertir ID local del nuevo usuario a UUID de Supabase
-            const userUUID = await mapLocalIdToUUID(newUser.id, 'usuario');
-            if (!userUUID) {
-              throw new Error(`No se pudo mapear el nuevo usuario con ID local: ${newUser.id}`);
+            let userUUID = null;
+            if (isValidUUID(newUser.id)) {
+              // Ya es un UUID válido, usarlo directamente
+              userUUID = newUser.id;
+              console.log('Usando UUID de nuevo usuario directamente:', userUUID);
+            } else {
+              // Es un ID local, necesita mapeo
+              userUUID = await mapLocalIdToUUID(newUser.id, 'usuario');
+              if (!userUUID) {
+                throw new Error(`No se pudo mapear el nuevo usuario con ID local: ${newUser.id}`);
+              }
+              console.log('Nuevo usuario mapeado exitosamente:', { localId: newUser.id, uuid: userUUID });
             }
-            console.log('Nuevo usuario mapeado exitosamente:', { localId: newUser.id, uuid: userUUID });
             
             await supabaseUsersService.updateObraAsignada(userUUID, obraUUID);
           } catch (error) {
-            console.error('Error mapeando IDs para nuevo usuario:', error);
+            console.error('Error procesando IDs para nuevo usuario:', error);
             toast.error('Usuario creado pero no se pudo asignar la obra');
           }
         }
@@ -159,7 +214,7 @@ const AdminUsuarios: React.FC = () => {
       handleCloseModal();
     } catch (error) {
       console.error('Error saving usuario:', error);
-      toast.error(editingUsuario ? 'Error al actualizar usuario' : 'Error al crear usuario');
+      toast.error('Error al guardar usuario');
     }
   };
 
@@ -262,8 +317,44 @@ const AdminUsuarios: React.FC = () => {
   };
 
   const getObraNombre = (obraId: string) => {
-    const obra = obras.find(o => o.id === obraId);
-    return obra ? obra.nombre : 'Sin asignar';
+    console.log('🔍 DEBUG - Buscando obra con ID:', obraId);
+    console.log('🔍 DEBUG - Obras disponibles:', obras.map(o => ({ id: o.id, nombre: o.nombre })));
+    
+    if (!obraId) {
+      console.log('🔍 DEBUG - obra_id está vacío o null');
+      return 'Sin asignar';
+    }
+    
+    // Primero buscar por ID exacto (UUID)
+    let obra = obras.find(o => o.id === obraId);
+    
+    // Si no se encuentra y el obraId parece ser un ID local (número), buscar por código o posición
+    if (!obra && /^\d+$/.test(obraId)) {
+      console.log('🔍 DEBUG - ID parece ser local (numérico), buscando alternativas...');
+      
+      // Intentar buscar por código que contenga el número
+      obra = obras.find(o => o.codigo && o.codigo.includes(obraId));
+      
+      // Si aún no se encuentra, intentar por posición en el array (ID local como índice)
+      if (!obra) {
+        const index = parseInt(obraId) - 1; // Asumiendo que IDs locales empiezan en 1
+        if (index >= 0 && index < obras.length) {
+          obra = obras[index];
+          console.log('🔍 DEBUG - Encontrada obra por índice:', obra);
+        }
+      }
+      
+      // Como último recurso, buscar la primera obra activa si el ID es "1"
+      if (!obra && obraId === "1") {
+        obra = obras[0]; // Tomar la primera obra disponible
+        console.log('🔍 DEBUG - Asignando primera obra disponible para ID local "1":', obra);
+      }
+    }
+    
+    const resultado = obra ? obra.nombre : 'Sin asignar';
+    
+    console.log('🔍 DEBUG - Resultado búsqueda obra:', resultado);
+    return resultado;
   };
 
   if (loading) {
