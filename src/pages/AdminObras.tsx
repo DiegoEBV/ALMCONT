@@ -129,7 +129,7 @@ const AdminObras: React.FC = () => {
         nombre: obra.nombre,
         codigo: obra.codigo,
         ubicacion: obra.ubicacion,
-        fecha_inicio: obra.fecha_inicio.split('T')[0],
+        fecha_inicio: obra.fecha_inicio ? obra.fecha_inicio.split('T')[0] : '',
         fecha_fin_estimada: obra.fecha_fin_estimada ? obra.fecha_fin_estimada.split('T')[0] : '',
         estado: obra.estado,
         presupuesto: obra.presupuesto,

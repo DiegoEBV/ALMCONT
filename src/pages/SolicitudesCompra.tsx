@@ -38,6 +38,8 @@ export default function SolicitudesCompra() {
   const [showModal, setShowModal] = useState(false)
   const [editingSolicitud, setEditingSolicitud] = useState<SolicitudCompra | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudCompra | null>(null)
 
   // Estados de filtros
   const [filters, setFilters] = useState({
@@ -140,10 +142,7 @@ export default function SolicitudesCompra() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              // Mostrar detalles para todos los usuarios
-              console.log('Ver detalles:', item)
-            }}
+            onClick={() => handleView(item)}
           >
             <Eye className="w-4 h-4 mr-1" />
             Ver
@@ -273,6 +272,11 @@ export default function SolicitudesCompra() {
         observaciones: solicitud.observaciones || ''
       })
     setShowModal(true)
+  }
+
+  const handleView = (solicitud: SolicitudCompra) => {
+    setSelectedSolicitud(solicitud)
+    setShowDetailsModal(true)
   }
 
   const handleDelete = async (id: string) => {
@@ -599,6 +603,146 @@ export default function SolicitudesCompra() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal de detalles de solicitud */}
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false)
+          setSelectedSolicitud(null)
+        }}
+        title="Detalles de Solicitud de Compra"
+        size="lg"
+      >
+        {selectedSolicitud && (
+          <div className="space-y-6">
+            {/* Información básica */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Información General</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Número SC</label>
+                  <p className="mt-1 text-sm text-gray-900 font-mono">{selectedSolicitud.numero_sc}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Obra Asignada</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSolicitud.obra?.nombre || 'No asignada'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Fecha de Solicitud</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedSolicitud.fecha_solicitud ? 
+                      format(new Date(selectedSolicitud.fecha_solicitud), 'dd/MM/yyyy', { locale: es }) : 
+                      '-'
+                    }
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Fecha de Entrega</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedSolicitud.fecha_entrega ? 
+                      format(new Date(selectedSolicitud.fecha_entrega), 'dd/MM/yyyy', { locale: es }) : 
+                      'No especificada'
+                    }
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Estado</label>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    selectedSolicitud.estado === 'PROCESADO' ? 'bg-green-100 text-green-800' :
+                    selectedSolicitud.estado === 'APROBADO' ? 'bg-blue-100 text-blue-800' :
+                    selectedSolicitud.estado === 'RECHAZADO' ? 'bg-red-100 text-red-800' :
+                    selectedSolicitud.estado === 'CANCELADO' ? 'bg-gray-100 text-gray-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {selectedSolicitud.estado}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Proveedor</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSolicitud.proveedor || 'No especificado'}</p>
+                </div>
+              </div>
+              {selectedSolicitud.observaciones && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700">Observaciones</label>
+                  <p className="mt-1 text-sm text-gray-900 bg-white p-3 rounded border">
+                    {selectedSolicitud.observaciones}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Requerimientos asociados */}
+            {selectedSolicitud.requerimientos && selectedSolicitud.requerimientos.length > 0 && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Requerimientos Asociados</h3>
+                <div className="space-y-3">
+                  {selectedSolicitud.requerimientos.map((req, index) => (
+                    <div key={req.id || index} className="bg-white p-3 rounded border">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {req.codigo || req.numero_requerimiento || 'Sin código'}
+                          </p>
+                          {req.descripcion && (
+                            <p className="text-sm text-gray-600 mt-1">{req.descripcion}</p>
+                          )}
+                          {req.material_nombre && (
+                            <p className="text-sm text-blue-600 mt-1">Material: {req.material_nombre}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {req.cantidad && (
+                            <p className="text-sm font-medium">Cantidad: {req.cantidad}</p>
+                          )}
+                          {req.precio_unitario && (
+                            <p className="text-sm text-gray-600">
+                              Precio: S/ {req.precio_unitario.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Información adicional */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Información Adicional</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <label className="block font-medium text-gray-700">Total</label>
+                  <p className="text-gray-900">S/ {selectedSolicitud.total?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div>
+                  <label className="block font-medium text-gray-700">Fecha de Creación</label>
+                  <p className="text-gray-900">
+                    {selectedSolicitud.created_at ? 
+                      format(new Date(selectedSolicitud.created_at), 'dd/MM/yyyy HH:mm', { locale: es }) : 
+                      '-'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Botón de cerrar */}
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  setShowDetailsModal(false)
+                  setSelectedSolicitud(null)
+                }}
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
       
     </div>
