@@ -56,6 +56,12 @@ const navigation: NavItem[] = [
     roles: ['COORDINACION']
   },
   {
+    name: 'Gestión de Materiales',
+    href: '/materiales',
+    icon: CubeIcon,
+    roles: ['COORDINACION']
+  },
+  {
     name: 'Panel Logística',
     href: '/logistica/dashboard',
     icon: LogisticsIcon,

@@ -54,10 +54,11 @@ export interface Material {
   unidad: string
   unidad_medida?: string
   precio_referencial?: number
-  precio_unitario?: number
+  precio_unitario: number
   especificaciones?: string
   proveedor_preferido?: string
   stock_minimo?: number
+  stock_maximo?: number
   activo: boolean
   created_at: string
   updated_at: string

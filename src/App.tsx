@@ -28,6 +28,7 @@ import AdminUsuarios from './pages/AdminUsuarios'
 import ProductionDashboard from './pages/ProductionDashboard'
 import CreateRequirement from './pages/CreateRequirement'
 import RequirementsTracking from './pages/RequirementsTracking'
+import Materiales from './pages/Materiales'
 import './App.css'
 
 function App() {
@@ -64,6 +65,16 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['COORDINACION']}>
                   <CoordinationDashboard />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Gestión de Materiales - Solo COORDINACION */}
+            <Route
+              path="materiales"
+              element={
+                <ProtectedRoute allowedRoles={['COORDINACION']}>
+                  <Materiales />
                 </ProtectedRoute>
               }
             />

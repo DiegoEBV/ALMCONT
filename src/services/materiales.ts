@@ -139,5 +139,73 @@ export const materialesService = {
       console.error('Error fetching materiales by categoria:', error)
       throw new Error('Error al obtener materiales por categoría')
     }
+  },
+
+  // Mapeo de categorías a prefijos
+  getCategoryPrefix(categoria: string): string {
+    const categoryMap: { [key: string]: string } = {
+      'Acero': 'ACE',
+      'Madera': 'MAD',
+      'Consumible': 'CON',
+      'Alambre': 'ALA',
+      'Aditivos': 'ADI',
+      'Cemento': 'CEM',
+      'Agregados': 'AGR',
+      'Herramientas': 'HER',
+      'Equipos': 'EQU',
+      'Pinturas': 'PIN',
+      'Electricidad': 'ELE',
+      'Plomería': 'PLO',
+      'Otros': 'OTR'
+    }
+    
+    return categoryMap[categoria] || 'OTR'
+  },
+
+  // Generar el siguiente código disponible para una categoría
+  async getNextCode(categoria: string): Promise<string> {
+    try {
+      const prefix = this.getCategoryPrefix(categoria)
+      
+      // Obtener todos los materiales con el mismo prefijo
+      const { data, error } = await supabase
+        .from('materiales')
+        .select('codigo')
+        .like('codigo', `${prefix}%`)
+        .order('codigo')
+      
+      if (error) throw error
+      
+      // Encontrar el siguiente número disponible
+      let nextNumber = 1
+      if (data && data.length > 0) {
+        const existingNumbers = data
+          .map(item => {
+            const match = item.codigo.match(new RegExp(`^${prefix}(\\d+)$`))
+            return match ? parseInt(match[1], 10) : 0
+          })
+          .filter(num => num > 0)
+          .sort((a, b) => a - b)
+        
+        // Encontrar el primer hueco o el siguiente número
+        for (let i = 0; i < existingNumbers.length; i++) {
+          if (existingNumbers[i] !== i + 1) {
+            nextNumber = i + 1
+            break
+          }
+        }
+        
+        // Si no hay huecos, usar el siguiente número
+        if (nextNumber === 1 && existingNumbers.length > 0) {
+          nextNumber = existingNumbers[existingNumbers.length - 1] + 1
+        }
+      }
+      
+      // Formatear con ceros a la izquierda (2 dígitos)
+      return `${prefix}${nextNumber.toString().padStart(2, '0')}`
+    } catch (error) {
+      console.error('Error generating next code:', error)
+      throw new Error('Error al generar el código automático')
+    }
   }
 }

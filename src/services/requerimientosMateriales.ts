@@ -117,6 +117,31 @@ export const requerimientosMaterialesService = {
       // Establecer contexto de usuario para RLS
       await setUserContextWithMapping()
       
+      // Verificar alertas de stock máximo antes de crear el requerimiento
+      if (formData.detalles && formData.detalles.length > 0) {
+        const { stockAlertsService } = await import('./stockAlerts')
+        
+        for (const detalle of formData.detalles) {
+          const stockCheck = await stockAlertsService.wouldExceedMaxStock(
+            detalle.material_id, 
+            detalle.cantidad
+          )
+          
+          if (stockCheck.wouldExceed) {
+            // Obtener información del material para el error
+            const { data: material } = await supabase
+              .from('materiales')
+              .select('nombre, codigo')
+              .eq('id', detalle.material_id)
+              .single()
+            
+            throw new Error(
+              `El material "${material?.nombre || 'desconocido'}" (${material?.codigo || ''}) excedería su stock máximo: ${stockCheck.newUsage}/${stockCheck.maxStock} (${stockCheck.usagePercentage.toFixed(1)}%)`
+            )
+          }
+        }
+      }
+      
       // Generar número de requerimiento
       const numeroRequerimiento = await this.generateNumeroRequerimiento()
       
@@ -162,7 +187,7 @@ export const requerimientosMaterialesService = {
       return await this.getById(requerimiento.id) as RequerimientoMaterial
     } catch (error) {
       console.error('Error creating requerimiento:', error)
-      throw new Error('Error al crear requerimiento de materiales')
+      throw error
     }
   },
 

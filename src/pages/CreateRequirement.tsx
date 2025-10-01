@@ -134,6 +134,43 @@ const CreateRequirement: React.FC = () => {
     try {
       setLoading(true)
       
+      // Verificar alertas de stock máximo antes de crear el requerimiento
+      const { stockAlertsService } = await import('@/services/stockAlerts')
+      const stockAlerts = []
+      
+      for (const material of selectedMaterials) {
+        const stockCheck = await stockAlertsService.wouldExceedMaxStock(
+          material.material_id, 
+          material.cantidad
+        )
+        
+        if (stockCheck.wouldExceed) {
+          stockAlerts.push({
+            material: material.material,
+            ...stockCheck
+          })
+        } else if (stockCheck.usagePercentage >= 80) {
+          // Mostrar advertencia si se acerca al límite
+          toast.warning(
+            `Advertencia: El material "${material.material.nombre}" alcanzará ${stockCheck.usagePercentage.toFixed(1)}% de su stock máximo (${stockCheck.maxStock})`
+          )
+        }
+      }
+      
+      // Si hay materiales que excederían el stock máximo, mostrar error
+      if (stockAlerts.length > 0) {
+        const alertMessages = stockAlerts.map(alert => 
+          `${alert.material.nombre}: ${alert.newUsage}/${alert.maxStock} (${alert.usagePercentage.toFixed(1)}%)`
+        ).join('\n')
+        
+        toast.error(
+          `Los siguientes materiales excederían su stock máximo:\n${alertMessages}`,
+          { duration: 8000 }
+        )
+        setLoading(false)
+        return
+      }
+      
       const requirementData = {
         ...formData,
         detalles: selectedMaterials.map(sm => ({
