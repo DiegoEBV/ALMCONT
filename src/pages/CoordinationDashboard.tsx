@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Package, Clock, AlertTriangle, Building2, ShoppingCart, Download, RefreshCw, Plus, Save, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { httpService } from '@/services/httpService';
@@ -185,7 +185,10 @@ const CoordinationDashboard: React.FC = () => {
         unidad: materialForm.unidad_medida,
         activo: true
       };
-      await materialesService.create(materialData);
+      await materialesService.create({
+        ...materialData,
+        precio_unitario: materialData.precio_referencial ?? 0
+      });
       toast.success('Material creado exitosamente');
       
       // Reset form

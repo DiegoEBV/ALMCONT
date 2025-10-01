@@ -137,7 +137,7 @@ const Materiales: React.FC = () => {
     setSelectedMaterial(null)
   }
 
-  const handleInputChange = async (field: string, value: any) => {
+  const handleInputChange = async (field: string, value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -146,7 +146,7 @@ const Materiales: React.FC = () => {
     // Generar código automáticamente cuando se selecciona una categoría en modo crear
     if (field === 'categoria' && value && showCreateModal) {
       try {
-        const nextCode = await materialesService.getNextCode(value)
+        const nextCode = await materialesService.getNextCode(value as string)
         setFormData(prev => ({
           ...prev,
           codigo: nextCode
