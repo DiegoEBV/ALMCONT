@@ -89,7 +89,7 @@ export default function SolicitudesCompra() {
         <div className="max-w-xs">
           {item.requerimientos && item.requerimientos.length > 0 ? (
             <div className="space-y-1">
-              {item.requerimientos.slice(0, 2).map((req, index) => (
+              {item.requerimientos.slice(0, 2).map((req) => (
                 <div key={req.id} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                   {String(req.codigo || 'Sin código')}
                 </div>
@@ -684,7 +684,9 @@ export default function SolicitudesCompra() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium text-gray-900">
-                            {req.codigo || req.numero_requerimiento || 'Sin código'}
+                            <p className="font-medium text-gray-900">
+                              {String(req.codigo || req.numero_requerimiento || 'Sin código')}
+                            </p>
                           </p>
                           {req.descripcion && (
                             <p className="text-sm text-gray-600 mt-1">{req.descripcion}</p>
