@@ -130,15 +130,16 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({ className })
   };
 
   const filteredAndSortedApprovals = pendingApprovals
-    .filter(approval => filter === 'all' || (approval.datos_solicitud?.prioridad || 'media') === filter)
+    .filter(approval => filter === 'all' || String(approval.datos_solicitud?.prioridad || 'media') === filter)
     .sort((a, b) => {
       switch (sortBy) {
         case 'amount':
-          return (b.datos_solicitud?.monto || 0) - (a.datos_solicitud?.monto || 0);
+          return Number(b.datos_solicitud?.monto || 0) - Number(a.datos_solicitud?.monto || 0);
         case 'priority': {
           const priorityOrder = { 'alta': 3, 'media': 2, 'baja': 1 };
-          return (priorityOrder[(b.datos_solicitud?.prioridad || 'media') as keyof typeof priorityOrder] || 0) -
-                 (priorityOrder[(a.datos_solicitud?.prioridad || 'media') as keyof typeof priorityOrder] || 0);
+          const bPriority = String(b.datos_solicitud?.prioridad || 'media') as keyof typeof priorityOrder;
+          const aPriority = String(a.datos_solicitud?.prioridad || 'media') as keyof typeof priorityOrder;
+          return (priorityOrder[bPriority] || 0) - (priorityOrder[aPriority] || 0);
         }
         case 'date':
         default:
@@ -216,9 +217,9 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({ className })
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(approval.datos_solicitud?.prioridad || 'media')}`}>
-                      {getPriorityIcon(approval.datos_solicitud?.prioridad || 'media')}
-                      {(approval.datos_solicitud?.prioridad || 'media').toUpperCase()}
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(String(approval.datos_solicitud?.prioridad || 'media'))}`}>
+                      {getPriorityIcon(String(approval.datos_solicitud?.prioridad || 'media'))}
+                      {String(approval.datos_solicitud?.prioridad || 'media').toUpperCase()}
                     </span>
                     <span className="text-sm text-gray-500">
                       {getDocumentTypeLabel(approval.tipo)}

@@ -318,25 +318,24 @@ class LocalDatabase {
       }
       
       // Cargar directamente desde database.json usando import
-      const jsonData = database as Partial<DatabaseTable>
+      const jsonData = database as any
       console.log('📁 Archivo database.json cargado, tamaño:', Object.keys(jsonData).length)
       
       // Asignar datos directamente con type assertions seguras y mapeo de campos
       this.data = {
-        usuarios: (jsonData.usuarios || []) as unknown as Usuario[],
-        obras: (jsonData.obras || []) as unknown as Obra[],
-        materiales: (jsonData.materiales || []) as unknown as Material[],
-        requerimientos: (jsonData.requerimientos || []) as unknown as Requerimiento[],
-        solicitudes_compra: ((jsonData.solicitudes_compra || []) as SolicitudCompra[]).map((sc: SolicitudCompra) => {
-          const { sc_numero, ...rest } = sc;
+        usuarios: (jsonData.usuarios || []) as Usuario[],
+        obras: (jsonData.obras || []) as Obra[],
+        materiales: (jsonData.materiales || []) as Material[],
+        requerimientos: (jsonData.requerimientos || []) as Requerimiento[],
+        solicitudes_compra: ((jsonData.solicitudes_compra || []) as any[]).map((sc: any) => {
           return {
-            ...rest,
-            numero_sc: sc_numero || sc.numero_sc // Mapear sc_numero a numero_sc
+            ...sc,
+            numero_sc: sc.sc_numero || sc.numero_sc // Mapear sc_numero a numero_sc
           };
-        }) as unknown as SolicitudCompra[],
-        rq_sc: (jsonData.rq_sc || []) as unknown as RqSc[],
-        ordenes_compra: (jsonData.ordenes_compra || []) as unknown as OrdenCompra[],
-        sc_oc: (jsonData.sc_oc || []) as unknown as ScOc[]
+        }) as SolicitudCompra[],
+        rq_sc: (jsonData.rq_sc || []) as RqSc[],
+        ordenes_compra: (jsonData.ordenes_compra || []) as OrdenCompra[],
+        sc_oc: (jsonData.sc_oc || []) as ScOc[]
       }
       
       // Guardar en localStorage
