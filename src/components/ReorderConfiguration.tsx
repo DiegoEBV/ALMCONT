@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, RefreshCw, TrendingUp, Package, AlertTriangle, CheckCircle, Edit3 } from 'lucide-react';
-import { ReorderService, ReorderAlert, AutoReorderResult } from '../services/reorderService';
-import { CustomModal as Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalDescription } from './ui/modal';
+import { ReorderService, ReorderAlert } from '../services/reorderService';
+import { CustomModal as Modal, ModalDescription } from './ui/modal';
 import { Button } from './ui/button';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { toast } from 'sonner';
@@ -174,7 +174,7 @@ export const ReorderConfiguration: React.FC<ReorderConfigurationProps> = ({ clas
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'config' | 'suggestions' | 'reports')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
@@ -209,7 +209,7 @@ export const ReorderConfiguration: React.FC<ReorderConfigurationProps> = ({ clas
         {activeTab === 'suggestions' && (
           <select
             value={filterUrgency}
-            onChange={(e) => setFilterUrgency(e.target.value as any)}
+            onChange={(e) => setFilterUrgency(e.target.value as 'all' | 'alta' | 'media' | 'baja')}
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todas las urgencias</option>
@@ -228,7 +228,6 @@ export const ReorderConfiguration: React.FC<ReorderConfigurationProps> = ({ clas
             setSelectedConfig(config);
             setShowConfigModal(true);
           }}
-          onRefresh={loadData}
         />
       )}
 
@@ -265,10 +264,9 @@ export const ReorderConfiguration: React.FC<ReorderConfigurationProps> = ({ clas
 interface ConfigurationsTabProps {
   configs: ReorderAlert[];
   onEdit: (config: ReorderAlert) => void;
-  onRefresh: () => void;
 }
 
-const ConfigurationsTab: React.FC<ConfigurationsTabProps> = ({ configs, onEdit, onRefresh }) => {
+const ConfigurationsTab: React.FC<ConfigurationsTabProps> = ({ configs, onEdit }) => {
   if (configs.length === 0) {
     return (
       <div className="text-center py-12">

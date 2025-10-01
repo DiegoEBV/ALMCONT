@@ -457,11 +457,11 @@ export class TemplateService {
   private static async generateHTML(template: Template, data: any): Promise<{ url: string; size: number }> {
     try {
       // Procesar template HTML
-      let htmlContent = this.processHTMLTemplate(template.template_data, data);
+      const htmlContent = this.processHTMLTemplate(template.template_data, data);
       
       // Subir archivo HTML a Supabase Storage
       const fileName = `template_${template.id}_${Date.now()}.html`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(fileName, new Blob([htmlContent], { type: 'text/html' }));
 

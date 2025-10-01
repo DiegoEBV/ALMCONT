@@ -108,6 +108,11 @@ class ImportService {
     }
   }
 
+  // Método para previsualizar archivo (alias de parseFile)
+  async previewFile(file: File): Promise<ParsedData> {
+    return this.parseFile(file);
+  }
+
   // Parsear CSV
   private async parseCSV(file: File): Promise<ParsedData> {
     return new Promise((resolve, reject) => {

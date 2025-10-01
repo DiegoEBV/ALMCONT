@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Move, Search, Grid, List, Plus, Edit3, Navigation, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { LocationService, Location, WarehouseMap } from '../services/locationService';
 import { Button } from './ui/button';
-import { CustomModal as Modal, ModalContent, ModalHeader, ModalTitle, ModalFooter, ModalDescription } from './ui/modal';
+import { CustomModal as Modal, ModalDescription } from './ui/modal';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
@@ -67,7 +67,7 @@ export const LocationManager: React.FC<LocationManagerProps> = ({ className }) =
     }
   };
 
-  const handleSaveLocation = async (locationData: Partial<Location>) => {
+  const handleSaveLocation = async () => {
     try {
       setProcessing(true);
       // Aquí iría la lógica para guardar/actualizar ubicación

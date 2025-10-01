@@ -137,7 +137,7 @@ class WarehouseService {
   }
 
   // Obtener alertas de almacén basadas en stock bajo y otros problemas
-  async getWarehouseAlerts(workerId: string): Promise<LocationAlert[]> {
+  async getWarehouseAlerts(): Promise<LocationAlert[]> {
     try {
       const { data: stockItems, error } = await supabase
         .from('stock_obra_material')
@@ -174,7 +174,7 @@ class WarehouseService {
         let message = '';
         switch (alertType) {
           case 'low_stock':
-            message = `Stock bajo: ${(item.materiales as any)?.nombre || 'Material'} (${item.cantidad_actual}/${item.cantidad_minima || 0})`;
+            message = `Stock bajo: ${(item.materiales as { nombre?: string })?.nombre || 'Material'} (${item.cantidad_actual}/${item.cantidad_minima || 0})`;
             break;
           case 'misplaced_item':
             message = `Posible material mal ubicado en ${item.ubicacion}`;

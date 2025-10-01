@@ -354,7 +354,7 @@ class ExportService {
   /**
    * Convierte elemento HTML a canvas (requiere html2canvas)
    */
-  private async htmlToCanvas(element: HTMLElement): Promise<HTMLCanvasElement> {
+  private async htmlToCanvas(_element: HTMLElement): Promise<HTMLCanvasElement> {
     // Esta funcionalidad requeriría la librería html2canvas
     // Por ahora, retornamos un canvas vacío
     const canvas = document.createElement('canvas');

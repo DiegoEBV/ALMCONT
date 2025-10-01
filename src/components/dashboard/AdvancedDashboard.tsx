@@ -31,8 +31,7 @@ import {
   Clock,
   Target,
   RefreshCw,
-  Download,
-  Filter
+  Download
 } from 'lucide-react';
 import { advancedAnalyticsService, DashboardMetricas, IndicadorKPI } from '../../services/advancedAnalyticsService';
 import { toast } from 'sonner';
@@ -41,7 +40,7 @@ interface FiltroAvanzado {
   id: string;
   campo: string;
   operador: 'igual' | 'contiene' | 'mayor' | 'menor' | 'entre' | 'en';
-  valor: any;
+  valor: string | number | Date | string[] | boolean;
   activo: boolean;
   tipo: 'texto' | 'numero' | 'fecha' | 'select' | 'multiselect';
   opciones?: { label: string; value: string }[];
@@ -61,7 +60,7 @@ interface AdvancedDashboardProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
-const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({ userRole }) => {
+const AdvancedDashboard: React.FC<AdvancedDashboardProps> = () => {
   const [metricas, setMetricas] = useState<DashboardMetricas | null>(null);
   const [kpis, setKpis] = useState<IndicadorKPI[]>([]);
   const [consumoData, setConsumoData] = useState<any[]>([]);
@@ -398,18 +397,18 @@ const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({ userRole }) => {
                     <div className="flex items-center space-x-3">
                       <AlertTriangle className="h-5 w-5 text-red-500" />
                       <div>
-                        <p className="font-medium">{alerta.materialNombre}</p>
+                        <p className="font-medium">{String(alerta.materialNombre)}</p>
                         <p className="text-sm text-muted-foreground">
-                          Stock: {alerta.stockActual} / Mínimo: {alerta.stockMinimo}
+                          Stock: {String(alerta.stockActual)} / Mínimo: {String(alerta.stockMinimo)}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Badge variant={getCriticidadColor(alerta.nivelCriticidad)}>
-                        {alerta.nivelCriticidad.toUpperCase()}
+                      <Badge variant={getCriticidadColor(String(alerta.nivelCriticidad))}>
+                        {String(alerta.nivelCriticidad).toUpperCase()}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
-                        {alerta.diasRestantes} días
+                        {String(alerta.diasRestantes)} días
                       </span>
                     </div>
                   </div>
@@ -432,18 +431,18 @@ const AdvancedDashboard: React.FC<AdvancedDashboardProps> = ({ userRole }) => {
                   {predicciones.map((prediccion, index) => (
                     <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center space-x-3">
-                        {getTrendIcon(prediccion.tendencia)}
+                        {getTrendIcon(prediccion.tendencia as string)}
                         <div>
-                          <p className="font-medium">{prediccion.materialNombre}</p>
+                          <p className="font-medium">{String(prediccion.materialNombre)}</p>
                           <p className="text-sm text-muted-foreground">
-                            Demanda predicha: {prediccion.demandaPredichaProximoMes} unidades
+                            Demanda predicha: {String(prediccion.demandaPredichaProximoMes)} unidades
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <Badge variant="outline">{prediccion.confianza}% confianza</Badge>
+                        <Badge variant="outline">{String(prediccion.confianza)}% confianza</Badge>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {prediccion.tendencia}
+                          {String(prediccion.tendencia)}
                         </p>
                       </div>
                     </div>

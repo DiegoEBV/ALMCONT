@@ -71,7 +71,7 @@ async function mapObraId(localId: string): Promise<string | null> {
   console.log(`[ID_MAPPER] Buscando obra local con ID: "${localId}"`);
   
   // Obtener obra local
-  const obraLocal = await localDB.getById('obras', localId) as any
+  const obraLocal = await localDB.getById('obras', localId) as { codigo?: string; nombre?: string } | null
   if (!obraLocal) {
     console.warn(`[ID_MAPPER] Obra local con ID ${localId} no encontrada en base de datos local`);
     return null
@@ -105,7 +105,7 @@ async function mapObraId(localId: string): Promise<string | null> {
  */
 async function mapUsuarioId(localId: string): Promise<string | null> {
   // Obtener usuario local
-  const usuarioLocal = await localDB.getById('usuarios', localId) as any
+  const usuarioLocal = await localDB.getById('usuarios', localId) as { email?: string } | null
   if (!usuarioLocal) {
     console.warn(`Usuario local con ID ${localId} no encontrado`)
     return null
@@ -131,7 +131,7 @@ async function mapUsuarioId(localId: string): Promise<string | null> {
  */
 async function mapMaterialId(localId: string): Promise<string | null> {
   // Obtener material local
-  const materialLocal = await localDB.getById('materiales', localId) as any
+  const materialLocal = await localDB.getById('materiales', localId) as { codigo?: string } | null
   if (!materialLocal) {
     console.warn(`Material local con ID ${localId} no encontrado`)
     return null

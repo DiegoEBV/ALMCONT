@@ -1,6 +1,6 @@
 import React from 'react';
 import { Download, Trash2, Image as ImageIcon } from 'lucide-react';
-import type { CapturedPhoto } from './Camera';
+
 
 // Tipo unificado para fotos en la galería
 export type GalleryPhoto = {

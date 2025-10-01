@@ -8,7 +8,7 @@ import { Obra, TableColumn } from '../types'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Select } from '../components/ui/select'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
+import { Table} from '../components/ui/table'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 export default function Stock() {

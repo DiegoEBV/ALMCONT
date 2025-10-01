@@ -67,7 +67,7 @@ export const CyclicInventory: React.FC<CyclicInventoryProps> = ({ className }) =
   const [loading, setLoading] = useState(true);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showCountModal, setShowCountModal] = useState(false);
-  const [selectedCount, setSelectedCount] = useState<CyclicCount | null>(null);
+
   const [selectedTask, setSelectedTask] = useState<CountTask | null>(null);
   const [processing, setProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,28 +87,22 @@ export const CyclicInventory: React.FC<CyclicInventoryProps> = ({ className }) =
       setCounts(countsData);
       setTasks([]); // Por ahora vacío hasta implementar
       setSummary(null); // Por ahora null hasta implementar
-    } catch (error) {
-      console.error('Error loading cyclic inventory data:', error);
+    } catch (_error) {
+      console.error('Error loading cyclic inventory data:', _error);
       toast.error('Error al cargar datos de inventario cíclico');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleScheduleCount = async (scheduleData: {
-    clasificacion: 'A' | 'B' | 'C';
-    fecha_inicio: string;
-    fecha_fin: string;
-    ubicaciones: string[];
-    materiales: string[];
-  }) => {
+  const handleScheduleCount = async () => {
     try {
       setProcessing(true);
       // Por ahora mostrar mensaje de funcionalidad en desarrollo
       toast.info('Funcionalidad de programación en desarrollo');
       setShowScheduleModal(false);
-    } catch (error) {
-      console.error('Error scheduling count:', error);
+    } catch (_error) {
+      console.error('Error scheduling count:', _error);
       toast.error('Error al programar conteo');
     } finally {
       setProcessing(false);
@@ -126,8 +120,8 @@ export const CyclicInventory: React.FC<CyclicInventoryProps> = ({ className }) =
       } else {
         toast.error(result.message);
       }
-    } catch (error) {
-      console.error('Error starting count:', error);
+    } catch (_error) {
+      console.error('Error starting count:', _error);
       toast.error('Error al iniciar conteo');
     } finally {
       setProcessing(false);
@@ -171,8 +165,8 @@ export const CyclicInventory: React.FC<CyclicInventoryProps> = ({ className }) =
       } else {
         toast.error(result.message);
       }
-    } catch (error) {
-      console.error('Error recording count:', error);
+    } catch (_error) {
+      console.error('Error recording count:', _error);
       toast.error('Error al registrar conteo');
     } finally {
       setProcessing(false);
@@ -279,7 +273,7 @@ export const CyclicInventory: React.FC<CyclicInventoryProps> = ({ className }) =
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id as any)}
+              onClick={() => setActiveTab(id as TabType)}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === id
                   ? 'border-blue-500 text-blue-600'
@@ -312,7 +306,7 @@ export const CyclicInventory: React.FC<CyclicInventoryProps> = ({ className }) =
           <>
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as any)}
+              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'en_proceso' | 'programado' | 'completado' | 'cancelado')}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Todos los estados</option>
@@ -324,7 +318,7 @@ export const CyclicInventory: React.FC<CyclicInventoryProps> = ({ className }) =
             
             <select
               value={filterClassification}
-              onChange={(e) => setFilterClassification(e.target.value as any)}
+              onChange={(e) => setFilterClassification(e.target.value as 'A' | 'B' | 'C' | 'all')}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Todas las clasificaciones</option>
@@ -341,8 +335,7 @@ export const CyclicInventory: React.FC<CyclicInventoryProps> = ({ className }) =
         <ScheduleView
           counts={filteredCounts}
           onStartCount={handleStartCount}
-          onViewDetails={(count) => {
-            setSelectedCount(count);
+          onViewDetails={() => {
             // Aquí se podría abrir un modal de detalles
           }}
           processing={processing}
@@ -666,7 +659,7 @@ const TasksView: React.FC<TasksViewProps> = ({ tasks, onRecordCount }) => {
     processing: boolean;
   }
 
-  const CountModal: React.FC<CountModalProps> = ({ isOpen, task, onClose, onRecord, processing }) => {
+  const CountModal: React.FC<CountModalProps> = ({ isOpen, task, onClose, onRecord }) => {
     const [formData, setFormData] = useState<CountData>({
       cantidad_contada: 0,
       observaciones: ''

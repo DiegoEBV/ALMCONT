@@ -2,8 +2,7 @@ import { supabase } from '../lib/supabase';
 import { Database } from '../types/database';
 
 type CyclicCount = Database['public']['Tables']['conteos_ciclicos']['Row'];
-type CountDetail = Database['public']['Tables']['detalle_conteos']['Row'];
-type Material = Database['public']['Tables']['materiales']['Row'];
+
 
 export interface CountSchedule {
   material_id: string;
@@ -115,9 +114,6 @@ export class CyclicInventoryService {
       const cronograma: CountSchedule[] = [];
       const fechaInicioDate = new Date(fechaInicio);
       const fechaFinDate = new Date(fechaFin);
-      const diasDisponibles = Math.ceil(
-        (fechaFinDate.getTime() - fechaInicioDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
 
       // Programar conteos basado en clasificación ABC
       for (const material of materiales) {

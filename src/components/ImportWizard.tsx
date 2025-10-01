@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, X, Download, Save, Settings } from 'lucide-react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Upload, FileText, CheckCircle, X, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { importService, ParsedData, ValidationResult, ImportJob, ImportTemplate } from '../services/ImportService';
 import useImportValidation from '../hooks/useImportValidation';
@@ -61,7 +61,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Hook de validación personalizado
-  const { validateAllData, validateFieldRealTime } = useImportValidation({
+  const { validateAllData } = useImportValidation({
     data: parsedData,
     fieldMapping,
     targetTable: selectedTable
@@ -75,12 +75,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
   ];
 
   // Cargar plantillas al abrir
-  React.useEffect(() => {
-    if (isOpen) {
-      loadTemplates();
-    }
-  }, [isOpen]);
-
   const loadTemplates = async () => {
     try {
       const userTemplates = await importService.getUserTemplates();
@@ -89,6 +83,12 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
       console.error('Error loading templates:', error);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadTemplates();
+    }
+  }, [isOpen, loadTemplates]);
 
   // Manejo de drag & drop
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -101,16 +101,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    if (droppedFiles.length > 0) {
-      handleFileSelect(droppedFiles[0]);
-    }
-  }, []);
-
   const handleFileSelect = async (selectedFile: File) => {
     if (!selectedFile) return;
 
@@ -121,17 +111,36 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
       return;
     }
 
-    // Validar tamaño (máximo 10MB)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error('El archivo es demasiado grande. Máximo 10MB.');
-      return;
-    }
-
     setFile(selectedFile);
-    setIsProcessing(true);
+    setCurrentStep(2);
+    
+    try {
+      setIsProcessing(true);
+      const preview = await importService.previewFile(selectedFile);
+      setParsedData(preview);
+    } catch (error) {
+      console.error('Error previewing file:', error);
+      toast.error('Error al previsualizar el archivo');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      handleFileSelect(droppedFiles[0]);
+    }
+  }, [handleFileSelect]);
+
+  const processFile = async () => {
+    if (!file) return;
 
     try {
-      const parsed = await importService.parseFile(selectedFile);
+      const parsed = await importService.parseFile(file);
       setParsedData(parsed);
       
       // Auto-mapear campos si hay una plantilla seleccionada
@@ -183,7 +192,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
         toast.warning(`Validación completada con ${result.errors.length} errores`);
         setCurrentStep(3);
       }
-    } catch (error) {
+    } catch {
       toast.error('Error al validar los datos');
     } finally {
       setIsProcessing(false);
@@ -255,29 +264,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
     onClose();
   };
 
-  const downloadErrorReport = () => {
-    if (!validationResult) return;
 
-    const errorData = validationResult.errors.map(error => ({
-      Fila: error.row,
-      Campo: error.field,
-      Error: error.message,
-      Valor: error.value
-    }));
-
-    const csv = [
-      Object.keys(errorData[0]).join(','),
-      ...errorData.map(row => Object.values(row).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'errores_importacion.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   if (!isOpen) return null;
 

@@ -666,6 +666,64 @@ export class ReturnService {
   }
 
   /**
+   * Obtiene todas las devoluciones con filtros opcionales
+   */
+  static async getAllReturns(
+    filtros?: {
+      tipo_devolucion?: string;
+      estado?: string;
+      solicitado_por?: string;
+      fecha_desde?: string;
+      fecha_hasta?: string;
+    }
+  ): Promise<Return[]> {
+    try {
+      let query = supabase
+        .from('devoluciones')
+        .select(`
+          *,
+          usuarios_solicitante:usuarios!solicitado_por(nombre),
+          detalle_devoluciones(
+            *,
+            materiales(nombre, unidad_medida)
+          )
+        `);
+
+      if (filtros?.tipo_devolucion) {
+        query = query.eq('tipo_devolucion', filtros.tipo_devolucion);
+      }
+
+      if (filtros?.estado) {
+        query = query.eq('estado', filtros.estado);
+      }
+
+      if (filtros?.solicitado_por) {
+        query = query.eq('solicitado_por', filtros.solicitado_por);
+      }
+
+      if (filtros?.fecha_desde) {
+        query = query.gte('fecha_solicitud', filtros.fecha_desde);
+      }
+
+      if (filtros?.fecha_hasta) {
+        query = query.lte('fecha_solicitud', filtros.fecha_hasta);
+      }
+
+      const { data: devoluciones, error } = await query
+        .order('fecha_solicitud', { ascending: false });
+
+      if (error) {
+        throw new Error(`Error al obtener devoluciones: ${error.message}`);
+      }
+
+      return devoluciones || [];
+    } catch (error) {
+      console.error('Error getting all returns:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtiene las devoluciones pendientes de aprobación
    */
   static async getPendingReturns(

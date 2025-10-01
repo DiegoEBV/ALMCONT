@@ -2,20 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { 
   Package, 
-  ArrowLeft, 
   Search, 
-  Filter, 
   Plus, 
   Eye, 
   Check, 
   X, 
   AlertTriangle,
-  Calendar,
-  User,
   FileText,
   DollarSign,
-  TrendingUp,
-  TrendingDown
+  TrendingUp
 } from 'lucide-react';
 import { ReturnService } from '../services/returnService';
 import { Return } from '../types';
@@ -23,17 +18,7 @@ import { Return } from '../types';
 // Tipos de datos
 type ReturnRequest = Return;
 
-interface ReturnDetail {
-  id: string;
-  devolucion_id: string;
-  material_id: string;
-  material_codigo?: string;
-  material_nombre?: string;
-  cantidad: number;
-  precio_unitario?: number;
-  subtotal?: number;
-  motivo_detalle?: string;
-}
+
 
 interface ReturnFormData {
   tipo_documento: 'entrada' | 'salida';
@@ -78,7 +63,6 @@ const ReturnManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [returns, setReturns] = useState<Return[]>([]);
   const [selectedReturn, setSelectedReturn] = useState<Return | null>(null);
-  const [returnDetails, setReturnDetails] = useState<ReturnDetail[]>([]);
   const [summary, setSummary] = useState<ReturnSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,42 +74,37 @@ const ReturnManagement: React.FC = () => {
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<string>('all');
-
-  // Cargar datos iniciales
-  useEffect(() => {
-    loadReturns();
-    loadSummary();
-  }, [activeTab, statusFilter, dateFilter]);
 
   const loadReturns = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const filters: any = {};
+      const filters: Record<string, string> = {};
       if (statusFilter !== 'all') {
-        filters.estado = statusFilter;
-      }
-      if (dateFilter !== 'all') {
-        const now = new Date();
-        const days = parseInt(dateFilter);
-        const fromDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        filters.fecha_desde = fromDate.toISOString().split('T')[0];
+        filters.status = statusFilter;
       }
 
-      const data = activeTab === 'pending' 
-        ? await ReturnService.getPendingReturns()
-        : await ReturnService.getPendingReturns(filters);
-      
-      setReturns(data);
-    } catch (err) {
-      console.error('Error loading returns:', err);
+      if (activeTab === 'pending') {
+        const response = await ReturnService.getPendingReturns(filters);
+        setReturns(response);
+      } else {
+        const response = await ReturnService.getAllReturns(filters);
+        setReturns(response);
+      }
+    } catch (error) {
+      console.error('Error loading returns:', error);
       setError('Error al cargar las devoluciones');
     } finally {
       setLoading(false);
     }
   };
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadReturns();
+    loadSummary();
+  }, [activeTab, statusFilter]);
 
   const loadSummary = async () => {
     try {
@@ -136,11 +115,13 @@ const ReturnManagement: React.FC = () => {
     }
   };
 
-  const loadReturnDetails = async (returnId: string) => {
+  const loadReturnDetails = async () => {
     try {
-      // Aquí cargaríamos los detalles de la devolución
+      // TODO: Implementar carga de detalles de devolución
+      // const details = await ReturnService.getReturnDetails(returnId);
+      // setReturnDetails(details);
+      
       // Por ahora usamos datos mock
-      setReturnDetails([]);
     } catch (err) {
       console.error('Error loading return details:', err);
     }
@@ -149,7 +130,7 @@ const ReturnManagement: React.FC = () => {
   // Handlers
   const handleViewDetails = async (returnRequest: ReturnRequest) => {
     setSelectedReturn(returnRequest);
-    await loadReturnDetails(returnRequest.id);
+    await loadReturnDetails();
     setShowDetailModal(true);
   };
 

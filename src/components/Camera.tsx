@@ -80,7 +80,7 @@ export const Camera: React.FC<CameraProps> = ({
       setError('No se pudo acceder a la cámara. Verifica los permisos.');
       toast.error('Error al acceder a la cámara');
     }
-  }, [facingMode, maxWidth, maxHeight, zoom, stream]);
+  }, [facingMode, maxWidth, maxHeight, stream]);
 
   // Detener cámara
   const stopCamera = useCallback(() => {

@@ -4,7 +4,6 @@ import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -13,20 +12,14 @@ import {
   Legend,
   ResponsiveContainer,
   ComposedChart,
-  Bar,
-  Area,
-  AreaChart,
-  ScatterChart,
-  Scatter
+  Bar
 } from 'recharts';
 import {
   TrendingUp,
   Brain,
-  Calendar,
   Target,
   AlertCircle,
   Download,
-  Filter,
   BarChart3
 } from 'lucide-react';
 import { advancedAnalyticsService } from '../../services/advancedAnalyticsService';
@@ -36,7 +29,7 @@ interface FiltroAvanzado {
   id: string;
   campo: string;
   operador: 'igual' | 'contiene' | 'mayor' | 'menor' | 'entre' | 'en';
-  valor: any;
+  valor: string | number | Date | string[] | boolean;
   activo: boolean;
   tipo: 'texto' | 'numero' | 'fecha' | 'select' | 'multiselect';
   opciones?: { label: string; value: string }[];
@@ -84,16 +77,10 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
   const [prediccionesMateriales, setPrediccionesMateriales] = useState<PrediccionMaterial[]>([]);
   const [alertasPreventivas, setAlertasPreventivas] = useState<AlertaPreventiva[]>([]);
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState('3meses');
-  const [materialSeleccionado, setMaterialSeleccionado] = useState('todos');
-  const [loading, setLoading] = useState(true);
+  const [materialSeleccionado] = useState('todos');
   const [tipoAnalisis, setTipoAnalisis] = useState('tendencias');
 
-  useEffect(() => {
-    loadPredictiveData();
-  }, [periodoSeleccionado, materialSeleccionado]);
-
   const loadPredictiveData = async () => {
-    setLoading(true);
     try {
       // Generar datos de tendencias de consumo
       await generateTendenciasData();
@@ -107,8 +94,15 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
         demandaActual: Math.round(pred.demandaPredichaProximoMes * 0.8), // Estimación basada en predicción
         prediccionProxima: pred.demandaPredichaProximoMes,
         tendencia: pred.tendencia as 'creciente' | 'decreciente' | 'estable',
-        confianza: pred.confianza,
-        recomendacion: generateRecomendacion(pred)
+        confianza: pred.confianza || 0,
+        recomendacion: generateRecomendacion({
+          material: pred.materialNombre,
+          demandaActual: Math.round(pred.demandaPredichaProximoMes * 0.8),
+          prediccionProxima: pred.demandaPredichaProximoMes,
+          tendencia: pred.tendencia as 'creciente' | 'decreciente' | 'estable',
+          confianza: pred.confianza || 0,
+          recomendacion: ''
+        })
       }));
       
       setPrediccionesMateriales(prediccionesMat);
@@ -116,13 +110,15 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
       // Generar alertas preventivas
       await generateAlertasPreventivas();
       
-      setLoading(false);
     } catch (error) {
       console.error('Error cargando datos predictivos:', error);
       toast.error('Error al cargar reportes predictivos');
-      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadPredictiveData();
+  }, [periodoSeleccionado, materialSeleccionado]);
 
   const generateTendenciasData = async () => {
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -147,7 +143,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
     setTendenciasConsumo(data);
   };
 
-  const generateRecomendacion = (prediccion: any): string => {
+  const generateRecomendacion = (prediccion: PrediccionMaterial): string => {
     if (prediccion.tendencia === 'creciente') {
       return 'Incrementar stock en un 20%';
     } else if (prediccion.tendencia === 'decreciente') {
@@ -187,13 +183,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
     setAlertasPreventivas(alertas);
   };
 
-  const getTendenciaColor = (tendencia: string) => {
-    switch (tendencia) {
-      case 'creciente': return 'text-green-600';
-      case 'decreciente': return 'text-red-600';
-      default: return 'text-blue-600';
-    }
-  };
+
 
   const getTendenciaIcon = (tendencia: string) => {
     switch (tendencia) {

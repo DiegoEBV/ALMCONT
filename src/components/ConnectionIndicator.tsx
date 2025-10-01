@@ -40,7 +40,7 @@ export const ConnectionIndicator: React.FC<ConnectionIndicatorProps> = ({
       } else {
         toast.error(`Errores en sincronización: ${result.failedOperations} operaciones fallaron`);
       }
-    } catch (error) {
+    } catch {
       toast.error('Error durante la sincronización');
     }
   };

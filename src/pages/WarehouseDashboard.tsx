@@ -140,7 +140,7 @@ const WarehouseDashboard: React.FC = () => {
 
   const fetchAlerts = async () => {
     try {
-      const alerts = await warehouseService.getWarehouseAlerts('current-worker');
+      const alerts = await warehouseService.getWarehouseAlerts();
       
       if (!mountedRef.current) return;
       
