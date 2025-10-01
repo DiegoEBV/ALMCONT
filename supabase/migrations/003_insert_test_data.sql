@@ -46,7 +46,7 @@ INSERT INTO stock_obra_material (
 ('110e8400-e29b-41d4-a716-446655440004', '660e8400-e29b-41d4-a716-446655440001', '770e8400-e29b-41d4-a716-446655440004', 0.00, 1000.00, 10000.00, 'Almacén A - Sector 4');
 
 -- Comentarios sobre los datos de prueba
-COMMENT ON TABLE usuarios IS 'Usuarios de prueba: coordinador@obra.com, logistica@obra.com, almacenero@obra.com (password: 123456)';
+COMMENT ON TABLE usuarios IS 'Usuarios de prueba: coordinador@obra.com, logistica@obra.com, almacenero@obra.com (password: password123)';
 COMMENT ON TABLE obras IS 'Dos obras de prueba: Edificio Los Pinos y Centro Comercial Plaza Norte';
 COMMENT ON TABLE materiales IS 'Materiales básicos de construcción: cemento, fierro, agregados, ladrillos';
 COMMENT ON TABLE requerimientos IS 'Requerimientos de prueba con diferentes estados y prioridades';

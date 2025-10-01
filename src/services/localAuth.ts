@@ -1,7 +1,9 @@
 import { localDB } from '../lib/localDB'
 import { syncService } from './syncService'
-import { setSupabaseUserContext } from '../lib/supabase'
+import { setSupabaseUserContext, supabase } from '../lib/supabase'
 import { mapLocalIdToUUID } from '../utils/idMapper'
+import { obrasService } from './obras'
+import { userCache } from './userCache'
 import { Usuario, AuthUser, AuthSession } from '../types'
 
 // Re-exportar tipos para uso externo
@@ -17,7 +19,7 @@ class LocalAuthService {
   }
 
   // Iniciar sesión
-  async signIn(email: string, password: string): Promise<{ user: AuthUser; session: AuthSession } | null> {
+  async signIn(email: string, password: string): Promise<AuthUser> {
     try {
       // Buscar usuario en la base de datos local
       const usuarios = await localDB.get('usuarios')
@@ -25,6 +27,33 @@ class LocalAuthService {
 
       if (!usuario) {
         throw new Error('Credenciales inválidas')
+      }
+
+      // Obtener obra asignada si existe
+      let obra = null
+      if (usuario.obra_id) {
+        try {
+          // Primero intentar mapear el ID local a UUID de Supabase
+          const obraUUID = await mapLocalIdToUUID(usuario.obra_id, 'obra')
+          if (obraUUID) {
+            // Usar el UUID para obtener la obra de Supabase
+            obra = await obrasService.getById(obraUUID)
+          } else {
+            // Fallback: intentar obtener de la base de datos local
+            console.warn(`No se pudo mapear obra_id ${usuario.obra_id} a UUID, intentando obtener localmente`)
+            const obraLocal = await localDB.getById('obras', usuario.obra_id)
+            if (obraLocal) {
+              obra = obraLocal
+            }
+          }
+          
+          if (!obra) {
+            console.warn(`Obra con ID ${usuario.obra_id} no encontrada`)
+          }
+        } catch (error) {
+          console.error('Error obteniendo obra:', error)
+          // No fallar la autenticación por este error
+        }
       }
 
       // Crear sesión
@@ -35,7 +64,8 @@ class LocalAuthService {
         apellido: usuario.apellido,
         rol: usuario.rol,
         obra_id: usuario.obra_id,
-        activo: usuario.activo
+        activo: usuario.activo,
+        obra: obra
       }
 
       const session: AuthSession = {
@@ -60,17 +90,44 @@ class LocalAuthService {
         // No fallar la autenticación por este error
       }
 
-      return { user: authUser, session }
+      return authUser
     } catch (error) {
       console.error('Error en signIn:', error)
-      return null
+      throw error
     }
   }
 
   // Cerrar sesión
   async signOut(): Promise<void> {
+    console.log('🚪 LocalAuth.signOut() - Cerrando sesión local')
+    
+    // Limpiar caché del usuario actual
+    const currentUser = this.getCurrentUser()
+    if (currentUser) {
+      userCache.invalidate(currentUser.id)
+    }
+    
+    // Limpiar sesión local inmediatamente
     this.currentSession = null
     this.clearSession()
+    
+    // Cerrar sesión en Supabase de forma no bloqueante
+    try {
+      // No esperar la respuesta de Supabase para evitar bloqueos
+      supabase.auth.signOut().then(({ error }) => {
+        if (error) {
+          console.warn('Advertencia al cerrar sesión en Supabase:', error)
+        } else {
+          console.log('✅ Sesión cerrada correctamente en Supabase')
+        }
+      }).catch(error => {
+        console.warn('Advertencia al cerrar sesión en Supabase:', error)
+      })
+    } catch (error) {
+      console.warn('Advertencia al cerrar sesión en Supabase:', error)
+    }
+    
+    console.log('✅ LocalAuth.signOut() - Sesión local cerrada')
   }
 
   // Obtener sesión actual
@@ -81,6 +138,7 @@ class LocalAuthService {
 
     // Verificar si la sesión ha expirado
     if (Date.now() > this.currentSession.expiresAt) {
+      console.log('⏰ Sesión expirada, cerrando sesión automáticamente')
       this.signOut()
       return null
     }
@@ -107,23 +165,23 @@ class LocalAuthService {
         return null
       }
 
-      // Obtener datos actualizados del usuario desde la base de datos local
+      // Verificar caché primero
+      const cachedUser = userCache.get(currentUser.id)
+      if (cachedUser) {
+        console.log('🚀 Usuario obtenido del caché:', cachedUser.email)
+        return cachedUser
+      }
+
+      // Obtener datos actualizados del usuario desde la base de datos local únicamente
       const updatedUserData = await localDB.getById('usuarios', currentUser.id)
       if (!updatedUserData) {
         return null
       }
 
-      // Obtener información de la obra si está asignada
+      // Obtener información de la obra si está asignada (solo local)
       let obra = null
       if (updatedUserData.obra_id) {
-        // Primero intentar obtener la obra localmente
         obra = await localDB.getById('obras', updatedUserData.obra_id)
-        
-        // Si no existe localmente, sincronizar desde Supabase
-        if (!obra) {
-          console.log(`Obra ${updatedUserData.obra_id} no encontrada localmente, sincronizando desde Supabase...`)
-          obra = await syncService.syncObraById(updatedUserData.obra_id)
-        }
       }
 
       const updatedUser: AuthUser = {
@@ -136,6 +194,9 @@ class LocalAuthService {
         activo: updatedUserData.activo,
         obra: obra
       }
+
+      // Guardar en caché
+      userCache.set(currentUser.id, updatedUser)
 
       // Actualizar la sesión con los datos frescos
       if (this.currentSession) {
@@ -248,6 +309,7 @@ class LocalAuthService {
 
   // Limpiar sesión del localStorage
   private clearSession(): void {
+    console.log('🧹 Limpiando sesión del localStorage')
     try {
       localStorage.removeItem(this.SESSION_KEY)
     } catch (error) {
@@ -259,12 +321,23 @@ class LocalAuthService {
   async getUsers(): Promise<Usuario[]> {
     const currentUser = this.getCurrentUser()
     
+    console.log('🔍 getUsers() llamado - Usuario actual:', currentUser?.email || 'null', 'Rol:', currentUser?.rol || 'null')
+    
     // SIEMPRE permitir acceso durante autenticación (cuando no hay usuario actual)
     // También permitir si el usuario actual tiene rol de COORDINACION
-    if (currentUser !== null && currentUser.rol !== 'COORDINACION') {
+    if (currentUser === null) {
+      // Durante autenticación, no hay usuario actual - PERMITIR acceso
+      console.log('✅ Acceso permitido durante autenticación (currentUser es null)')
+      return await localDB.get('usuarios')
+    }
+    
+    // Si hay usuario actual, verificar que tenga permisos de COORDINACION
+    if (currentUser.rol !== 'COORDINACION') {
+      console.log('❌ Acceso denegado - Usuario no es COORDINACION:', currentUser.rol)
       throw new Error('No tienes permisos para ver usuarios')
     }
 
+    console.log('✅ Acceso permitido - Usuario es COORDINACION')
     return await localDB.get('usuarios')
   }
 

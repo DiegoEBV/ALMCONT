@@ -100,7 +100,7 @@ class LocalDatabase {
         {
           id: '1',
           email: 'coordinador@obra.com',
-          password: '123456',
+          password: 'password123',
           nombre: 'Coordinador',
           apellido: 'Principal',
           rol: 'ALMACENERO',
@@ -112,7 +112,7 @@ class LocalDatabase {
         {
           id: '2',
           email: 'logistica@obra.com',
-          password: '123456',
+          password: 'password123',
           nombre: 'Logística',
           apellido: 'Principal',
           rol: 'COORDINACION',
@@ -124,7 +124,7 @@ class LocalDatabase {
         {
           id: '3',
           email: 'almacenero@obra.com',
-          password: '123456',
+          password: 'password123',
           nombre: 'Almacenero',
           apellido: 'Principal',
           rol: 'LOGISTICA',
@@ -318,7 +318,7 @@ class LocalDatabase {
       }
       
       // Cargar directamente desde database.json usando import
-      const jsonData = database as any
+      const jsonData = database as Partial<DatabaseTable>
       console.log('📁 Archivo database.json cargado, tamaño:', Object.keys(jsonData).length)
       
       // Asignar datos directamente con type assertions seguras y mapeo de campos
@@ -327,7 +327,7 @@ class LocalDatabase {
         obras: (jsonData.obras || []) as unknown as Obra[],
         materiales: (jsonData.materiales || []) as unknown as Material[],
         requerimientos: (jsonData.requerimientos || []) as unknown as Requerimiento[],
-        solicitudes_compra: ((jsonData.solicitudes_compra || []) as any[]).map((sc: any) => {
+        solicitudes_compra: ((jsonData.solicitudes_compra || []) as SolicitudCompra[]).map((sc: SolicitudCompra) => {
           const { sc_numero, ...rest } = sc;
           return {
             ...rest,

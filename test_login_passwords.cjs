@@ -9,14 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function testPasswords() {
   const email = 'coordinador@obra.com';
   const passwords = [
-    '123456',
     'password123',
-    'coordinador123',
-    'obra123',
-    'admin123',
-    'test123',
-    'password',
-    '12345678'
   ];
   
   console.log(`🔐 Probando contraseñas para ${email}...`);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/button'
@@ -16,70 +16,92 @@ const Login: React.FC = () => {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Si ya está autenticado, redirigir
-  if (user && !loading) {
-    console.log('🚀 User authenticated, redirecting...', { user, loading })
-    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/'
-    console.log('📍 Redirecting to:', from)
-    return <Navigate to={from} replace />
-  }
+  // Memoizar la redirección para evitar re-renderizados innecesarios
+  const redirectPath = useMemo(() => {
+    return (location.state as { from?: { pathname: string } })?.from?.pathname || '/'
+  }, [location.state])
 
-  // Log del estado actual
-  console.log('🔍 Login component state:', { user, loading, isSubmitting })
+  // Optimizar el manejo del formulario con useCallback
+  const handleInputChange = useCallback((field: 'email' | 'password') => (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: e.target.value
+    }))
+  }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev)
+  }, [])
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmitting) return // Prevenir múltiples envíos
+    
     setError('')
     setIsSubmitting(true)
-    console.log('🔐 Starting login process...', formData.email)
 
     try {
-      console.log('📤 Calling signIn...')
       await signIn(formData.email, formData.password)
-      console.log('✅ SignIn completed successfully')
-      // El onAuthStateChange manejará la redirección automáticamente
+      // No resetear isSubmitting aquí, dejar que la redirección maneje el estado
     } catch (err: unknown) {
       console.error('❌ Error en login:', err)
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       setError(
-        errorMessage === 'Invalid login credentials'
+        errorMessage.includes('No tienes permisos para ver usuarios')
+          ? 'Error de permisos. Intenta cerrar sesión completamente y volver a iniciar.'
+          : errorMessage === 'Invalid login credentials'
           ? 'Credenciales inválidas. Verifica tu email y contraseña.'
-          : 'Error al iniciar sesión. Inténtalo de nuevo.'
+          : errorMessage.includes('Email not confirmed')
+          ? 'Email no confirmado. Revisa tu bandeja de entrada.'
+          : errorMessage.includes('Too many requests')
+          ? 'Demasiados intentos. Espera un momento antes de intentar nuevamente.'
+          : 'Error al iniciar sesión. Intenta nuevamente.'
       )
       setIsSubmitting(false)
     }
+  }, [formData.email, formData.password, isSubmitting, signIn])
+
+  // Memoizar la validación del formulario
+  const isFormValid = useMemo(() => {
+    return formData.email.trim() !== '' && formData.password.trim() !== ''
+  }, [formData.email, formData.password])
+
+  // Si ya está autenticado, redirigir (DESPUÉS de todos los hooks)
+  if (user && !loading) {
+    return <Navigate to={redirectPath} replace />
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-    // Limpiar error al escribir
-    if (error) setError('')
+  // Si está cargando, mostrar spinner
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-indigo-100">
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
             <svg
-              className="h-8 w-8 text-indigo-600"
+              className="h-6 w-6 text-blue-600"
               fill="none"
               viewBox="0 0 24 24"
-              strokeWidth="1.5"
               stroke="currentColor"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42C4.537 20.486 3.75 19.544 3.75 18.45v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3A2.25 2.25 0 008.25 5.25v.575m7.5 0a48.667 48.667 0 00-7.5 0M12 8.25v.01"
+                strokeWidth={2}
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
               />
             </svg>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Sistema de Almacén
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
@@ -90,41 +112,48 @@ const Login: React.FC = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
               <Input
-                type="email"
+                id="email"
                 name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
+                type="email"
                 autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleInputChange('email')}
                 placeholder="tu@email.com"
-                className="w-full"
+                disabled={isSubmitting}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Contraseña
+              </label>
               <div className="relative">
                 <Input
-                  type={showPassword ? 'text' : 'password'}
+                  id="password"
                   name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
+                  required
+                  value={formData.password}
+                  onChange={handleInputChange('password')}
                   placeholder="••••••••"
-                  className="w-full pr-10"
+                  disabled={isSubmitting}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={togglePasswordVisibility}
+                  disabled={isSubmitting}
                 >
                   {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
+                    <EyeSlashIcon className="h-5 w-5 text-gray-400" />
                   ) : (
-                    <EyeIcon className="h-5 w-5" />
+                    <EyeIcon className="h-5 w-5 text-gray-400" />
                   )}
                 </button>
               </div>
@@ -160,7 +189,7 @@ const Login: React.FC = () => {
             size="lg"
             fullWidth
             loading={isSubmitting}
-            disabled={!formData.email || !formData.password}
+            disabled={!isFormValid || isSubmitting}
           >
             Iniciar Sesión
           </Button>
@@ -171,8 +200,6 @@ const Login: React.FC = () => {
             Sistema de Gestión de Almacén de Obra
           </p>
         </div>
-        
-
       </div>
     </div>
   )

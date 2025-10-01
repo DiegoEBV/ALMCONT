@@ -2,7 +2,7 @@
 === INSTRUCCIONES PARA PROBAR EL DROPDOWN DE OBRAS ===
 
 1. Abrir http://localhost:5173/ en el navegador
-2. Hacer login con: coordinador@obra.com / 123456
+2. Hacer login con: coordinador@obra.com / password123
 3. Navegar a "Nuevo Requerimiento de Materiales"
 4. Abrir la consola del navegador (F12)
 5. Copiar y pegar TODO este código en la consola

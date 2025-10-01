@@ -18,10 +18,12 @@ const Header: React.FC = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log('🔄 Header: Iniciando logout desde Header.tsx')
       await signOut()
+      console.log('✅ Header: SignOut completado, navegando a login')
       navigate('/login')
     } catch (error) {
-      console.error('Error al cerrar sesión:', error)
+      console.error('❌ Header: Error al cerrar sesión:', error)
     }
   }
 

@@ -6,7 +6,8 @@ export interface AuthContextType {
   user: AuthUser | null
   session: AuthSession | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
+  error: string | null
+  signIn: (email: string, password: string) => Promise<AuthUser>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
   updateObraAsignada: (obraId: string | null) => Promise<boolean>
@@ -232,7 +233,7 @@ export interface Entrada {
   observaciones?: string
   created_at: string
   updated_at: string
-  proveedor?: any
+  proveedor?: string
   orden_compra?: OrdenCompra
   usuario_responsable?: Usuario
   items?: EntradaItem[]
@@ -435,9 +436,11 @@ export interface AuthContextType {
   user: AuthUser | null
   session: AuthSession | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
+  error: string | null
+  signIn: (email: string, password: string) => Promise<AuthUser>
   signOut: () => Promise<void>
   refreshUser: () => Promise<void>
+  updateObraAsignada: (obraId: string | null) => Promise<boolean>
 }
 
 // Tipos para opciones de select
@@ -659,7 +662,7 @@ export interface ScOc {
 export interface ApprovalRule {
   id: string;
   tipo_documento: string;
-  condiciones: any;
+  condiciones: Record<string, unknown>;
   nivel_requerido: number;
   nivel_aprobacion: number;
   activa: boolean;
@@ -672,7 +675,7 @@ export interface ApprovalRequest {
   documento_id: string;
   usuario_solicitante: string;
   descripcion?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   monto?: number;
   monto_total?: number;
   prioridad?: string;
@@ -796,7 +799,7 @@ export interface NotificationConfig {
   activo: boolean
   destinatarios: string[]
   condiciones: {
-    [key: string]: any
+    [key: string]: string | number | boolean | null | undefined
   }
   created_at: string
   updated_at: string
@@ -812,7 +815,7 @@ export interface Approval {
   fecha_solicitud: string;
   fecha_respuesta?: string;
   comentarios?: string;
-  datos_solicitud: any;
+  datos_solicitud: Record<string, unknown>;
   nivel_aprobacion: number;
   created_at: string;
   updated_at: string;

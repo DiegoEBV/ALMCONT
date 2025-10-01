@@ -40,7 +40,7 @@ async function checkCoordinationUser() {
         const nuevoCoordinador = {
           id: 'coord-001',
           email: 'coordinador@obra.com',
-          password: '123456',
+          password: 'password123',
           nombre: 'Coordinador',
           apellido: 'Principal',
           rol: 'COORDINACION',
@@ -72,7 +72,7 @@ checkCoordinationUser().then(user => {
     console.log('\n🎉 Usuario de coordinación listo para usar');
     console.log('📝 Credenciales:');
     console.log('- Email:', user.email);
-    console.log('- Password: 123456');
+    console.log('- Password: password123');
   } else {
     console.log('\n❌ No se pudo configurar usuario de coordinación');
   }

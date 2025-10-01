@@ -20,6 +20,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Mostrar spinner mientras se carga la autenticación
   if (loading) {
+    console.log('⏳ ProtectedRoute: Cargando autenticación...', {
+      currentPath: location.pathname,
+      loading,
+      user: user ? 'exists' : 'null'
+    })
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -29,11 +34,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Si se requiere autenticación y no hay usuario, redirigir al login
   if (requireAuth && !user) {
+    console.log('🔒 ProtectedRoute: Usuario no autenticado, redirigiendo a login', {
+      currentPath: location.pathname,
+      requireAuth,
+      user: user ? 'exists' : 'null'
+    })
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   // Si hay roles permitidos y el usuario no tiene el rol adecuado
   if (allowedRoles.length > 0 && user && !allowedRoles.includes(user.rol)) {
+    console.log('🚫 ProtectedRoute: Acceso denegado', {
+      userRole: user.rol,
+      allowedRoles,
+      userEmail: user.email,
+      currentPath: location.pathname
+    })
+    
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -58,7 +75,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           <p className="mt-1 text-sm text-gray-500">
             No tienes permisos para acceder a esta página.
           </p>
-          <div className="mt-6">
+          <div className="mt-6 space-y-2">
             <button
               type="button"
               onClick={() => window.history.back()}
@@ -66,6 +83,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             >
               Volver
             </button>
+            <div className="text-xs text-gray-400">
+              Tu rol: {user.rol} | Requerido: {allowedRoles.join(', ')}
+            </div>
           </div>
         </div>
       </div>

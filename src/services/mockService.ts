@@ -157,9 +157,9 @@ export const mockService = {
     
     // Validar credenciales mock
     const validCredentials = [
-      { email: 'coordinador@obra.com', password: '123456' },
-      { email: 'logistica@obra.com', password: '123456' },
-      { email: 'almacenero@obra.com', password: '123456' }
+      { email: 'coordinador@obra.com', password: 'password123' },
+      { email: 'logistica@obra.com', password: 'password123' },
+      { email: 'almacenero@obra.com', password: 'password123' }
     ];
     
     const isValid = validCredentials.some(

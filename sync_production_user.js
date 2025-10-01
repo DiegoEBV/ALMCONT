@@ -47,7 +47,7 @@ async function syncProductionUser() {
     const newUser = {
       id: prodUser.id,
       email: prodUser.email,
-      password: '123456', // Password por defecto
+      password: 'password123', // Password por defecto
       nombre: prodUser.nombre,
       apellido: prodUser.apellido,
       rol: prodUser.rol,
@@ -63,7 +63,7 @@ async function syncProductionUser() {
     fs.writeFileSync(dbPath, JSON.stringify(database, null, 2));
     
     console.log('✅ Usuario de producción agregado exitosamente a database.json');
-    console.log('Credenciales: produccion@obra.com / 123456');
+    console.log('Credenciales: produccion@obra.com / password123');
     
   } catch (err) {
     console.error('Error:', err);

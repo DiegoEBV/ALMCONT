@@ -11,7 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-const passwords = ['123456', 'password123']
+const passwords = ['password123']
 const email = 'coordinador@obra.com'
 
 async function testPasswords() {

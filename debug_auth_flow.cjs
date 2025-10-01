@@ -13,8 +13,8 @@ async function testAuth() {
   console.log('=== PRUEBA DE AUTENTICACIÓN ===');
   
   const testUsers = [
-    { email: 'coordinador@obra.com', password: '123456' },
-    { email: 'logistica@obra.com', password: '123456' }
+    { email: 'coordinador@obra.com', password: 'password123' },
+    { email: 'logistica@obra.com', password: 'password123' }
   ];
 
   for (const user of testUsers) {

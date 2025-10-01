@@ -23,7 +23,6 @@ import {
   ChartPieIcon,
   BuildingOfficeIcon,
   UsersIcon,
-  Cog6ToothIcon,
   WrenchScrewdriverIcon,
   PlusCircleIcon,
   ClockIcon
@@ -202,7 +201,7 @@ const Sidebar: React.FC = () => {
           Sistema de Almacén
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          {user.obra?.nombre || 'Sin obra asignada'}
+          {user?.obra?.nombre || 'Sin obra asignada'}
         </p>
       </div>
 
@@ -211,12 +210,12 @@ const Sidebar: React.FC = () => {
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
             <span className="text-white text-sm font-medium">
-              {user.nombre.charAt(0).toUpperCase()}
+              {user?.nombre?.charAt(0)?.toUpperCase() || 'U'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              {user.nombre}
+              {user?.nombre || 'Usuario'}
             </p>
             <p className="text-xs text-gray-500">
               {user.rol}
