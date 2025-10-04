@@ -80,6 +80,12 @@ const navigation: NavItem[] = [
     roles: ['LOGISTICA']
   },
   {
+    name: 'Rastreo GPS',
+    href: '/logistica/gps-tracking',
+    icon: MapPinIcon,
+    roles: ['LOGISTICA']
+  },
+  {
     name: 'Panel Almacén',
     href: '/almacen/dashboard',
     icon: BuildingStorefrontIcon,

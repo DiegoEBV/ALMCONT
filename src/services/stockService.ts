@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { sanitizeUUID} from '../utils/uuidValidator'
 import type { Material } from '../types'
 
 export interface StockItem {
@@ -54,41 +55,55 @@ export interface KardexMovimiento {
 
 export const stockService = {
   async getStockByObra(obraId: string) {
-    const { data, error } = await supabase
-      .from('stock_obra_material')
-      .select(`
-        *,
-        obras(*),
-        materiales(*)
-      `)
-      .eq('obra_id', obraId)
-      .order('created_at', { ascending: false })
+    try {
+      console.log('Fetching stock for obra:', obraId)
+      const { data, error } = await supabase
+        .from('stock_obra_material')
+        .select(`
+          *,
+          obras(*),
+          materiales(*)
+        `)
+        .eq('obra_id', obraId)
+        .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching stock by obra:', error)
+      if (error) {
+        console.error('Error fetching stock by obra:', error)
+        throw error
+      }
+
+      console.log('Stock data fetched:', data?.length || 0, 'items')
+      return data || []
+    } catch (error) {
+      console.error('Error in getStockByObra:', error)
       throw error
     }
-
-    return data || []
   },
 
   async getStockByMaterial(materialId: string) {
-    const { data, error } = await supabase
-      .from('stock_obra_material')
-      .select(`
-        *,
-        obras(*),
-        materiales(*)
-      `)
-      .eq('material_id', materialId)
-      .order('created_at', { ascending: false })
+    try {
+      console.log('Fetching stock for material:', materialId)
+      const { data, error } = await supabase
+        .from('stock_obra_material')
+        .select(`
+          *,
+          obras(*),
+          materiales(*)
+        `)
+        .eq('material_id', materialId)
+        .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching stock by material:', error)
+      if (error) {
+        console.error('Error fetching stock by material:', error)
+        throw error
+      }
+
+      console.log('Stock data fetched:', data?.length || 0, 'items')
+      return data || []
+    } catch (error) {
+      console.error('Error in getStockByMaterial:', error)
       throw error
     }
-
-    return data || []
   },
 
   async updateStock(obraId: string, materialId: string, cantidad: number) {
@@ -170,187 +185,262 @@ export const stockService = {
   },
 
   // Obtener stock con filtros
-  async getStockWithFilters(filters: {
-    busqueda?: string
-    obra_id?: string
-    categoria?: string
-    stock_bajo?: boolean
-  }): Promise<StockItem[]> {
+  async getStockWithFilters(
+    obraId?: string,
+    busqueda?: string,
+    categoria?: string,
+    stockBajo?: boolean
+  ): Promise<StockItem[]> {
     try {
+      console.log('🔍 getStockWithFilters - Parámetros:', { obraId, busqueda, categoria, stockBajo });
+  
+      // Sanitizar el UUID de obra
+      const sanitizedObraId = sanitizeUUID(obraId);
+      console.log('🔍 UUID sanitizado:', { original: obraId, sanitized: sanitizedObraId });
+  
       let query = supabase
         .from('stock_obra_material')
         .select(`
           *,
-          obras(*),
-          materiales(*)
-        `)
-      
-      if (filters.obra_id) {
-        query = query.eq('obra_id', filters.obra_id)
+          obras:obra_id(nombre),
+          materiales:material_id(nombre, categoria, unidad_medida)
+        `);
+  
+      // Aplicar filtro de obra si se proporciona y es válido
+      if (sanitizedObraId) {
+        query = query.eq('obra_id', sanitizedObraId);
       }
-      
-      if (filters.busqueda) {
-        const searchTerm = `%${filters.busqueda}%`
-        query = query.or(`materiales.nombre.ilike.${searchTerm},materiales.codigo.ilike.${searchTerm},materiales.descripcion.ilike.${searchTerm}`)
-      }
-      
-      if (filters.categoria) {
-        query = query.eq('materiales.categoria', filters.categoria)
-      }
-      
-      const { data, error } = await query.order('materiales(nombre)')
-      
+  
+      const { data, error } = await query;
+  
       if (error) {
-        console.error('Error fetching filtered stock:', error)
-        throw error
+        console.error('❌ Error en getStockWithFilters:', error);
+        throw error;
       }
-      
-      let filteredStock = data || []
-      
-      if (filters.stock_bajo) {
-        filteredStock = filteredStock.filter(item => item.cantidad < (item.cantidad_minima || 0))
+  
+      console.log('✅ Datos obtenidos de stock_obra_material:', data?.length || 0, 'items');
+  
+      if (!data) return [];
+  
+      // Aplicar filtros del lado del cliente
+      let filteredData = data;
+  
+      // Filtro de búsqueda
+      if (busqueda) {
+        const searchTerm = busqueda.toLowerCase();
+        filteredData = filteredData.filter(item => 
+          item.materiales?.nombre?.toLowerCase().includes(searchTerm) ||
+          item.obras?.nombre?.toLowerCase().includes(searchTerm)
+        );
       }
-      
-      return filteredStock
-    } catch (error) {
-      console.error('Error al obtener stock filtrado:', error)
-      throw error
-    }
-  },
+  
+      // Filtro de categoría
+      if (categoria) {
+        filteredData = filteredData.filter(item => 
+          item.materiales?.categoria === categoria
+        );
+      }
+  
+      // Filtro de stock bajo
+      if (stockBajo) {
+        filteredData = filteredData.filter(item => 
+          item.stock_actual <= item.stock_minimo
+        );
+      }
+  
+      // Mapear a la estructura StockItem
+      const stockItems: StockItem[] = filteredData.map(item => ({
+        id: item.id,
+        material_id: item.material_id,
+        obra_id: item.obra_id,
+        stock_actual: item.stock_actual || 0,
+        stock_reservado: item.stock_reservado,
+        stock_disponible: item.stock_disponible,
+        stock_minimo: item.stock_minimo,
+        stock_maximo: item.stock_maximo,
+        costo_promedio: item.costo_promedio,
+        valor_total: item.valor_total,
+        ubicacion_principal: item.ubicacion_principal,
+        ultima_entrada: item.ultima_entrada,
+        ultima_salida: item.ultima_salida,
+        material: item.materiales,
+        obra: item.obras,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }));
+  
+      console.log('✅ Stock items procesados:', stockItems.length);
+     return stockItems;
+
+   } catch (error) {
+     console.error('❌ Error en getStockWithFilters:', error);
+     throw error;
+   }
+ },
 
   // Obtener movimientos de kardex
-  async getKardexMovimientos(filters: {
-    material_id?: string
-    obra_id?: string
-    fecha_desde?: string
-    fecha_hasta?: string
-    tipo_movimiento?: string
-    limit?: number
-  }): Promise<KardexMovimiento[]> {
+  async getKardexMovimientos(
+    materialId?: string,
+    obraId?: string,
+    fechaInicio?: string,
+    fechaFin?: string,
+    tipoMovimiento?: 'ENTRADA' | 'SALIDA'
+  ): Promise<KardexMovimiento[]> {
     try {
-      // Obtener movimientos de entradas
-      let entradasQuery = supabase
-        .from('entrada_items')
-        .select(`
-          *,
-          entradas(*),
-          materiales(*),
-          obras(*),
-          usuarios(*)
-        `)
+      console.log('🔍 getKardexMovimientos - Parámetros:', { materialId, obraId, fechaInicio, fechaFin, tipoMovimiento });
       
-      // Aplicar filtros a entradas
-      if (filters.material_id) {
-        entradasQuery = entradasQuery.eq('material_id', filters.material_id)
+      // Sanitizar UUIDs
+      const sanitizedMaterialId = sanitizeUUID(materialId);
+      const sanitizedObraId = sanitizeUUID(obraId);
+      
+      console.log('🔍 UUIDs sanitizados:', { 
+        materialId: { original: materialId, sanitized: sanitizedMaterialId },
+        obraId: { original: obraId, sanitized: sanitizedObraId }
+      });
+      
+      const movimientos: KardexMovimiento[] = [];
+      
+      // Obtener entradas si no se especifica tipo o si es 'ENTRADA'
+      if (!tipoMovimiento || tipoMovimiento === 'ENTRADA') {
+        console.log('📥 Consultando entrada_items...');
+        
+        let entradaQuery = supabase
+          .from('entrada_items')
+          .select(`
+            *,
+            entradas:entrada_id(fecha_entrada, numero_entrada, obra_id, observaciones, obras:obra_id(nombre)),
+            materiales:material_id(nombre, unidad_medida),
+            usuarios:entradas(recibido_por(nombre))
+          `);
+      
+        if (sanitizedMaterialId) {
+          entradaQuery = entradaQuery.eq('material_id', sanitizedMaterialId);
+        }
+      
+        const { data: entradas, error: entradaError } = await entradaQuery;
+      
+        if (entradaError) {
+          console.error('❌ Error consultando entrada_items:', entradaError);
+        } else {
+          console.log('✅ Entrada items obtenidos:', entradas?.length || 0);
+          
+          if (entradas) {
+            for (const entrada of entradas) {
+              // Filtrar por obra si se especifica
+              if (sanitizedObraId && entrada.entradas?.obra_id !== sanitizedObraId) {
+                continue;
+              }
+      
+              // Filtrar por fechas si se especifican
+              if (fechaInicio && entrada.entradas?.fecha_entrada && entrada.entradas.fecha_entrada < fechaInicio) {
+                continue;
+              }
+              if (fechaFin && entrada.entradas?.fecha_entrada && entrada.entradas.fecha_entrada > fechaFin) {
+                continue;
+              }
+      
+              const movimiento: KardexMovimiento = {
+                id: entrada.id,
+                material_id: entrada.material_id,
+                obra_id: entrada.entradas?.obra_id || '',
+                tipo_movimiento: 'ENTRADA',
+                cantidad: entrada.cantidad_recibida || entrada.cantidad_aceptada || 0,
+                cantidad_anterior: 0, // Se calculará después
+                cantidad_nueva: 0, // Se calculará después
+                fecha_movimiento: entrada.entradas?.fecha_entrada || '',
+                referencia: entrada.entradas?.numero_entrada || '',
+                observaciones: entrada.entradas?.observaciones || entrada.observaciones || '',
+                usuario_id: entrada.entradas?.recibido_por || '',
+                material: entrada.materiales,
+                obra: entrada.entradas?.obras,
+                usuario: entrada.usuarios
+              };
+      
+              movimientos.push(movimiento);
+            }
+          }
+        }
       }
       
-      if (filters.obra_id) {
-        entradasQuery = entradasQuery.eq('obra_id', filters.obra_id)
+      // Obtener salidas si no se especifica tipo o si es 'SALIDA'
+      if (!tipoMovimiento || tipoMovimiento === 'SALIDA') {
+        console.log('📤 Consultando salida_items...');
+        
+        let salidaQuery = supabase
+          .from('salida_items')
+          .select(`
+            *,
+            salidas:salida_id(fecha_salida, numero_salida, obra_id, observaciones, obras:obra_id(nombre)),
+            materiales:material_id(nombre, unidad_medida),
+            usuarios:salidas(solicitado_por(nombre))
+          `);
+      
+        if (sanitizedMaterialId) {
+          salidaQuery = salidaQuery.eq('material_id', sanitizedMaterialId);
+        }
+      
+        const { data: salidas, error: salidaError } = await salidaQuery;
+      
+        if (salidaError) {
+          console.error('❌ Error consultando salida_items:', salidaError);
+        } else {
+          console.log('✅ Salida items obtenidos:', salidas?.length || 0);
+          
+          if (salidas) {
+            for (const salida of salidas) {
+              // Filtrar por obra si se especifica
+              if (sanitizedObraId && salida.salidas?.obra_id !== sanitizedObraId) {
+                continue;
+              }
+      
+              // Filtrar por fechas si se especifican
+              if (fechaInicio && salida.salidas?.fecha_salida && salida.salidas.fecha_salida < fechaInicio) {
+                continue;
+              }
+              if (fechaFin && salida.salidas?.fecha_salida && salida.salidas.fecha_salida > fechaFin) {
+                continue;
+              }
+      
+              const movimiento: KardexMovimiento = {
+                id: salida.id,
+                material_id: salida.material_id,
+                obra_id: salida.salidas?.obra_id || '',
+                tipo_movimiento: 'SALIDA',
+                cantidad: -(salida.cantidad_entregada || salida.cantidad_autorizada || salida.cantidad_solicitada || 0),
+                cantidad_anterior: 0, // Se calculará después
+                cantidad_nueva: 0, // Se calculará después
+                fecha_movimiento: salida.salidas?.fecha_salida || '',
+                referencia: salida.salidas?.numero_salida || '',
+                observaciones: salida.salidas?.observaciones || salida.observaciones || '',
+                usuario_id: salida.salidas?.solicitado_por || '',
+                material: salida.materiales,
+                obra: salida.salidas?.obras,
+                usuario: salida.usuarios
+              };
+      
+              movimientos.push(movimiento);
+            }
+          }
+        }
       }
       
-      if (filters.fecha_desde) {
-        entradasQuery = entradasQuery.gte('entradas.fecha_entrada', filters.fecha_desde)
+      // Ordenar por fecha
+      movimientos.sort((a, b) => new Date(a.fecha_movimiento).getTime() - new Date(b.fecha_movimiento).getTime());
+      
+      // Calcular cantidades acumuladas
+      let cantidadAcumulada = 0;
+      for (const movimiento of movimientos) {
+        movimiento.cantidad_anterior = cantidadAcumulada;
+        cantidadAcumulada += movimiento.cantidad;
+        movimiento.cantidad_nueva = cantidadAcumulada;
       }
       
-      if (filters.fecha_hasta) {
-        entradasQuery = entradasQuery.lte('entradas.fecha_entrada', filters.fecha_hasta)
-      }
+      console.log('✅ Movimientos kardex procesados:', movimientos.length);
+      return movimientos;
       
-      const { data: entradasData, error: entradasError } = await entradasQuery
-      
-      if (entradasError) {
-        console.error('Error fetching entradas:', entradasError)
-        throw entradasError
-      }
-      
-      // Obtener movimientos de salidas
-      let salidasQuery = supabase
-        .from('salida_items')
-        .select(`
-          *,
-          salidas!inner(*),
-          materiales(*)
-        `)
-      
-      // Aplicar filtros a salidas
-      if (filters.material_id) {
-        salidasQuery = salidasQuery.eq('material_id', filters.material_id)
-      }
-      
-      if (filters.obra_id) {
-        salidasQuery = salidasQuery.eq('salidas.obra_id', filters.obra_id)
-      }
-      
-      if (filters.fecha_desde) {
-        salidasQuery = salidasQuery.gte('salidas.fecha_entrega', filters.fecha_desde)
-      }
-      
-      if (filters.fecha_hasta) {
-        salidasQuery = salidasQuery.lte('salidas.fecha_entrega', filters.fecha_hasta)
-      }
-      
-      const { data: salidasData, error: salidasError } = await salidasQuery
-      
-      if (salidasError) {
-        console.error('Error fetching salidas:', salidasError)
-        throw salidasError
-      }
-      
-      // Convertir a formato de movimientos kardex
-      const movimientos: KardexMovimiento[] = [
-        ...(entradasData || []).map(entrada => ({
-          id: entrada.id,
-          material_id: entrada.material_id,
-          obra_id: entrada.obra_id,
-          tipo_movimiento: 'ENTRADA' as const,
-          cantidad: entrada.cantidad_atendida,
-          cantidad_anterior: 0, // Se calcularía en una implementación real
-          cantidad_nueva: entrada.cantidad_atendida,
-          fecha_movimiento: entrada.entradas?.fecha_entrada || new Date().toISOString(),
-          referencia: entrada.entradas?.numero_sc || '',
-          observaciones: entrada.entradas?.observaciones || '',
-          usuario_id: entrada.entradas?.usuario_id || '',
-          material: entrada.materiales,
-          obra: entrada.obras,
-          usuario: entrada.usuarios
-        })),
-        ...(salidasData || []).map(salida => ({
-          id: salida.id,
-          material_id: salida.material_id,
-          obra_id: salida.salidas?.obra_id || '',
-          tipo_movimiento: 'SALIDA' as const,
-          cantidad: salida.cantidad_entregada || salida.cantidad_autorizada || salida.cantidad_solicitada,
-          cantidad_anterior: 0, // Se calcularía en una implementación real
-          cantidad_nueva: -(salida.cantidad_entregada || salida.cantidad_autorizada || salida.cantidad_solicitada),
-          fecha_movimiento: salida.salidas?.fecha_entrega || salida.salidas?.fecha_salida || new Date().toISOString(),
-          referencia: salida.salidas?.numero_salida || '',
-          observaciones: salida.salidas?.observaciones || salida.observaciones || '',
-          usuario_id: salida.salidas?.solicitado_por || '',
-          material: salida.materiales,
-          obra: null,
-          usuario: null
-        }))
-      ]
-      
-      let filteredMovimientos = movimientos
-      
-      // Filtrar por tipo de movimiento si es necesario
-      if (filters.tipo_movimiento) {
-        filteredMovimientos = filteredMovimientos.filter(m => m.tipo_movimiento === filters.tipo_movimiento)
-      }
-      
-      // Ordenar por fecha descendente
-      filteredMovimientos.sort((a, b) => new Date(b.fecha_movimiento).getTime() - new Date(a.fecha_movimiento).getTime())
-      
-      // Aplicar límite
-      if (filters.limit) {
-        filteredMovimientos = filteredMovimientos.slice(0, filters.limit)
-      }
-      
-      return filteredMovimientos
     } catch (error) {
-      console.error('Error al obtener movimientos kardex:', error)
-      throw error
+      console.error('❌ Error en getKardexMovimientos:', error);
+      throw error;
     }
   },
 
@@ -362,6 +452,7 @@ export const stockService = {
     valor_total: number
   }> {
     try {
+      console.log('Fetching stock summary')
       const { data: stockItems, error } = await supabase
         .from('stock_obra_material')
         .select(`
@@ -375,22 +466,27 @@ export const stockService = {
       }
       
       const items = stockItems || []
-      const total_materiales = items.length
-      const stock_bajo = items.filter(item => item.cantidad < (item.cantidad_minima || 0)).length
-      const sin_stock = items.filter(item => item.cantidad === 0).length
+      console.log('Stock summary data:', items.length, 'items')
       
-      // Calcular valor total (precio unitario * cantidad actual)
+      const total_materiales = items.length
+      const stock_bajo = items.filter(item => (item.stock_actual || 0) < (item.stock_minimo || 0)).length
+      const sin_stock = items.filter(item => (item.stock_actual || 0) === 0).length
+      
+      // Calcular valor total usando costo_promedio * stock_actual
       const valor_total = items.reduce((total, item) => {
-        const precio = item.materiales?.precio_unitario || 0
-        return total + (precio * item.cantidad)
+        const costo = item.costo_promedio || item.materiales?.precio_unitario || 0
+        return total + (costo * (item.stock_actual || 0))
       }, 0)
       
-      return {
+      const summary = {
         total_materiales,
         stock_bajo,
         sin_stock,
         valor_total
       }
+      
+      console.log('Stock summary calculated:', summary)
+      return summary
     } catch (error) {
       console.error('Error al obtener resumen de stock:', error)
       return {

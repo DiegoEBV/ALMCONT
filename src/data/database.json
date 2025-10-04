@@ -136289,8 +136289,94 @@
       "updated_at": "2025-08-15T21:04:01.530Z"
     }
   ],
-  "entradas": [],
-  "salidas": [],
+  "entradas": [
+    {
+      "id": "e1-001",
+      "obra_id": "1",
+      "material_id": "7d215ad0-e1da-430d-a355-634ac5121864",
+      "cantidad": 100,
+      "precio_unitario": 25.50,
+      "proveedor": "Proveedor ABC",
+      "fecha": "2024-12-01T10:00:00.000Z",
+      "tipo": "COMPRA",
+      "documento": "FAC-001",
+      "observaciones": "Entrada inicial de cemento",
+      "created_at": "2024-12-01T10:00:00.000Z",
+      "updated_at": "2024-12-01T10:00:00.000Z"
+    },
+    {
+      "id": "e1-002",
+      "obra_id": "1",
+      "material_id": "721210e1-ff8f-4f18-9533-aa03723bd9bf",
+      "cantidad": 50,
+      "precio_unitario": 15.75,
+      "proveedor": "Proveedor XYZ",
+      "fecha": "2024-12-02T14:30:00.000Z",
+      "tipo": "COMPRA",
+      "documento": "FAC-002",
+      "observaciones": "Entrada de arena",
+      "created_at": "2024-12-02T14:30:00.000Z",
+      "updated_at": "2024-12-02T14:30:00.000Z"
+    },
+    {
+      "id": "e1-003",
+      "obra_id": "1",
+      "material_id": "ad3f40ff-32ee-4158-baa5-a1ec5faa6aeb",
+      "cantidad": 75,
+      "precio_unitario": 8.25,
+      "proveedor": "Proveedor DEF",
+      "fecha": "2024-12-03T09:15:00.000Z",
+      "tipo": "COMPRA",
+      "documento": "FAC-003",
+      "observaciones": "Entrada de grava",
+      "created_at": "2024-12-03T09:15:00.000Z",
+      "updated_at": "2024-12-03T09:15:00.000Z"
+    }
+  ],
+  "salidas": [
+    {
+      "id": "s1-001",
+      "obra_id": "1",
+      "material_id": "7d215ad0-e1da-430d-a355-634ac5121864",
+      "cantidad": 25,
+      "destino": "Obra Principal - Sector A",
+      "fecha": "2024-12-04T08:00:00.000Z",
+      "tipo": "CONSUMO",
+      "documento": "SAL-001",
+      "responsable": "Juan Pérez",
+      "observaciones": "Salida para fundación",
+      "created_at": "2024-12-04T08:00:00.000Z",
+      "updated_at": "2024-12-04T08:00:00.000Z"
+    },
+    {
+      "id": "s1-002",
+      "obra_id": "1",
+      "material_id": "721210e1-ff8f-4f18-9533-aa03723bd9bf",
+      "cantidad": 15,
+      "destino": "Obra Principal - Sector B",
+      "fecha": "2024-12-05T11:30:00.000Z",
+      "tipo": "CONSUMO",
+      "documento": "SAL-002",
+      "responsable": "María García",
+      "observaciones": "Salida para mezcla",
+      "created_at": "2024-12-05T11:30:00.000Z",
+      "updated_at": "2024-12-05T11:30:00.000Z"
+    },
+    {
+      "id": "s1-003",
+      "obra_id": "1",
+      "material_id": "ad3f40ff-32ee-4158-baa5-a1ec5faa6aeb",
+      "cantidad": 30,
+      "destino": "Obra Principal - Sector C",
+      "fecha": "2024-12-06T16:45:00.000Z",
+      "tipo": "CONSUMO",
+      "documento": "SAL-003",
+      "responsable": "Carlos López",
+      "observaciones": "Salida para concreto",
+      "created_at": "2024-12-06T16:45:00.000Z",
+      "updated_at": "2024-12-06T16:45:00.000Z"
+    }
+  ],
   "solicitudes_compra": [
     {
       "id": "986e0844-7de6-4633-b132-37f08253d4e4",

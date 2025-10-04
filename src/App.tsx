@@ -22,6 +22,8 @@ import CoordinationDashboard from './pages/CoordinationDashboard'
 import LogisticsDashboard from './pages/LogisticsDashboard'
 import WarehouseDashboard from './pages/WarehouseDashboard'
 import AdvancedAnalytics from './pages/AdvancedAnalytics'
+import GPSTracking from './pages/GPSTracking'
+import GPSManagement from './pages/GPSManagement'
 import Perfil from './pages/Perfil'
 import AdminObras from './pages/AdminObras'
 import AdminUsuarios from './pages/AdminUsuarios'
@@ -111,6 +113,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['LOGISTICA']}>
                   <LogisticsDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="logistica/gps-tracking"
+              element={
+                <ProtectedRoute allowedRoles={['LOGISTICA']}>
+                  <GPSManagement />
                 </ProtectedRoute>
               }
             />

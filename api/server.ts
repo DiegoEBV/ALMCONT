@@ -6,15 +6,24 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
+import { createServer } from 'http';
 import app from './app.js';
+import { GPSWebSocketService } from './services/GPSWebSocketService.js';
 
 /**
  * start server with port
  */
 const PORT = process.env.PORT || 3001;
 
-const server = app.listen(PORT, () => {
+// Create HTTP server
+const server = createServer(app);
+
+// Initialize GPS WebSocket service
+const gpsWebSocketService = new GPSWebSocketService(server);
+
+server.listen(PORT, () => {
   console.log(`Server ready on port ${PORT}`);
+  console.log('GPS WebSocket service initialized');
 });
 
 /**

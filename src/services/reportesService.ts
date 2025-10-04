@@ -55,23 +55,32 @@ class ReportesService {
   // Reporte de requerimientos por obra
   async getReporteRequerimientos(filtros: FiltrosReporte = {}): Promise<ReporteRequerimientos[]> {
     try {
+      console.log('🔍 [ReportesService] Iniciando getReporteRequerimientos con filtros:', filtros)
+      
       let requerimientos = await localDB.getWithRelations('requerimientos', undefined, {
         obra: { table: 'obras', key: 'obra_id' }
       })
 
+      console.log('📋 [ReportesService] Requerimientos obtenidos de BD:', requerimientos.length)
+
       // Aplicar filtros
       if (filtros.fecha_desde) {
+        const fechaDesde = new Date(filtros.fecha_desde)
         requerimientos = requerimientos.filter(req => 
-          new Date(req.created_at) >= new Date(filtros.fecha_desde!)
+          new Date(req.created_at) >= fechaDesde
         )
+        console.log('📅 [ReportesService] Después de filtro fecha_desde:', requerimientos.length)
       }
       if (filtros.fecha_hasta) {
+        const fechaHasta = new Date(filtros.fecha_hasta)
         requerimientos = requerimientos.filter(req => 
-          new Date(req.created_at) <= new Date(filtros.fecha_hasta!)
+          new Date(req.created_at) <= fechaHasta
         )
+        console.log('📅 [ReportesService] Después de filtro fecha_hasta:', requerimientos.length)
       }
       if (filtros.obra_id) {
         requerimientos = requerimientos.filter(req => req.obra_id === filtros.obra_id)
+        console.log('🏗️ [ReportesService] Después de filtro obra_id:', requerimientos.length)
       }
 
       // Agrupar por obra y calcular estadísticas
@@ -102,6 +111,7 @@ class ReportesService {
             reporte.pendientes++
             break
           case 'ATENDIDO':
+          case 'APROBADO':
             reporte.aprobados++
             break
           case 'CANCELADO':
@@ -110,9 +120,11 @@ class ReportesService {
         }
       })
 
-      return Array.from(reporteMap.values())
+      const resultado = Array.from(reporteMap.values())
+      console.log('📊 [ReportesService] Reporte final generado:', resultado)
+      return resultado
     } catch (error) {
-      console.error('Error al generar reporte de requerimientos:', error)
+      console.error('❌ [ReportesService] Error al generar reporte de requerimientos:', error)
       throw error
     }
   }
@@ -120,19 +132,25 @@ class ReportesService {
   // Reporte de stock actual
   async getReporteStock(filtros: FiltrosReporte = {}): Promise<ReporteStock[]> {
     try {
+      console.log('🔍 [ReportesService] Iniciando getReporteStock con filtros:', filtros)
+      
       let stock = await localDB.getWithRelations('stock_obra_material', undefined, {
         material: { table: 'materiales', key: 'material_id' }
       })
 
+      console.log('📦 [ReportesService] Stock obtenido de BD:', stock.length)
+
       // Aplicar filtros
       if (filtros.obra_id) {
         stock = stock.filter(item => item.obra_id === filtros.obra_id)
+        console.log('🏗️ [ReportesService] Después de filtro obra_id:', stock.length)
       }
       if (filtros.categoria) {
         stock = stock.filter(item => item.material?.categoria === filtros.categoria)
+        console.log('📂 [ReportesService] Después de filtro categoria:', stock.length)
       }
 
-      return stock.map(item => {
+      const resultado = stock.map(item => {
         const material = item.material || {
           nombre: 'Material desconocido',
           codigo: '',
@@ -161,8 +179,11 @@ class ReportesService {
           estado
         }
       })
+
+      console.log('📊 [ReportesService] Reporte de stock final generado:', resultado.length, 'items')
+      return resultado
     } catch (error) {
-      console.error('Error al generar reporte de stock:', error)
+      console.error('❌ [ReportesService] Error al generar reporte de stock:', error)
       throw error
     }
   }
@@ -360,11 +381,19 @@ class ReportesService {
   // Obtener estadísticas generales
   async getEstadisticasGenerales(filtros: FiltrosReporte = {}) {
     try {
+      console.log('🔍 [ReportesService] Iniciando getEstadisticasGenerales con filtros:', filtros)
+      
       const [requerimientos, stock, movimientos] = await Promise.all([
         this.getReporteRequerimientos(filtros),
         this.getReporteStock(filtros),
         this.getReporteMovimientos(filtros)
       ])
+
+      console.log('📊 [ReportesService] Datos obtenidos para estadísticas:', {
+        requerimientos: requerimientos.length,
+        stock: stock.length,
+        movimientos: movimientos.length
+      })
 
       const totalRequerimientos = requerimientos.reduce((sum, r) => sum + r.total_requerimientos, 0)
       const valorTotalRequerimientos = requerimientos.reduce((sum, r) => sum + r.valor_total, 0)
@@ -373,7 +402,7 @@ class ReportesService {
       const materialesBajoStock = stock.filter(s => s.estado === 'BAJO').length
       const materialesAgotados = stock.filter(s => s.estado === 'AGOTADO').length
 
-      return {
+      const estadisticas = {
         requerimientos: {
           total: totalRequerimientos,
           valor_total: valorTotalRequerimientos
@@ -390,8 +419,11 @@ class ReportesService {
           total_salidas: movimientos.reduce((sum, m) => sum + m.salidas, 0)
         }
       }
+
+      console.log('📈 [ReportesService] Estadísticas generales calculadas:', estadisticas)
+      return estadisticas
     } catch (error) {
-      console.error('Error al obtener estadísticas generales:', error)
+      console.error('❌ [ReportesService] Error al obtener estadísticas generales:', error)
       throw error
     }
   }

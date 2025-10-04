@@ -41,40 +41,44 @@ const Reportes: React.FC = () => {
 
   const cargarEstadisticas = useCallback(async () => {
     try {
+      console.log('🔍 Cargando estadísticas con filtros:', filtros)
       const stats = await reportesService.getEstadisticasGenerales(filtros)
+      console.log('📊 Estadísticas cargadas:', stats)
       setEstadisticas(stats)
     } catch (error) {
-      console.error('Error al cargar estadísticas:', error)
+      console.error('❌ Error al cargar estadísticas:', error)
     }
   }, [filtros])
 
   const cargarReporte = useCallback(async () => {
     setLoading(true)
     try {
+      console.log('🔍 Cargando reporte tipo:', tipoReporte, 'con filtros:', filtros)
+      
       switch (tipoReporte) {
-        case 'requerimientos': {
-          const reqData: ReporteRequerimientos[] = await reportesService.getReporteRequerimientos(filtros)
+        case 'requerimientos':
+          const reqData = await reportesService.getReporteRequerimientos(filtros)
+          console.log('📋 Reporte requerimientos cargado:', reqData.length, 'items')
           setReporteRequerimientos(reqData)
           break
-        }
-        case 'stock': {
+        case 'stock':
           const stockData = await reportesService.getReporteStock(filtros)
+          console.log('📦 Reporte stock cargado:', stockData.length, 'items')
           setReporteStock(stockData)
           break
-        }
-        case 'movimientos': {
+        case 'movimientos':
           const movData = await reportesService.getReporteMovimientos(filtros)
+          console.log('🔄 Reporte movimientos cargado:', movData.length, 'items')
           setReporteMovimientos(movData)
           break
-        }
-        case 'consumo': {
+        case 'consumo':
           const consData = await reportesService.getReporteConsumo(filtros)
+          console.log('📈 Reporte consumo cargado:', consData.length, 'items')
           setReporteConsumo(consData)
           break
-        }
       }
     } catch (error) {
-      console.error('Error al cargar reporte:', error)
+      console.error('❌ Error al cargar reporte:', error)
     } finally {
       setLoading(false)
     }
@@ -495,12 +499,22 @@ const Reportes: React.FC = () => {
           <p className="text-gray-600 mt-2">Cargando reporte...</p>
         </div>
       ) : (
-        <>
+        <div className="bg-white rounded-lg shadow">
           {tipoReporte === 'requerimientos' && renderTablaRequerimientos()}
           {tipoReporte === 'stock' && renderTablaStock()}
           {tipoReporte === 'movimientos' && renderTablaMovimientos()}
           {tipoReporte === 'consumo' && renderTablaConsumo()}
-        </>
+          
+          {/* Debug info */}
+          <div className="p-4 border-t bg-gray-50 text-xs text-gray-500">
+            <p>Debug: Tipo actual: {tipoReporte}</p>
+            <p>Requerimientos: {reporteRequerimientos.length} items</p>
+            <p>Stock: {reporteStock.length} items</p>
+            <p>Movimientos: {reporteMovimientos.length} items</p>
+            <p>Consumo: {reporteConsumo.length} items</p>
+            <p>Loading: {loading ? 'true' : 'false'}</p>
+          </div>
+        </div>
       )}
     </div>
   )

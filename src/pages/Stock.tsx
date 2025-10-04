@@ -36,8 +36,8 @@ export default function Stock() {
   const [kardexFilters, setKardexFilters] = useState({
     material_id: '',
     obra_id: '',
-    fecha_desde: '',
-    fecha_hasta: '',
+    fecha_inicio: '',
+    fecha_fin: '',
     tipo_movimiento: ''
   })
 
@@ -107,10 +107,13 @@ export default function Stock() {
       setLoading(true)
       console.log('🔄 Cargando kardex con filtros:', kardexFilters)
       
-      const data = await stockService.getKardexMovimientos({
-        ...kardexFilters,
-        limit: 100
-      })
+      const data = await stockService.getKardexMovimientos(
+        kardexFilters.material_id,
+        kardexFilters.obra_id,
+        kardexFilters.fecha_inicio,
+        kardexFilters.fecha_fin,
+        kardexFilters.tipo_movimiento
+      )
       
       console.log('📋 Kardex cargado:', data?.length || 0, 'movimientos')
       console.log('📋 Datos de kardex:', data)
@@ -146,8 +149,8 @@ export default function Stock() {
     setKardexFilters({
       material_id: '',
       obra_id: '',
-      fecha_desde: '',
-      fecha_hasta: '',
+      fecha_inicio: '',
+      fecha_fin: '',
       tipo_movimiento: ''
     })
   }
@@ -511,15 +514,15 @@ export default function Stock() {
                   <Input
                     type="date"
                     placeholder="Fecha desde"
-                    value={kardexFilters.fecha_desde}
-                    onChange={(e) => handleKardexFilterChange('fecha_desde', e.target.value)}
+                    value={kardexFilters.fecha_inicio}
+                    onChange={(e) => handleKardexFilterChange('fecha_inicio', e.target.value)}
                   />
                   
                   <Input
                     type="date"
                     placeholder="Fecha hasta"
-                    value={kardexFilters.fecha_hasta}
-                    onChange={(e) => handleKardexFilterChange('fecha_hasta', e.target.value)}
+                    value={kardexFilters.fecha_fin}
+                    onChange={(e) => handleKardexFilterChange('fecha_fin', e.target.value)}
                   />
                   
                   <Button
