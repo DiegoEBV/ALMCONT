@@ -42,7 +42,7 @@ const GPSControls: React.FC<GPSControlsProps> = ({
   const handleStatusFilter = (status: VehicleStatus | 'all') => {
     onFilterChange({
       ...filter,
-      status: status === 'all' ? undefined : status
+      status: status === 'all' ? undefined : (status as unknown as string)
     });
   };
 
@@ -53,7 +53,7 @@ const GPSControls: React.FC<GPSControlsProps> = ({
     });
   };
 
-  const getStatusCount = (status: VehicleStatus) => {
+  const getStatusCount = (status: string) => {
     // This would be calculated from actual vehicle data
     // For now, returning placeholder values
     switch (status) {

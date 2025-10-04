@@ -56,6 +56,16 @@ export interface GPSAlert {
   is_resolved: boolean;
   triggered_at: string;
   resolved_at: string | null;
+  created_at: string;
+  vehicle_id?: string;
+  status?: string;
+  severity?: string;
+  message?: string;
+  metadata?: {
+    vehicle_plate?: string;
+    geofence_name?: string;
+    [key: string]: any;
+  };
 }
 
 export interface VehicleAssignment {

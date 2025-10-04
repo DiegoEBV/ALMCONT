@@ -210,13 +210,21 @@ export class GPSWebSocketService {
             vehicle_id: location.vehicle_id,
             vehicle_plate: location.vehicle.plate_number,
             location: {
+              id: location.id,
+              device_id: location.device_id,
+              vehicle_id: location.vehicle_id,
               latitude: location.latitude,
               longitude: location.longitude,
+              altitude: location.altitude,
               speed: location.speed,
               heading: location.heading,
+              accuracy: location.accuracy,
+              timestamp: location.timestamp || location.recorded_at,
               battery_level: location.battery_level,
+              signal_strength: location.signal_strength,
               satellites: location.satellites,
-              recorded_at: location.recorded_at
+              recorded_at: location.recorded_at,
+              created_at: location.created_at
             },
             timestamp: location.recorded_at
           };

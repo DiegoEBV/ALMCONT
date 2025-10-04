@@ -112,7 +112,7 @@ export default function Stock() {
         kardexFilters.obra_id,
         kardexFilters.fecha_inicio,
         kardexFilters.fecha_fin,
-        kardexFilters.tipo_movimiento
+        kardexFilters.tipo_movimiento as 'ENTRADA' | 'SALIDA' | undefined
       )
       
       console.log('📋 Kardex cargado:', data?.length || 0, 'movimientos')

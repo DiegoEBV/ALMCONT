@@ -53,11 +53,20 @@ const GeofenceAlertSystem: React.FC<GeofenceAlertSystemProps> = ({
   const handleGeofenceAlert = (event: GeofenceAlertEvent) => {
     // Create new alert from WebSocket event
     const newAlert: GPSAlert = {
-      id: event.alert_id,
+      id: event.alert_id || `alert-${Date.now()}`,
       device_id: '', // Will be populated from backend
       vehicle_id: event.vehicle_id,
       geofence_id: event.geofence_id,
       alert_type: 'geofence',
+      alert_data: {
+        type: event.alert_type,
+        latitude: event.location.latitude,
+        longitude: event.location.longitude,
+        geofence_name: event.geofence_name,
+        vehicle_plate: event.vehicle_plate
+      },
+      is_resolved: false,
+      resolved_at: null,
       severity: 'medium',
       message: `Vehículo ${event.vehicle_plate} ${event.alert_type === 'entry' ? 'ingresó a' : 'salió de'} ${event.geofence_name}`,
       status: 'active',

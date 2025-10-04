@@ -186,17 +186,20 @@ export const stockService = {
 
   // Obtener stock con filtros
   async getStockWithFilters(
-    obraId?: string,
-    busqueda?: string,
-    categoria?: string,
-    stockBajo?: boolean
+    filters: {
+      obra_id?: string;
+      busqueda?: string;
+      categoria?: string;
+      stock_bajo?: boolean;
+    }
   ): Promise<StockItem[]> {
     try {
-      console.log('🔍 getStockWithFilters - Parámetros:', { obraId, busqueda, categoria, stockBajo });
+      const { obra_id, busqueda, categoria, stock_bajo } = filters;
+      console.log('🔍 getStockWithFilters - Parámetros:', { obra_id, busqueda, categoria, stock_bajo });
   
       // Sanitizar el UUID de obra
-      const sanitizedObraId = sanitizeUUID(obraId);
-      console.log('🔍 UUID sanitizado:', { original: obraId, sanitized: sanitizedObraId });
+      const sanitizedObraId = sanitizeUUID(obra_id);
+      console.log('🔍 UUID sanitizado:', { original: obra_id, sanitized: sanitizedObraId });
   
       let query = supabase
         .from('stock_obra_material')
@@ -242,7 +245,7 @@ export const stockService = {
       }
   
       // Filtro de stock bajo
-      if (stockBajo) {
+      if (stock_bajo) {
         filteredData = filteredData.filter(item => 
           item.stock_actual <= item.stock_minimo
         );

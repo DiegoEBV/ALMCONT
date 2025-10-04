@@ -15,15 +15,19 @@ export interface GPSDevice {
 export interface GPSLocation {
   id: string;
   device_id: string;
+  vehicle_id?: string;
   latitude: number;
   longitude: number;
-  speed: number;
-  heading: number;
-  satellites: number;
-  battery_level: number;
-  recorded_at: string;
-  created_at: string;
-  device?: GPSDevice;
+  altitude: number | null;
+  speed: number | null;
+  heading: number | null;
+  accuracy: number | null;
+  timestamp: string;
+  battery_level: number | null;
+  signal_strength: number | null;
+  satellites?: number;
+  recorded_at?: string;
+  created_at?: string;
 }
 
 export interface Vehicle {
@@ -32,6 +36,7 @@ export interface Vehicle {
   model: string;
   vehicle_type: string;
   fuel_capacity: number;
+  driver_name?: string;
   is_active: boolean;
   created_at: string;
   current_location?: GPSLocation;
@@ -63,6 +68,16 @@ export interface GPSAlert {
   is_resolved: boolean;
   triggered_at: string;
   resolved_at: string | null;
+  created_at: string;
+  vehicle_id?: string;
+  status?: string;
+  severity?: string;
+  message?: string;
+  metadata?: {
+    vehicle_plate?: string;
+    geofence_name?: string;
+    [key: string]: any;
+  };
   device?: GPSDevice;
   geofence?: Geofence;
 }
@@ -94,10 +109,12 @@ export interface LocationUpdateEvent {
 
 export interface GeofenceAlertEvent {
   vehicle_id: string;
+  vehicle_plate: string;
   geofence_id: string;
   geofence_name: string;
   alert_type: 'entry' | 'exit';
   timestamp: string;
+  alert_id?: string;
   location: {
     latitude: number;
     longitude: number;
@@ -106,6 +123,7 @@ export interface GeofenceAlertEvent {
 
 export interface SpeedAlertEvent {
   vehicle_id: string;
+  vehicle_plate: string;
   current_speed: number;
   speed_limit: number;
   location: {
@@ -126,7 +144,13 @@ export interface MapBounds {
 export interface MapFilter {
   obra_id?: string;
   vehicle_type?: string;
+  vehicleType?: string;
   is_active?: boolean;
+  status?: string;
+  search?: string;
+  assignedWork?: string;
+  minSpeed?: number;
+  minBattery?: number;
   date_range?: {
     start: string;
     end: string;

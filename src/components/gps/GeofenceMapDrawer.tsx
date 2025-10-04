@@ -80,11 +80,12 @@ const MapDrawingHandler: React.FC<{
         // Auto-trigger finish circle drawing
         setTimeout(() => {
           if (drawingState.circleCenter && radius > 0) {
-            const coordinates = generateCircleCoordinates(
-              drawingState.circleCenter.lat,
-              drawingState.circleCenter.lng,
-              radius
-            );
+            const coordinates = Array.from({ length: 32 }, (_, i) => {
+              const angle = (i / 32) * 2 * Math.PI;
+              const lat = drawingState.circleCenter!.lat + (radius / 111320) * Math.cos(angle);
+              const lng = drawingState.circleCenter!.lng + (radius / (111320 * Math.cos(drawingState.circleCenter!.lat * Math.PI / 180))) * Math.sin(angle);
+              return { lat, lng };
+            });
             
             onDrawingStateChange({
               tempGeofence: {
@@ -97,8 +98,7 @@ const MapDrawingHandler: React.FC<{
               }
             });
             
-            // Show name input
-            setShowNameInput(true);
+            // Show name input - this will be handled in the parent component
           }
         }, 100);
       } else if (drawingState.mode === 'polygon') {

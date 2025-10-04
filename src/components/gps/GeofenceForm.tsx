@@ -490,7 +490,7 @@ const GeofenceForm: React.FC<GeofenceFormProps> = ({
                           value={coord.lat}
                           onChange={(e) => updateCoordinate(index, 'lat', parseFloat(e.target.value))}
                           placeholder="Latitud"
-                          size="sm"
+                          className="text-sm"
                         />
                         <Input
                           type="number"
@@ -498,7 +498,7 @@ const GeofenceForm: React.FC<GeofenceFormProps> = ({
                           value={coord.lng}
                           onChange={(e) => updateCoordinate(index, 'lng', parseFloat(e.target.value))}
                           placeholder="Longitud"
-                          size="sm"
+                          className="text-sm"
                         />
                       </div>
                       <Button

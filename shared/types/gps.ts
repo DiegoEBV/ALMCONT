@@ -25,6 +25,8 @@ export interface GPSLocation {
   altitude?: number;
   speed: number;
   heading: number;
+  accuracy?: number;
+  timestamp?: string;
   satellites: number;
   battery_level: number;
   signal_strength?: number;

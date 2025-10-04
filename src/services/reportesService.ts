@@ -111,7 +111,8 @@ class ReportesService {
             reporte.pendientes++
             break
           case 'ATENDIDO':
-          case 'APROBADO':
+          case 'ASIGNADO':
+          case 'EN_PROCESO':
             reporte.aprobados++
             break
           case 'CANCELADO':
