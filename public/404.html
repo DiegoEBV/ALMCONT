@@ -53,12 +53,19 @@
         }
     </style>
     <script>
-        // Redirección automática para GitHub Pages SPA
+        // Redirección automática para GitHub Pages SPA con HashRouter
         (function() {
-            var redirect = sessionStorage.redirect;
-            delete sessionStorage.redirect;
-            if (redirect && redirect != location.href) {
-                history.replaceState(null, null, redirect);
+            // Para HashRouter, redirigir a la página principal con hash
+            var path = window.location.pathname;
+            var search = window.location.search;
+            
+            // Si no es la página principal, redirigir con hash
+            if (path !== '/ALMACEN/' && path !== '/ALMACEN/index.html') {
+                var redirect = '/ALMACEN/#' + path.replace('/ALMACEN', '') + search;
+                window.location.replace(redirect);
+            } else {
+                // Si es la página principal, ir al index
+                window.location.replace('/ALMACEN/');
             }
         })();
     </script>
