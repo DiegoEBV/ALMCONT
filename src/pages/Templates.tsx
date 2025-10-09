@@ -13,7 +13,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { Template, TemplateService, TemplateInstance } from '../services/templateService';
 
 // Lazy load TemplateEditor component
-const TemplateEditor = lazy(() => import('../components/templates/TemplateEditor'));
+const TemplateEditor = lazy(() => import('../components/templates/LazyTemplateEditor'));
 
 const Templates: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);

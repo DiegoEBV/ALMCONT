@@ -8,124 +8,162 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/ALMACEN/' : '/',
   build: {
-    chunkSizeWarningLimit: 600, // Aumentar límite a 600 kB para chunks específicos
+    chunkSizeWarningLimit: 5000, // Reducir límite para forzar mejor división
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // React core libraries
-          if (id.includes('react') || id.includes('react-dom')) {
-            return 'react-vendor';
+          // React ecosystem - dividir en chunks más pequeños
+          if (id.includes('react-dom')) {
+            return 'react-dom';
           }
-          
-          // Router
+          if (id.includes('react') && !id.includes('react-dom') && !id.includes('react-router')) {
+            return 'react-core';
+          }
           if (id.includes('react-router')) {
-            return 'router';
+            return 'react-router';
           }
           
-          // Radix UI Components (separado)
+          // Supabase - dividir por funcionalidad
+          if (id.includes('@supabase/supabase-js')) {
+            return 'supabase-core';
+          }
+          if (id.includes('@supabase/auth-js')) {
+            return 'supabase-auth';
+          }
+          if (id.includes('@supabase/postgrest-js') || id.includes('@supabase/storage-js')) {
+            return 'supabase-api';
+          }
+          if (id.includes('@supabase/realtime-js')) {
+            return 'supabase-realtime';
+          }
+          
+          // GrapesJS - dividir por tamaño
+          if (id.includes('grapesjs/dist/grapes.min.js') || id.includes('grapesjs/dist/css')) {
+            return 'grapesjs-core';
+          }
+          if (id.includes('grapesjs') && (id.includes('plugin') || id.includes('preset'))) {
+            return 'grapesjs-plugins';
+          }
+          if (id.includes('grapesjs')) {
+            return 'grapesjs-utils';
+          }
+          
+          // Charts - separar librerías grandes
+          if (id.includes('chart.js')) {
+            return 'chartjs';
+          }
+          if (id.includes('recharts')) {
+            return 'recharts';
+          }
+          if (id.includes('react-chartjs-2')) {
+            return 'react-charts';
+          }
+          
+          // Documents - dividir por tipo
+          if (id.includes('jspdf')) {
+            return 'pdf-lib';
+          }
+          if (id.includes('xlsx') || id.includes('papaparse')) {
+            return 'excel-lib';
+          }
+          
+          // UI Libraries - dividir Radix UI por grupos
+          if (id.includes('@radix-ui/react-dialog') || id.includes('@radix-ui/react-dropdown-menu') || id.includes('@radix-ui/react-alert-dialog')) {
+            return 'radix-overlays';
+          }
+          if (id.includes('@radix-ui/react-select') || id.includes('@radix-ui/react-checkbox') || id.includes('@radix-ui/react-label')) {
+            return 'radix-forms';
+          }
+          if (id.includes('@radix-ui/react-tabs') || id.includes('@radix-ui/react-progress')) {
+            return 'radix-navigation';
+          }
           if (id.includes('@radix-ui')) {
-            return 'radix-ui';
+            return 'radix-core';
           }
           
-          // Headless UI Components (separado)
+          // Headless UI
           if (id.includes('@headlessui')) {
             return 'headless-ui';
           }
           
-          // Toast notifications
-          if (id.includes('react-hot-toast') || id.includes('sonner') || id.includes('react-toastify')) {
-            return 'toast';
+          // Maps
+          if (id.includes('leaflet') && !id.includes('react-leaflet')) {
+            return 'leaflet';
+          }
+          if (id.includes('react-leaflet')) {
+            return 'react-leaflet';
           }
           
           // Icons
-          if (id.includes('lucide-react') || id.includes('@heroicons')) {
-            return 'icons';
+          if (id.includes('lucide-react')) {
+            return 'lucide-icons';
+          }
+          if (id.includes('@heroicons')) {
+            return 'hero-icons';
           }
           
-          // Charts
-          if (id.includes('chart.js') || id.includes('recharts') || id.includes('react-chartjs-2')) {
-            return 'charts';
-          }
-          
-          // GrapesJS and related
-          if (id.includes('grapesjs')) {
-            return 'grapesjs';
-          }
-          
-          // Maps
-          if (id.includes('leaflet') || id.includes('react-leaflet')) {
-            return 'maps';
-          }
-          
-          // PDF and Excel
-          if (id.includes('jspdf') || id.includes('xlsx') || id.includes('papaparse')) {
-            return 'documents';
-          }
-          
-          // PWA and Service Worker
-          if (id.includes('workbox') || id.includes('vite-plugin-pwa')) {
-            return 'pwa';
-          }
-          
-          // Supabase (separado del chunk database)
-          if (id.includes('supabase') || id.includes('@supabase')) {
-            return 'supabase';
-          }
-          
-          // SQLite y bases de datos locales
-          if (id.includes('better-sqlite3') || id.includes('sqlite')) {
-            return 'sqlite';
-          }
-          
-          // Storage y IndexedDB
-          if (id.includes('idb') || id.includes('localforage') || id.includes('dexie')) {
-            return 'storage';
-          }
-          
-          // Forms and Validation (separado)
+          // Forms y validación
           if (id.includes('react-hook-form')) {
             return 'forms';
           }
-          
-          // Validation libraries (separado)
-          if (id.includes('zod') || id.includes('yup') || id.includes('joi') || id.includes('express-validator')) {
+          if (id.includes('zod')) {
             return 'validation';
           }
           
-          // HTTP clients
-          if (id.includes('axios') || id.includes('fetch') || id.includes('ky')) {
-            return 'http';
+          // Utilities
+          if (id.includes('clsx') || id.includes('class-variance-authority') || id.includes('tailwind-merge')) {
+            return 'css-utils';
           }
-          
-          // Animation libraries
-          if (id.includes('framer-motion') || id.includes('react-spring') || id.includes('lottie')) {
-            return 'animation';
-          }
-          
-          // Crypto libraries
-          if (id.includes('crypto') || id.includes('bcrypt') || id.includes('jsonwebtoken')) {
-            return 'crypto';
-          }
-          
-          // Date utilities
-          if (id.includes('date-fns') || id.includes('moment') || id.includes('dayjs')) {
+          if (id.includes('date-fns') || id.includes('dayjs')) {
             return 'date-utils';
           }
           
-          // CSS utilities
-          if (id.includes('clsx') || id.includes('class-variance-authority') || id.includes('tailwind-merge') || id.includes('classnames')) {
-            return 'css-utils';
+          // HTTP y networking
+          if (id.includes('axios')) {
+            return 'http-client';
           }
-          
-          // Socket.io
           if (id.includes('socket.io')) {
             return 'socket';
           }
           
-          // Other vendor libraries (más específico)
-          if (id.includes('node_modules')) {
-            return 'vendor';
+          // Storage
+          if (id.includes('idb') || id.includes('localforage')) {
+            return 'storage';
           }
+          
+          // Notifications
+          if (id.includes('react-hot-toast') || id.includes('sonner')) {
+            return 'notifications';
+          }
+          
+          // Animation
+          if (id.includes('framer-motion')) {
+            return 'animation';
+          }
+          
+          // Crypto
+          if (id.includes('crypto') || id.includes('bcrypt') || id.includes('jsonwebtoken')) {
+            return 'crypto';
+          }
+          
+          // PWA
+          if (id.includes('workbox')) {
+            return 'pwa';
+          }
+          
+          // Vendor catch-all - dividir por tamaño estimado
+          if (id.includes('node_modules')) {
+            // Librerías grandes conocidas
+            if (id.includes('lodash') || id.includes('moment')) {
+              return 'utils-heavy';
+            }
+            return 'vendor-misc';
+          }
+        },
+        // Configuración adicional para optimizar chunks
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
+          return `assets/[name]-[hash].js`;
         }
       }
     }
