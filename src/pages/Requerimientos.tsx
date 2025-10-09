@@ -192,7 +192,7 @@ export default function Requerimientos() {
       setLoading(true)
       const [obrasData, materialesData] = await Promise.all([
         obrasService.getAll(),
-        materialesService.getAll()
+        materialesService.getAllLegacy() // Usar método legacy que retorna Material[]
       ])
       
       setObras(obrasData)

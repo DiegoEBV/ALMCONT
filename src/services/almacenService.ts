@@ -94,7 +94,7 @@ class AlmacenService {
 
       // Obtener los requerimientos asociados a esta SC
       const requerimientosSC = await RqScService.getRequerimientosBySC(sc.id)
-      const materiales = await materialesService.getAll()
+      const materiales = await materialesService.getAllLegacy() // Usar método legacy que retorna Material[]
       
       const lineas: LineaSCParaEntrada[] = []
       
@@ -157,7 +157,7 @@ class AlmacenService {
     try {
       const entradas = this.getEntradas()
       const salidas = this.getSalidas()
-      const materiales = await materialesService.getAll()
+      const materiales = await materialesService.getAllLegacy() // Usar método legacy que retorna Material[]
       
       const stockMap = new Map<string, StockMaterial>()
       

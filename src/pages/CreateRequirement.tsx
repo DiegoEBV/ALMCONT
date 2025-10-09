@@ -56,7 +56,7 @@ const CreateRequirement: React.FC = () => {
       setLoading(true)
       console.log('🔍 Fetching initial data...')
       const [materialesData, obrasData] = await Promise.all([
-        materialesService.getAll(),
+        materialesService.getAllLegacy(), // Usar método legacy que retorna Material[]
         obrasService.getAll()
       ])
       console.log('✅ Materiales loaded:', materialesData.length, materialesData)
