@@ -8,9 +8,27 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/ALMACEN/' : '/',
   build: {
-    chunkSizeWarningLimit: 5000, // Reducir límite para forzar mejor división
+    chunkSizeWarningLimit: 5000,
+    assetsDir: 'assets',
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: false,
     rollupOptions: {
       output: {
+        // Configuración mejorada para GitHub Pages
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+            return `assets/images/[name]-[hash][extname]`;
+          }
+          if (/css/i.test(ext)) {
+            return `assets/css/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
         manualChunks: (id) => {
           // React ecosystem - dividir en chunks más pequeños
           if (id.includes('react-dom')) {
@@ -159,11 +177,6 @@ export default defineConfig({
             }
             return 'vendor-misc';
           }
-        },
-        // Configuración adicional para optimizar chunks
-        chunkFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId ? chunkInfo.facadeModuleId.split('/').pop() : 'chunk';
-          return `assets/[name]-[hash].js`;
         }
       }
     }
@@ -192,9 +205,24 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024, // 15 MB
         skipWaiting: true,
-        clientsClaim: true
+        clientsClaim: true,
+        // Configuración específica para GitHub Pages
+        navigateFallback: null,
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/diegoebv\.github\.io\/ALMACEN\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'github-pages-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 días
+              }
+            }
+          }
+        ]
       },
-      includeAssets: ['favicon.svg', 'icons/*.png'],
+      includeAssets: ['favicon.svg', 'icons/*.png', 'icons/*.svg'],
       manifest: {
         name: 'Sistema ALMACEN',
         short_name: 'ALMACEN',
@@ -267,6 +295,16 @@ export default defineConfig({
       }
     })
   ],
+  // Configuración específica para GitHub Pages
+  experimental: {
+    renderBuiltUrl(filename, { hostType }) {
+      if (hostType === 'js') {
+        return { js: `/ALMACEN/${filename}` }
+      } else {
+        return { css: `/ALMACEN/${filename}` }
+      }
+    }
+  },
   server: {
     proxy: {
       '/api': {
