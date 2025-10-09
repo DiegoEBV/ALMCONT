@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Return } from '../types';
+import { formatCurrency } from '../utils/currency';
 
 export interface ReturnRequest {
   tipo_devolucion: 'cliente' | 'proveedor' | 'interna';
@@ -814,7 +815,15 @@ export class ReturnService {
 
       // Calcular estadísticas
       const totalDevoluciones = devoluciones?.length || 0;
-      const valorTotal = devoluciones?.reduce((sum, dev) => sum + (dev.valor_total || 0), 0) || 0;
+      
+      // Calcular valor total dinámicamente desde los detalles
+      let valorTotal = 0;
+      devoluciones?.forEach(devolucion => {
+        (devolucion.detalle_devoluciones as any[])?.forEach(detalle => {
+          const precioUnitario = (detalle.materiales as any)?.precio_unitario || 0;
+          valorTotal += detalle.cantidad * precioUnitario;
+        });
+      });
 
       const devolucionesPorTipo = {
         cliente: devoluciones?.filter(d => d.tipo_devolucion === 'cliente').length || 0,
@@ -843,15 +852,17 @@ export class ReturnService {
           const key = detalle.material_id;
           const existing = materialesMap.get(key);
           
+          const precioUnitario = (detalle.materiales as any)?.precio_unitario || 0;
+          
           if (existing) {
             existing.cantidad_total += detalle.cantidad;
-            existing.valor_total += detalle.cantidad * (detalle.precio_unitario || 0);
+            existing.valor_total += detalle.cantidad * precioUnitario;
           } else {
             materialesMap.set(key, {
               material_id: detalle.material_id,
               material_nombre: (detalle.materiales as any)?.nombre || 'Material desconocido',
               cantidad_total: detalle.cantidad,
-              valor_total: detalle.cantidad * (detalle.precio_unitario || 0)
+              valor_total: detalle.cantidad * precioUnitario
             });
           }
         });

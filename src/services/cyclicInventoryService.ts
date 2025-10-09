@@ -604,7 +604,6 @@ export class CyclicInventoryService {
    */
   static async getCountHistory(
     filtros?: {
-      material_id?: string;
       fecha_desde?: string;
       fecha_hasta?: string;
       estado?: string;
@@ -615,13 +614,8 @@ export class CyclicInventoryService {
         .from('conteos_ciclicos')
         .select(`
           *,
-          materiales(nombre, categoria),
-          usuarios(nombre)
+          usuarios!contador_asignado(nombre)
         `);
-
-      if (filtros?.material_id) {
-        query = query.eq('material_id', filtros.material_id);
-      }
 
       if (filtros?.fecha_desde) {
         query = query.gte('fecha_programada', filtros.fecha_desde);

@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { formatCurrency } from '../../utils/currency';
 import {
   BarChart,
   Bar,
@@ -285,13 +286,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
-    }).format(value);
-  };
+
 
   const exportCostReport = () => {
     toast.success('Reporte de costos exportado exitosamente');

@@ -1,15 +1,24 @@
-import React, { useState, useCallback } from 'react';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import React, { useState, useCallback, Suspense, lazy } from 'react';
 import { Card } from '../components/ui/card';
-import GPSMap from '../components/gps/GPSMap';
-import VehicleList from '../components/gps/VehicleList';
-import GPSControls from '../components/gps/GPSControls';
 import { useGPSData } from '../hooks/useGPSData';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { LocationUpdateEvent, GeofenceAlertEvent, SpeedAlertEvent, Vehicle } from '../types/gps';
 import { Loader2, Wifi, WifiOff, AlertTriangle, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 import 'leaflet/dist/leaflet.css';
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+  </div>
+);
+
+// Lazy load heavy GPS components
+const GPSMap = lazy(() => import('../components/gps/GPSMap'));
+const VehicleList = lazy(() => import('../components/gps/VehicleList'));
+const GPSControls = lazy(() => import('../components/gps/GPSControls'));
+import { MapContainer, TileLayer } from 'react-leaflet';
 
 const GPSTracking: React.FC = () => {
   const [showGeofences, setShowGeofences] = useState(true);
@@ -183,24 +192,28 @@ const GPSTracking: React.FC = () => {
           <div className="h-full flex flex-col">
             {/* Controls */}
             <div className="p-4 border-b border-gray-200">
-              <GPSControls
-                filter={filter}
-                onFilterChange={setFilter}
-                onRefresh={handleRefresh}
-                showGeofences={showGeofences}
-                onToggleGeofences={setShowGeofences}
-                showTrails={showTrails}
-                onToggleTrails={setShowTrails}
-              />
+              <Suspense fallback={<LoadingSpinner />}>
+                <GPSControls
+                  filter={filter}
+                  onFilterChange={setFilter}
+                  onRefresh={handleRefresh}
+                  showGeofences={showGeofences}
+                  onToggleGeofences={setShowGeofences}
+                  showTrails={showTrails}
+                  onToggleTrails={setShowTrails}
+                />
+              </Suspense>
             </div>
 
             {/* Vehicle List */}
             <div className="flex-1 overflow-y-auto p-4">
-              <VehicleList
-                vehicles={filteredVehicles}
-                selectedVehicle={selectedVehicle}
-                onVehicleSelect={handleVehicleSelect}
-              />
+              <Suspense fallback={<LoadingSpinner />}>
+                <VehicleList
+                  vehicles={filteredVehicles}
+                  selectedVehicle={selectedVehicle}
+                  onVehicleSelect={handleVehicleSelect}
+                />
+              </Suspense>
             </div>
           </div>
         </div>
@@ -217,16 +230,18 @@ const GPSTracking: React.FC = () => {
 
         {/* Map Container */}
         <div className="flex-1 relative">
-          <GPSMap
-            vehicles={filteredVehicles}
-            geofences={showGeofences ? geofences : []}
-            selectedVehicle={selectedVehicle}
-            onVehicleSelect={handleVehicleSelect}
-            center={getMapCenter()}
-            zoom={selectedVehicle ? 15 : 12}
-            showTrails={showTrails}
-            className="h-full w-full"
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <GPSMap
+              vehicles={filteredVehicles}
+              geofences={showGeofences ? geofences : []}
+              selectedVehicle={selectedVehicle}
+              onVehicleSelect={handleVehicleSelect}
+              center={getMapCenter()}
+              zoom={selectedVehicle ? 15 : 12}
+              showTrails={showTrails}
+              className="h-full w-full"
+            />
+          </Suspense>
 
           {/* Map Overlay Info */}
           <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm">

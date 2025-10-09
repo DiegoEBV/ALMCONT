@@ -297,9 +297,12 @@ export class ReorderService {
     try {
       const { data: solicitudes, error } = await supabase
         .from('solicitudes_compra')
-        .select('id')
-        .eq('material_id', materialId)
-        .in('estado', ['pendiente', 'en_proceso', 'aprobada'])
+        .select(`
+          id,
+          solicitud_compra_items!inner(material_id)
+        `)
+        .eq('solicitud_compra_items.material_id', materialId)
+        .in('estado', ['PENDIENTE', 'APROBADO', 'ENVIADO'])
         .limit(1);
 
       if (error) {
@@ -336,33 +339,56 @@ export class ReorderService {
       // Calcular costo total estimado
       const costoTotal = (material.precio_unitario || 0) * alert.cantidad_sugerida;
 
+      // Generar número de solicitud de compra
+      const numeroSC = `SC-${Date.now()}`;
+      
+      // Obtener obra_id del usuario
+      const { data: userData, error: userError } = await supabase
+        .from('usuarios')
+        .select('obra_id')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userData?.obra_id) {
+        throw new Error('No se pudo obtener la obra asignada del usuario');
+      }
+      
       // Crear solicitud de compra
       const { data: solicitud, error } = await supabase
         .from('solicitudes_compra')
         .insert({
-          material_id: alert.material_id,
-          cantidad: alert.cantidad_sugerida,
-          precio_unitario: material.precio_unitario,
-          costo_total: costoTotal,
-          proveedor: options?.proveedor_preferido || alert.proveedor_sugerido,
-          fecha_solicitud: new Date().toISOString(),
-          usuario_id: userId,
-          estado: 'pendiente',
-          tipo: 'automatica',
-          urgencia: alert.urgencia,
-          descripcion: `Solicitud automática generada por punto de reorden. Stock actual: ${alert.stock_actual}, Punto de reorden: ${alert.punto_reorden}`,
-          metadata: {
-            generada_automaticamente: true,
-            stock_actual: alert.stock_actual,
-            punto_reorden: alert.punto_reorden,
-            urgencia: alert.urgencia
-          }
+          numero_sc: numeroSC,
+          obra_id: userData.obra_id,
+          fecha_solicitud: new Date().toISOString().split('T')[0],
+          fecha_necesidad: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 días después
+          proveedor_sugerido: options?.proveedor_preferido || alert.proveedor_sugerido,
+          justificacion: `Solicitud automática generada por punto de reorden. Stock actual: ${alert.stock_actual}, Punto de reorden: ${alert.punto_reorden}`,
+          estado: 'PENDIENTE',
+          total_estimado: costoTotal,
+          created_by: userId,
+          generada_automaticamente: true
         })
         .select('id')
         .single();
 
       if (error) {
         throw new Error(`Error al crear solicitud: ${error.message}`);
+      }
+
+      // Crear el item de la solicitud de compra
+      const { error: itemError } = await supabase
+        .from('solicitud_compra_items')
+        .insert({
+          solicitud_compra_id: solicitud.id,
+          material_id: alert.material_id,
+          cantidad: alert.cantidad_sugerida,
+          precio_unitario: material.precio_unitario,
+          precio_total: costoTotal,
+          especificaciones: `Reorden automático - Urgencia: ${alert.urgencia}`
+        });
+
+      if (itemError) {
+        throw new Error(`Error al crear item de solicitud: ${itemError.message}`);
       }
 
       return solicitud.id;

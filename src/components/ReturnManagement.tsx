@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ReturnService } from '../services/returnService';
 import { Return } from '../types';
+import { formatCurrency } from '../utils/currency';
 
 // Tipos de datos
 type ReturnRequest = Return;
@@ -362,9 +363,9 @@ const ReturnManagement: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Valor Total (Mes)</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  ${(summary?.valor_total || 0).toLocaleString()}
-                </p>
+                <span className="text-2xl font-bold text-green-600">
+                  {formatCurrency(summary?.valor_total || 0)}
+                </span>
               </div>
               <DollarSign className="w-8 h-8 text-blue-600" />
             </div>

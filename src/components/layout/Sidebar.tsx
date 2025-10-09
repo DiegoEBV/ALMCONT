@@ -25,7 +25,8 @@ import {
   UsersIcon,
   WrenchScrewdriverIcon,
   PlusCircleIcon,
-  ClockIcon
+  ClockIcon,
+  // HandshakeIcon
 } from '@heroicons/react/24/outline'
 import { UserRole } from '../../types'
 
@@ -156,6 +157,12 @@ const navigation: NavItem[] = [
     href: '/advanced/returns',
     icon: ArrowUturnLeftIcon,
     roles: ['ALMACENERO', 'LOGISTICA']
+  },
+  {
+    name: 'Gestión de Préstamos',
+    href: '/advanced/loans',
+    icon: UsersIcon,
+    roles: ['ALMACENERO', 'LOGISTICA', 'COORDINACION']
   },
   {
     name: 'Reportes',

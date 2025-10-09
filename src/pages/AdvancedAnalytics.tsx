@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -21,13 +21,20 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { advancedAnalyticsService } from '../services/advancedAnalyticsService';
 import { exportService } from '../services/exportService';
 
-// Importar componentes de análisis
-import AdvancedDashboard from '../components/dashboard/AdvancedDashboard';
-import RealTimeMetrics from '../components/dashboard/RealTimeMetrics';
-import PredictiveReports from '../components/dashboard/PredictiveReports';
-import CostAnalysis from '../components/dashboard/CostAnalysis';
-import KPIIndicators from '../components/dashboard/KPIIndicators';
-import AdvancedFilters from '../components/dashboard/AdvancedFilters';
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+  </div>
+);
+
+// Lazy load heavy dashboard components
+const AdvancedDashboard = lazy(() => import('../components/dashboard/AdvancedDashboard'));
+const RealTimeMetrics = lazy(() => import('../components/dashboard/RealTimeMetrics'));
+const PredictiveReports = lazy(() => import('../components/dashboard/PredictiveReports'));
+const CostAnalysis = lazy(() => import('../components/dashboard/CostAnalysis'));
+const KPIIndicators = lazy(() => import('../components/dashboard/KPIIndicators'));
+const AdvancedFilters = lazy(() => import('../components/dashboard/AdvancedFilters'));
 
 // Interfaces
 interface FiltroAvanzado {
@@ -363,11 +370,13 @@ const AdvancedAnalytics: React.FC = () => {
 
       {/* Filtros Avanzados */}
       {config.showFilters && (
-        <AdvancedFilters
-          onFiltersChange={handleFiltersChange}
-          onDateRangeChange={handleDateRangeChange}
-          className="mb-6"
-        />
+        <Suspense fallback={<LoadingSpinner />}>
+          <AdvancedFilters
+            onFiltersChange={handleFiltersChange}
+            onDateRangeChange={handleDateRangeChange}
+            className="mb-6"
+          />
+        </Suspense>
       )}
 
       {/* Tabs de Analytics */}
@@ -390,41 +399,51 @@ const AdvancedAnalytics: React.FC = () => {
 
         {/* Contenido de cada tab */}
         <TabsContent value="overview" className="space-y-6">
-          <AdvancedDashboard
-            userRole={user?.rol || 'ALMACENERO'}
-            filtros={memoizedFiltrosActivos}
-            rangoFecha={rangoFecha}
-            autoRefresh={config.autoRefresh}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdvancedDashboard
+              userRole={user?.rol || 'ALMACENERO'}
+              filtros={memoizedFiltrosActivos}
+              rangoFecha={rangoFecha}
+              autoRefresh={config.autoRefresh}
+            />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="realtime" className="space-y-6">
-          <RealTimeMetrics
-            filtros={memoizedFiltrosActivos}
-            rangoFecha={rangoFecha}
-            autoRefresh={config.autoRefresh}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <RealTimeMetrics
+              filtros={memoizedFiltrosActivos}
+              rangoFecha={rangoFecha}
+              autoRefresh={config.autoRefresh}
+            />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="predictive" className="space-y-6">
-          <PredictiveReports
-            filtros={memoizedFiltrosActivos}
-            rangoFecha={rangoFecha}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <PredictiveReports
+              filtros={memoizedFiltrosActivos}
+              rangoFecha={rangoFecha}
+            />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="costs" className="space-y-6">
-          <CostAnalysis
-            filtros={memoizedFiltrosActivos}
-            rangoFecha={rangoFecha}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <CostAnalysis
+              filtros={memoizedFiltrosActivos}
+              rangoFecha={rangoFecha}
+            />
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="kpis" className="space-y-6">
-          <KPIIndicators
-            filtros={memoizedFiltrosActivos}
-            rangoFecha={rangoFecha}
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <KPIIndicators
+              filtros={memoizedFiltrosActivos}
+              rangoFecha={rangoFecha}
+            />
+          </Suspense>
         </TabsContent>
       </Tabs>
 

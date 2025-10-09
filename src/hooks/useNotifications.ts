@@ -1,325 +1,331 @@
 import { useState, useEffect, useCallback } from 'react';
-import { notificationService, NotificationAlert, NotificationConfig } from '../services/notificationService';
-import { useAuth } from './useAuth';
-import { toast } from 'sonner';
 
-export interface UseNotificationsReturn {
-  // Estado
-  alerts: NotificationAlert[];
-  unreadCount: number;
-  config: NotificationConfig | null;
-  isLoading: boolean;
-  hasPermission: boolean;
-  
-  // Acciones
-  requestPermission: () => Promise<boolean>;
-  subscribeToPush: () => Promise<boolean>;
-  updateConfig: (config: Partial<NotificationConfig>) => Promise<void>;
-  markAsRead: (alertId: string) => Promise<void>;
-  markAllAsRead: () => Promise<void>;
-  deleteAlert: (alertId: string) => Promise<void>;
-  refreshAlerts: () => Promise<void>;
+export type NotificationPermission = 'default' | 'granted' | 'denied';
+
+interface NotificationOptions {
+  title: string;
+  body?: string;
+  icon?: string;
+  badge?: string;
+  image?: string;
+  tag?: string;
+  data?: any;
+  requireInteraction?: boolean;
+  silent?: boolean;
+  vibrate?: number[];
+  actions?: NotificationActions[];
 }
 
-export const useNotifications = (): UseNotificationsReturn => {
-  const { user } = useAuth();
-  const [alerts, setAlerts] = useState<NotificationAlert[]>([]);
-  const [config, setConfig] = useState<NotificationConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasPermission, setHasPermission] = useState(false);
+interface PushSubscriptionInfo {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
 
-  const unreadCount = alerts.filter(alert => !alert.read).length;
+interface NotificationState {
+  permission: NotificationPermission;
+  isSupported: boolean;
+  isPushSupported: boolean;
+  subscription: PushSubscription | null;
+  subscriptionInfo: PushSubscriptionInfo | null;
+}
 
-  // Verificar permisos de notificación
-  const checkPermission = useCallback(() => {
-    if ('Notification' in window) {
-      setHasPermission(Notification.permission === 'granted');
-    }
-  }, []);
+interface NotificationActions {
+  requestPermission: () => Promise<NotificationPermission>;
+  showNotification: (options: NotificationOptions) => Promise<void>;
+  subscribeToPush: () => Promise<PushSubscription | null>;
+  unsubscribeFromPush: () => Promise<boolean>;
+  sendTestNotification: () => Promise<void>;
+}
 
-  // Solicitar permisos de notificación
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    try {
-      const permission = await notificationService.requestPermission();
-      const granted = permission === 'granted';
-      setHasPermission(granted);
-      
-      if (granted) {
-        toast.success('Permisos de notificación concedidos');
-      } else {
-        toast.error('Permisos de notificación denegados');
-      }
-      
-      return granted;
-    } catch (error) {
-      console.error('Error al solicitar permisos:', error);
-      toast.error('Error al solicitar permisos de notificación');
-      return false;
-    }
-  }, []);
+const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa40HI80NM9f7LE4F7qBYVRtjHOu1fJ1wJgLkPTBHm4gcNJoDc9VQHyOfhBGBc'; // Reemplazar con tu clave VAPID pública
 
-  // Suscribirse a notificaciones push
-  const subscribeToPush = useCallback(async (): Promise<boolean> => {
-    if (!user?.id) return false;
+export const useNotifications = (): NotificationState & NotificationActions => {
+  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [isSupported, setIsSupported] = useState(false);
+  const [isPushSupported, setIsPushSupported] = useState(false);
+  const [subscription, setSubscription] = useState<PushSubscription | null>(null);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<PushSubscriptionInfo | null>(null);
 
-    try {
-      const subscription = await notificationService.subscribeToPush(user.id);
-      if (subscription) {
-        toast.success('Suscrito a notificaciones push');
-        return true;
-      } else {
-        toast.error('Error al suscribirse a notificaciones push');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error al suscribirse:', error);
-      toast.error('Error al configurar notificaciones push');
-      return false;
-    }
-  }, [user?.id]);
-
-  // Actualizar configuración
-  const updateConfig = useCallback(async (newConfig: Partial<NotificationConfig>): Promise<void> => {
-    if (!user?.id) return;
-
-    try {
-      await notificationService.saveNotificationConfig({
-        ...newConfig,
-        userId: user.id
-      });
-      
-      // Recargar configuración
-      const updatedConfig = await notificationService.getNotificationConfig(user.id);
-      setConfig(updatedConfig);
-      
-      toast.success('Configuración de notificaciones actualizada');
-    } catch (error) {
-      console.error('Error al actualizar configuración:', error);
-      toast.error('Error al guardar configuración');
-    }
-  }, [user?.id]);
-
-  // Marcar alerta como leída
-  const markAsRead = useCallback(async (alertId: string): Promise<void> => {
-    if (!user?.id) return;
-    
-    try {
-      await notificationService.markAsRead(alertId, user.id);
-      setAlerts(prev => prev.map(alert => 
-        alert.id === alertId ? { ...alert, read: true } : alert
-      ));
-    } catch (error) {
-      console.error('Error al marcar como leída:', error);
-    }
-  }, [user?.id]);
-
-  // Marcar todas las alertas como leídas
-  const markAllAsRead = useCallback(async (): Promise<void> => {
-    if (!user?.id) return;
-
-    try {
-      await notificationService.markAllAsRead(user.id);
-      setAlerts(prev => prev.map(alert => ({ ...alert, read: true })));
-      toast.success('Todas las notificaciones marcadas como leídas');
-    } catch (error) {
-      console.error('Error al marcar todas como leídas:', error);
-      toast.error('Error al actualizar notificaciones');
-    }
-  }, [user?.id]);
-
-  // Eliminar alerta
-  const deleteAlert = useCallback(async (alertId: string): Promise<void> => {
-    if (!user?.id) return;
-    
-    try {
-      await notificationService.deleteAlert(alertId, user.id);
-      setAlerts(prev => prev.filter(alert => alert.id !== alertId));
-      toast.success('Notificación eliminada');
-    } catch (error) {
-      console.error('Error al eliminar alerta:', error);
-      toast.error('Error al eliminar notificación');
-    }
-  }, [user?.id]);
-
-  // Refrescar alertas
-  const refreshAlerts = useCallback(async (): Promise<void> => {
-    if (!user?.id) return;
-
-    try {
-      const newAlerts = await notificationService.getAlerts(user.id);
-      setAlerts(newAlerts);
-    } catch (error) {
-      console.error('Error al refrescar alertas:', error);
-    }
-  }, [user?.id]);
-
-  // Cargar datos iniciales
+  // Verificar soporte y permisos
   useEffect(() => {
-    const loadInitialData = async () => {
-      if (!user?.id) {
-        setIsLoading(false);
-        return;
+    const checkSupport = () => {
+      const notificationSupported = 'Notification' in window;
+      const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+      
+      setIsSupported(notificationSupported);
+      setIsPushSupported(pushSupported);
+      
+      if (notificationSupported) {
+        setPermission(Notification.permission);
       }
+    };
+
+    checkSupport();
+  }, []);
+
+  // Obtener suscripción existente
+  useEffect(() => {
+    const getExistingSubscription = async () => {
+      if (!isPushSupported) return;
 
       try {
-        setIsLoading(true);
+        const registration = await navigator.serviceWorker.ready;
+        const existingSubscription = await registration.pushManager.getSubscription();
         
-        // Inicializar servicio de notificaciones
-        await notificationService.initialize();
-        
-        // Cargar configuración
-        const userConfig = await notificationService.getNotificationConfig(user.id);
-        setConfig(userConfig);
-        
-        // Cargar alertas
-        const userAlerts = await notificationService.getAlerts(user.id);
-        setAlerts(userAlerts);
-        
-        // Verificar permisos
-        checkPermission();
-        
-      } catch (error) {
-        console.error('Error al cargar datos de notificaciones:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadInitialData();
-  }, [user?.id, checkPermission]);
-
-  // Suscribirse a nuevas notificaciones
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const unsubscribe = notificationService.subscribe(user.id, (newAlerts) => {
-      setAlerts(newAlerts);
-    });
-
-    return unsubscribe;
-  }, [user?.id]);
-
-  // Verificar permisos cuando cambia el estado de la ventana
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        checkPermission();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [checkPermission]);
-
-  return {
-    alerts,
-    unreadCount,
-    config,
-    isLoading,
-    hasPermission,
-    requestPermission,
-    subscribeToPush,
-    updateConfig,
-    markAsRead,
-    markAllAsRead,
-    deleteAlert,
-    refreshAlerts
-  };
-};
-
-// Hook para mostrar notificaciones en tiempo real
-export const useNotificationToasts = () => {
-  const { user } = useAuth();
-  const [lastAlertId, setLastAlertId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const unsubscribe = notificationService.subscribe(user.id, (alerts) => {
-      // Mostrar toast solo para la alerta más reciente
-      const latestAlert = alerts[0];
-      if (latestAlert && latestAlert.id !== lastAlertId && !latestAlert.read) {
-        setLastAlertId(latestAlert.id);
-        
-        const toastOptions = {
-          duration: latestAlert.priority === 'high' ? 10000 : 5000,
-          action: {
-            label: 'Ver',
-            onClick: () => {
-              // Aquí podrías navegar a la página correspondiente
-              if (user?.id) {
-                notificationService.markAsRead(latestAlert.id, user.id);
-              }
-            }
-          }
-        };
-
-        switch (latestAlert.priority) {
-          case 'high':
-            toast.error(latestAlert.message, toastOptions);
-            break;
-          case 'medium':
-            toast.warning(latestAlert.message, toastOptions);
-            break;
-          default:
-            toast.info(latestAlert.message, toastOptions);
+        if (existingSubscription) {
+          setSubscription(existingSubscription);
+          setSubscriptionInfo(extractSubscriptionInfo(existingSubscription));
         }
+      } catch (error) {
+        console.error('Error getting existing subscription:', error);
       }
-    });
+    };
 
-    return unsubscribe;
-  }, [user?.id, lastAlertId]);
-};
+    if (isPushSupported) {
+      getExistingSubscription();
+    }
+  }, [isPushSupported]);
 
-// Hook para configuración específica de notificaciones
-export const useNotificationConfig = () => {
-  const { user } = useAuth();
-  const [config, setConfig] = useState<NotificationConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Extraer información de la suscripción
+  const extractSubscriptionInfo = (sub: PushSubscription): PushSubscriptionInfo => {
+    const keys = sub.getKey ? {
+      p256dh: arrayBufferToBase64(sub.getKey('p256dh')!),
+      auth: arrayBufferToBase64(sub.getKey('auth')!)
+    } : { p256dh: '', auth: '' };
 
-  const updateConfig = useCallback(async (newConfig: Partial<NotificationConfig>): Promise<void> => {
-    if (!user?.id) return;
+    return {
+      endpoint: sub.endpoint,
+      keys
+    };
+  };
+
+  // Convertir ArrayBuffer a Base64
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
+
+  // Convertir Base64 a Uint8Array
+  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  // Solicitar permisos
+  const requestPermission = useCallback(async (): Promise<NotificationPermission> => {
+    if (!isSupported) {
+      throw new Error('Notifications are not supported');
+    }
 
     try {
-      await notificationService.saveNotificationConfig({
-        ...newConfig,
-        userId: user.id
-      });
-      
-      const updatedConfig = await notificationService.getNotificationConfig(user.id);
-      setConfig(updatedConfig);
-      
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      return result;
     } catch (error) {
-      console.error('Error al actualizar configuración:', error);
+      console.error('Error requesting notification permission:', error);
       throw error;
     }
-  }, [user?.id]);
+  }, [isSupported]);
 
-  useEffect(() => {
-    const loadConfig = async () => {
-      if (!user?.id) {
-        setIsLoading(false);
-        return;
+  // Mostrar notificación
+  const showNotification = useCallback(async (options: NotificationOptions): Promise<void> => {
+    if (!isSupported) {
+      throw new Error('Notifications are not supported');
+    }
+
+    if (permission !== 'granted') {
+      throw new Error('Notification permission not granted');
+    }
+
+    try {
+      // Si hay Service Worker, usar showNotification
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification(options.title, {
+          body: options.body,
+          icon: options.icon || '/icons/icon-192x192.png',
+          badge: options.badge || '/icons/icon-72x72.png',
+          // image: options.image, // Comentado porque no está soportado en NotificationOptions
+          tag: options.tag,
+          data: options.data,
+          requireInteraction: options.requireInteraction,
+          silent: options.silent,
+          // vibrate: options.vibrate // Comentado porque no está soportado en NotificationOptions,
+          // actions: options.actions // Comentado porque no está soportado en NotificationOptions
+        });
+      } else {
+        // Fallback a Notification API básica
+        new Notification(options.title, {
+          body: options.body,
+          icon: options.icon || '/icons/icon-192x192.png',
+          tag: options.tag,
+          data: options.data,
+          requireInteraction: options.requireInteraction,
+          silent: options.silent
+          // vibrate: options.vibrate // Comentado porque no está soportado en NotificationOptions
+        });
+      }
+    } catch (error) {
+      console.error('Error showing notification:', error);
+      throw error;
+    }
+  }, [isSupported, permission]);
+
+  // Suscribirse a push notifications
+  const subscribeToPush = useCallback(async (): Promise<PushSubscription | null> => {
+    if (!isPushSupported) {
+      throw new Error('Push notifications are not supported');
+    }
+
+    if (permission !== 'granted') {
+      const newPermission = await requestPermission();
+      if (newPermission !== 'granted') {
+        throw new Error('Notification permission denied');
+      }
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      
+      const newSubscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+
+      setSubscription(newSubscription);
+      const info = extractSubscriptionInfo(newSubscription);
+      setSubscriptionInfo(info);
+
+      // Enviar suscripción al servidor
+      await sendSubscriptionToServer(info);
+
+      return newSubscription;
+    } catch (error) {
+      console.error('Error subscribing to push:', error);
+      throw error;
+    }
+  }, [isPushSupported, permission, requestPermission]);
+
+  // Desuscribirse de push notifications
+  const unsubscribeFromPush = useCallback(async (): Promise<boolean> => {
+    if (!subscription) {
+      return true;
+    }
+
+    try {
+      const success = await subscription.unsubscribe();
+      
+      if (success) {
+        setSubscription(null);
+        setSubscriptionInfo(null);
+        
+        // Notificar al servidor
+        await removeSubscriptionFromServer();
       }
 
-      try {
-        const userConfig = await notificationService.getNotificationConfig(user.id);
-        setConfig(userConfig);
-      } catch (error) {
-        console.error('Error al cargar configuración:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      return success;
+    } catch (error) {
+      console.error('Error unsubscribing from push:', error);
+      throw error;
+    }
+  }, [subscription]);
 
-    loadConfig();
-  }, [user?.id]);
+  // Enviar suscripción al servidor
+  const sendSubscriptionToServer = async (subscriptionInfo: PushSubscriptionInfo): Promise<void> => {
+    try {
+      const response = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(subscriptionInfo)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send subscription to server');
+      }
+    } catch (error) {
+      console.error('Error sending subscription to server:', error);
+      // No lanzar error para no interrumpir la suscripción local
+    }
+  };
+
+  // Remover suscripción del servidor
+  const removeSubscriptionFromServer = async (): Promise<void> => {
+    try {
+      const response = await fetch('/api/push/unsubscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ endpoint: subscription?.endpoint })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove subscription from server');
+      }
+    } catch (error) {
+      console.error('Error removing subscription from server:', error);
+      // No lanzar error para no interrumpir la desuscripción local
+    }
+  };
+
+  // Enviar notificación de prueba
+  const sendTestNotification = useCallback(async (): Promise<void> => {
+    await showNotification({
+      title: '¡Notificación de Prueba!',
+      body: 'Las notificaciones están funcionando correctamente en ALMACEN.',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-72x72.png',
+      tag: 'test-notification',
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+      // actions: [
+      //   {
+      //     action: 'view',
+      //     title: 'Ver App',
+      //     icon: '/icons/icon-72x72.png'
+      //   },
+      //   {
+      //     action: 'close',
+      //     title: 'Cerrar',
+      //     icon: '/icons/icon-72x72.png'
+      //   }
+      // ] // Comentado porque no está soportado en NotificationOptions
+    });
+  }, [showNotification]);
 
   return {
-    config,
-    isLoading,
-    updateConfig
+    // Estado
+    permission,
+    isSupported,
+    isPushSupported,
+    subscription,
+    subscriptionInfo,
+    
+    // Acciones
+    requestPermission,
+    showNotification,
+    subscribeToPush,
+    unsubscribeFromPush,
+    sendTestNotification
   };
 };

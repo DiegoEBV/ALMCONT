@@ -12,6 +12,7 @@ import analyticsRoutes from './routes/analytics.js';
 import logisticsRoutes from './routes/logistics.js';
 import warehouseRoutes from './routes/warehouse.js';
 import gpsRoutes from './routes/gps.js';
+import pushRoutes from './routes/push.js';
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url);
@@ -34,6 +35,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/logistics', logisticsRoutes);
 app.use('/api/warehouse', warehouseRoutes);
 app.use('/api/gps', gpsRoutes);
+app.use('/api/push', pushRoutes);
 
 /**
  * health

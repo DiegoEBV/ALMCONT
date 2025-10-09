@@ -1,268 +1,360 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
+import { Suspense, lazy } from 'react'
 import { AuthProvider } from './hooks/useAuth'
+import { PWAProvider } from './components/PWA'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import Login from './components/auth/Login'
 import Layout from './components/layout/Layout'
-import Dashboard from './pages/Dashboard'
-import Requerimientos from './pages/Requerimientos'
-import SolicitudesCompra from './pages/SolicitudesCompra'
-import OrdenesCompra from './pages/OrdenesCompra'
-import Entradas from './pages/Entradas'
-import Salidas from './pages/Salidas'
-import Stock from './pages/Stock'
-import Reportes from './pages/Reportes'
-import ApprovalWorkflowPage from './pages/ApprovalWorkflow'
-import ReorderConfigurationPage from './pages/ReorderConfiguration'
-import LocationManagerPage from './pages/LocationManager'
-import CyclicInventoryPage from './pages/CyclicInventory'
-import ReturnManagementPage from './pages/ReturnManagement'
-import Templates from './pages/Templates'
-import CoordinationDashboard from './pages/CoordinationDashboard'
-import LogisticsDashboard from './pages/LogisticsDashboard'
-import WarehouseDashboard from './pages/WarehouseDashboard'
-import AdvancedAnalytics from './pages/AdvancedAnalytics'
-import GPSTracking from './pages/GPSTracking'
-import GPSManagement from './pages/GPSManagement'
-import Perfil from './pages/Perfil'
-import AdminObras from './pages/AdminObras'
-import AdminUsuarios from './pages/AdminUsuarios'
-import ProductionDashboard from './pages/ProductionDashboard'
-import CreateRequirement from './pages/CreateRequirement'
-import RequirementsTracking from './pages/RequirementsTracking'
-import Materiales from './pages/Materiales'
 import './App.css'
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+  </div>
+)
+
+// Lazy load pages
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Requerimientos = lazy(() => import('./pages/Requerimientos'))
+const SolicitudesCompra = lazy(() => import('./pages/SolicitudesCompra'))
+const OrdenesCompra = lazy(() => import('./pages/OrdenesCompra'))
+const Entradas = lazy(() => import('./pages/Entradas'))
+const Salidas = lazy(() => import('./pages/Salidas'))
+const Stock = lazy(() => import('./pages/Stock'))
+const Reportes = lazy(() => import('./pages/Reportes'))
+const ApprovalWorkflowPage = lazy(() => import('./pages/ApprovalWorkflow'))
+const ReorderConfigurationPage = lazy(() => import('./pages/ReorderConfiguration'))
+const LocationManagerPage = lazy(() => import('./pages/LocationManager'))
+const CyclicInventoryPage = lazy(() => import('./pages/CyclicInventory'))
+const ReturnManagementPage = lazy(() => import('./pages/ReturnManagement'))
+const LoanManagementPage = lazy(() => import('./pages/LoanManagement'))
+const Templates = lazy(() => import('./pages/Templates'))
+const CoordinationDashboard = lazy(() => import('./pages/CoordinationDashboard'))
+const LogisticsDashboard = lazy(() => import('./pages/LogisticsDashboard'))
+const WarehouseDashboard = lazy(() => import('./pages/WarehouseDashboard'))
+const AdvancedAnalytics = lazy(() => import('./pages/AdvancedAnalytics'))
+const GPSTracking = lazy(() => import('./pages/GPSTracking'))
+const GPSManagement = lazy(() => import('./pages/GPSManagement'))
+const Perfil = lazy(() => import('./pages/Perfil'))
+const AdminObras = lazy(() => import('./pages/AdminObras'))
+const AdminUsuarios = lazy(() => import('./pages/AdminUsuarios'))
+const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'))
+const CreateRequirement = lazy(() => import('./pages/CreateRequirement'))
+const RequirementsTracking = lazy(() => import('./pages/RequirementsTracking'))
+const Materiales = lazy(() => import('./pages/Materiales'))
+const OfflinePage = lazy(() => import('./pages/OfflinePage'))
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Ruta de login */}
-          <Route path="/login" element={<Login />} />
-          
-          {/* Rutas protegidas con layout */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            {/* Dashboard principal */}
-            <Route index element={<Dashboard />} />
+      <PWAProvider
+        showSplashScreen={true}
+        splashDuration={2000}
+        enableAutoUpdate={true}
+        showInstallBanner={true}
+        showStatusIndicator={true}
+      >
+        <Router>
+          <Routes>
+            {/* Ruta de login */}
+            <Route path="/login" element={<Login />} />
             
-            {/* Módulo Oficina - Solo COORDINACION */}
-            <Route
-              path="oficina/requerimientos"
-              element={
-                <ProtectedRoute allowedRoles={['COORDINACION']}>
-                  <Requerimientos />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="oficina/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={['COORDINACION']}>
-                  <CoordinationDashboard />
-                </ProtectedRoute>
-              }
-            />
+            {/* Página offline */}
+            <Route path="/offline" element={
+              <Suspense fallback={<LoadingSpinner />}>
+                <OfflinePage />
+              </Suspense>
+            } />
             
-            {/* Gestión de Materiales - Solo COORDINACION */}
+            {/* Rutas protegidas con layout */}
             <Route
-              path="materiales"
+              path="/"
               element={
-                <ProtectedRoute allowedRoles={['COORDINACION']}>
-                  <Materiales />
+                <ProtectedRoute>
+                  <Layout />
                 </ProtectedRoute>
               }
-            />
+            >
+              {/* Dashboard principal */}
+              <Route index element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Dashboard />
+                </Suspense>
+              } />
+              
+              {/* Módulo Oficina - Solo COORDINACION */}
+              <Route
+                path="oficina/requerimientos"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <Requerimientos />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="oficina/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <CoordinationDashboard />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Gestión de Materiales - Solo COORDINACION */}
+              <Route
+                path="materiales"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <Materiales />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Solicitudes de Compra - Accesible para COORDINACION y LOGISTICA */}
+              <Route
+                path="solicitudes-compra"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION', 'LOGISTICA']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <SolicitudesCompra />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Módulo Logística - Solo LOGISTICA */}
+              <Route
+                path="logistica/solicitudes-compra"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION','LOGISTICA']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <SolicitudesCompra />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="logistica/ordenes-compra"
+                element={
+                  <ProtectedRoute allowedRoles={['LOGISTICA']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <OrdenesCompra />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="logistica/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['LOGISTICA']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <LogisticsDashboard />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="logistica/gps-tracking"
+                element={
+                  <ProtectedRoute allowedRoles={['LOGISTICA']}>
+                    <GPSManagement />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Módulo Almacén - Solo ALMACENERO */}
+              <Route
+                path="almacen/entradas"
+                element={
+                  <ProtectedRoute allowedRoles={['ALMACENERO']}>
+                    <Entradas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="almacen/salidas"
+                element={
+                  <ProtectedRoute allowedRoles={['ALMACENERO']}>
+                    <Salidas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="almacen/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['ALMACENERO']}>
+                    <WarehouseDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Módulo Producción - Solo PRODUCCION */}
+              <Route
+                path="produccion/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['PRODUCCION']}>
+                    <ProductionDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="produccion/crear-requerimiento"
+                element={
+                  <ProtectedRoute allowedRoles={['PRODUCCION']}>
+                    <CreateRequirement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="produccion/seguimiento"
+                element={
+                  <ProtectedRoute allowedRoles={['PRODUCCION']}>
+                    <RequirementsTracking />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Stock/Kardex - Todos los roles */}
+              <Route path="stock/kardex" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Stock />
+                </Suspense>
+              } />
+              
+              {/* Funcionalidades Avanzadas */}
+              <Route
+                path="advanced/approvals"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION', 'LOGISTICA']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <ApprovalWorkflowPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="advanced/reorder"
+                element={
+                  <ProtectedRoute allowedRoles={['LOGISTICA', 'ALMACENERO']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <ReorderConfigurationPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="advanced/locations"
+                element={
+                  <ProtectedRoute allowedRoles={['ALMACENERO']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <LocationManagerPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="advanced/cyclic-inventory"
+                element={
+                  <ProtectedRoute allowedRoles={['ALMACENERO']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <CyclicInventoryPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="advanced/returns"
+                element={
+                  <ProtectedRoute allowedRoles={['ALMACENERO', 'LOGISTICA']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <ReturnManagementPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Gestión de Préstamos - ALMACENERO, LOGISTICA, COORDINACION */}
+              <Route
+                path="advanced/loans"
+                element={
+                  <ProtectedRoute allowedRoles={['ALMACENERO', 'LOGISTICA', 'COORDINACION']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <LoanManagementPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Reportes - Todos los roles */}
+              <Route path="reportes" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Reportes />
+                </Suspense>
+              } />
+              
+              {/* Analytics Avanzado - Todos los roles */}
+              <Route path="analytics" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <AdvancedAnalytics />
+                </Suspense>
+              } />
+              
+              {/* Templates - Todos los roles */}
+              <Route path="templates" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Templates />
+                </Suspense>
+              } />
+              
+              {/* Perfil - Todos los roles */}
+              <Route path="perfil" element={
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Perfil />
+                </Suspense>
+              } />
+              
+              {/* Administración - Solo COORDINACION */}
+              <Route
+                path="admin/obras"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <AdminObras />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin/usuarios"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <AdminUsuarios />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
             
-            {/* Solicitudes de Compra - Accesible para COORDINACION y LOGISTICA */}
-            <Route
-              path="solicitudes-compra"
-              element={
-                <ProtectedRoute allowedRoles={['COORDINACION', 'LOGISTICA']}>
-                  <SolicitudesCompra />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Módulo Logística - Solo LOGISTICA */}
-            <Route
-              path="logistica/solicitudes-compra"
-              element={
-                <ProtectedRoute allowedRoles={['COORDINACION','LOGISTICA']}>
-                  <SolicitudesCompra />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="logistica/ordenes-compra"
-              element={
-                <ProtectedRoute allowedRoles={['LOGISTICA']}>
-                  <OrdenesCompra />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="logistica/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={['LOGISTICA']}>
-                  <LogisticsDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="logistica/gps-tracking"
-              element={
-                <ProtectedRoute allowedRoles={['LOGISTICA']}>
-                  <GPSManagement />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Módulo Almacén - Solo ALMACENERO */}
-            <Route
-              path="almacen/entradas"
-              element={
-                <ProtectedRoute allowedRoles={['ALMACENERO']}>
-                  <Entradas />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="almacen/salidas"
-              element={
-                <ProtectedRoute allowedRoles={['ALMACENERO']}>
-                  <Salidas />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="almacen/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={['ALMACENERO']}>
-                  <WarehouseDashboard />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Módulo Producción - Solo PRODUCCION */}
-            <Route
-              path="produccion/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={['PRODUCCION']}>
-                  <ProductionDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="produccion/crear-requerimiento"
-              element={
-                <ProtectedRoute allowedRoles={['PRODUCCION']}>
-                  <CreateRequirement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="produccion/seguimiento"
-              element={
-                <ProtectedRoute allowedRoles={['PRODUCCION']}>
-                  <RequirementsTracking />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Stock/Kardex - Todos los roles */}
-            <Route path="stock/kardex" element={<Stock />} />
-            
-            {/* Funcionalidades Avanzadas */}
-            <Route
-              path="advanced/approvals"
-              element={
-                <ProtectedRoute allowedRoles={['COORDINACION', 'LOGISTICA']}>
-                  <ApprovalWorkflowPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="advanced/reorder"
-              element={
-                <ProtectedRoute allowedRoles={['LOGISTICA', 'ALMACENERO']}>
-                  <ReorderConfigurationPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="advanced/locations"
-              element={
-                <ProtectedRoute allowedRoles={['ALMACENERO']}>
-                  <LocationManagerPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="advanced/cyclic-inventory"
-              element={
-                <ProtectedRoute allowedRoles={['ALMACENERO']}>
-                  <CyclicInventoryPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="advanced/returns"
-              element={
-                <ProtectedRoute allowedRoles={['ALMACENERO', 'LOGISTICA']}>
-                  <ReturnManagementPage />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Reportes - Todos los roles */}
-            <Route path="reportes" element={<Reportes />} />
-            
-            {/* Analytics Avanzado - Todos los roles */}
-            <Route path="analytics" element={<AdvancedAnalytics />} />
-            
-            {/* Templates - Todos los roles */}
-            <Route path="templates" element={<Templates />} />
-            
-            {/* Perfil - Todos los roles */}
-            <Route path="perfil" element={<Perfil />} />
-            
-            {/* Administración - Solo COORDINACION */}
-            <Route
-              path="admin/obras"
-              element={
-                <ProtectedRoute allowedRoles={['COORDINACION']}>
-                  <AdminObras />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="admin/usuarios"
-              element={
-                <ProtectedRoute allowedRoles={['COORDINACION']}>
-                  <AdminUsuarios />
-                </ProtectedRoute>
-              }
-            />
-          </Route>
-          
-          {/* Redirigir rutas no encontradas */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
-      <Toaster 
-        position="top-right" 
-        richColors 
-        closeButton 
-        duration={4000}
-      />
+            {/* Redirigir rutas no encontradas */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+        <Toaster 
+          position="top-right" 
+          richColors 
+          closeButton 
+          duration={4000}
+        />
+      </PWAProvider>
     </AuthProvider>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { 
   Smartphone, 
   Shield, 
@@ -10,10 +10,19 @@ import {
 } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import DeviceManagement from '../components/gps/DeviceManagement';
-import GeofenceManagement from '../components/gps/GeofenceManagement';
-import GPSReports from '../components/gps/GPSReports';
-import GPSTracking from './GPSTracking';
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+  </div>
+);
+
+// Lazy load GPS management components
+const DeviceManagement = lazy(() => import('../components/gps/DeviceManagement'));
+const GeofenceManagement = lazy(() => import('../components/gps/GeofenceManagement'));
+const GPSReports = lazy(() => import('../components/gps/GPSReports'));
+const GPSTracking = lazy(() => import('./GPSTracking'));
 
 type TabType = 'tracking' | 'devices' | 'geofences' | 'reports';
 
@@ -50,13 +59,29 @@ const GPSManagement: React.FC = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'tracking':
-        return <GPSTracking />;
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <GPSTracking />
+          </Suspense>
+        );
       case 'devices':
-        return <DeviceManagement />;
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <DeviceManagement />
+          </Suspense>
+        );
       case 'geofences':
-        return <GeofenceManagement />;
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <GeofenceManagement />
+          </Suspense>
+        );
       case 'reports':
-        return <GPSReports />;
+        return (
+          <Suspense fallback={<LoadingSpinner />}>
+            <GPSReports />
+          </Suspense>
+        );
       default:
         return null;
     }

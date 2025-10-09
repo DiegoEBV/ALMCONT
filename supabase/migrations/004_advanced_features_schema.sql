@@ -290,7 +290,7 @@ SELECT
     m.id,
     m.codigo,
     m.nombre,
-    m.stock_actual,
+    COALESCE(som.stock_actual, 0) as stock_actual,
     cr.stock_minimo,
     cr.punto_reorden,
     cr.cantidad_reorden,
@@ -299,8 +299,13 @@ SELECT
 FROM materiales m
 JOIN configuracion_reorden cr ON m.id = cr.material_id
 LEFT JOIN proveedores p ON cr.proveedor_preferido = p.id
+LEFT JOIN (
+    SELECT material_id, SUM(stock_actual) as stock_actual
+    FROM stock_obra_material
+    GROUP BY material_id
+) som ON m.id = som.material_id
 WHERE cr.activo = true 
-  AND m.stock_actual <= cr.punto_reorden;
+  AND COALESCE(som.stock_actual, 0) <= cr.punto_reorden;
 
 -- Vista para resumen de ubicaciones
 CREATE VIEW resumen_ubicaciones AS

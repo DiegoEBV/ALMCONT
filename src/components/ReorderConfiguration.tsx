@@ -5,6 +5,7 @@ import { CustomModal as Modal, ModalDescription } from './ui/modal';
 import { Button } from './ui/button';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { toast } from 'sonner';
+import { useAuth } from '../hooks/useAuth';
 
 // Funciones de utilidad para urgencia
 const getUrgencyColor = (urgency: string) => {
@@ -30,6 +31,7 @@ interface ReorderConfigurationProps {
 }
 
 export const ReorderConfiguration: React.FC<ReorderConfigurationProps> = ({ className = '' }) => {
+  const { user } = useAuth();
   const [configs, setConfigs] = useState<ReorderAlert[]>([]);
   const [suggestions, setSuggestions] = useState<ReorderAlert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export const ReorderConfiguration: React.FC<ReorderConfigurationProps> = ({ clas
            proveedor_preferido: config.proveedor_sugerido,
            activa: true
          },
-         'current-user-id' // TODO: obtener del contexto de usuario
+         user?.id || 'current-user-id'
        );
       
       if (result.success) {
@@ -93,10 +95,18 @@ export const ReorderConfiguration: React.FC<ReorderConfigurationProps> = ({ clas
   const handleExecuteReorder = async (materialId: string) => {
     try {
       setProcessing(true);
-      const result = await ReorderService.executeAutoReorder(materialId);
+      
+      if (!user?.id) {
+        toast.error('Usuario no autenticado');
+        return;
+      }
+      
+      const result = await ReorderService.executeAutoReorder(user.id, {
+        materiales_especificos: [materialId]
+      });
       
       if (result.success) {
-        toast.success('Orden de compra generada automáticamente');
+        toast.success(`Reorden ejecutado exitosamente. ${result.solicitudes_creadas} solicitudes creadas.`);
         await loadData();
       } else {
         toast.error('Error al ejecutar reorden automático');

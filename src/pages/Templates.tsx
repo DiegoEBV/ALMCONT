@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -9,8 +9,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../components/ui/alert-dialog';
 import { Plus, Search, Filter, MoreVertical, Edit, Copy, Trash2, Eye, Download, FileText, Tag } from 'lucide-react';
 import { toast } from 'sonner';
-import TemplateEditor from '../components/templates/TemplateEditor';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { Template, TemplateService, TemplateInstance } from '../services/templateService';
+
+// Lazy load TemplateEditor component
+const TemplateEditor = lazy(() => import('../components/templates/TemplateEditor'));
 
 const Templates: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -183,12 +186,14 @@ const Templates: React.FC = () => {
 
   if (showEditor) {
     return (
-      <TemplateEditor
-        template={selectedTemplate}
-        mode={editorMode}
-        onSave={handleSaveTemplate}
-        onCancel={() => setShowEditor(false)}
-      />
+      <Suspense fallback={<LoadingSpinner />}>
+        <TemplateEditor
+          template={selectedTemplate}
+          mode={editorMode}
+          onSave={handleSaveTemplate}
+          onCancel={() => setShowEditor(false)}
+        />
+      </Suspense>
     );
   }
 
