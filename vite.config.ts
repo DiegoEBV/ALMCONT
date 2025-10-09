@@ -6,7 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: process.env.NODE_ENV === 'production' ? '/ALMACEN/' : '/',
   build: {
     chunkSizeWarningLimit: 600, // Aumentar límite a 600 kB para chunks específicos
     rollupOptions: {
@@ -165,8 +165,8 @@ export default defineConfig({
         background_color: '#FFFFFF',
         display: 'standalone',
         orientation: 'portrait-primary',
-        scope: '/',
-        start_url: '/',
+        scope: process.env.NODE_ENV === 'production' ? '/ALMACEN/' : '/',
+        start_url: process.env.NODE_ENV === 'production' ? '/ALMACEN/' : '/',
         categories: ['business', 'productivity'],
         lang: 'es-ES',
         icons: [
