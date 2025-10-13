@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { CapturedPhoto } from '../components/Camera';
-import { offlineService } from '../services/offlineService';
+// import { offlineService } from '../services/offlineService';
 import { toast } from 'sonner';
 
 // Re-export CapturedPhoto for convenience
@@ -43,19 +43,23 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
   const [photos, setPhotos] = useState<StoredPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Cargar fotos desde el almacenamiento local
+  // Cargar fotos al inicializar
+  useEffect(() => {
+    loadPhotos();
+  }, []);
+
+  // Cargar fotos desde almacenamiento local
   const loadPhotos = useCallback(async () => {
     try {
       setIsLoading(true);
-      const storedPhotos = await offlineService.getOfflinePhotos();
-      const photosWithMetadata: StoredPhoto[] = storedPhotos.map(photo => ({
-        ...photo,
-        syncStatus: photo.uploaded ? 'synced' : 'pending'
-      }));
-      setPhotos(photosWithMetadata);
+      // Implementación básica sin offlineService
+      const storedPhotos = localStorage.getItem('almacen_photos');
+      if (storedPhotos) {
+        const parsedPhotos = JSON.parse(storedPhotos);
+        setPhotos(parsedPhotos);
+      }
     } catch (error) {
-      console.error('Error al cargar fotos:', error);
-      toast.error('Error al cargar las fotos');
+      console.error('Error cargando fotos:', error);
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +136,7 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
     });
   }, []);
 
-  // Capturar y almacenar foto
+  // Capturar y guardar foto
   const capturePhoto = useCallback(async (
     photo: CapturedPhoto, 
     metadata?: Partial<PhotoMetadata>
@@ -156,26 +160,14 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
         syncStatus: 'pending'
       };
       
-      // Guardar en almacenamiento local
-      await offlineService.saveOfflinePhotoObject({
-        id: storedPhoto.id,
-        blob: storedPhoto.blob,
-        dataUrl: storedPhoto.dataUrl,
-        timestamp: storedPhoto.timestamp,
-        metadata: storedPhoto.metadata,
-        uploaded: false,
-        synced: false
-      });
+      // Guardar en localStorage como fallback
+      const currentPhotos = [...photos, storedPhoto];
+      localStorage.setItem('almacen_photos', JSON.stringify(currentPhotos));
       
       // Actualizar estado local
-      setPhotos(prev => [...prev, storedPhoto]);
+      setPhotos(currentPhotos);
       
       toast.success('Foto guardada correctamente');
-      
-      // Intentar subir inmediatamente si hay conexión
-      if (navigator.onLine) {
-        uploadPendingPhotos();
-      }
       
     } catch (error) {
       console.error('Error al capturar foto:', error);
@@ -183,26 +175,16 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [compressPhoto]);
+  }, [compressPhoto, photos]);
 
   // Eliminar foto
   const deletePhoto = useCallback(async (photoId: string) => {
     try {
       setIsLoading(true);
       
-      // Eliminar del almacenamiento local
-      const allPhotos = await offlineService.getOfflinePhotos();
-      const updatedPhotos = allPhotos.filter(p => p.id !== photoId);
-      
-      // Guardar lista actualizada
-      await Promise.all(
-        updatedPhotos.map(photo => 
-          offlineService.saveOfflinePhotoObject(photo)
-        )
-      );
-      
-      // Actualizar estado local
-      setPhotos(prev => prev.filter(p => p.id !== photoId));
+      const updatedPhotos = photos.filter(p => p.id !== photoId);
+      localStorage.setItem('almacen_photos', JSON.stringify(updatedPhotos));
+      setPhotos(updatedPhotos);
       
       toast.success('Foto eliminada');
       
@@ -212,7 +194,7 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [photos]);
 
   // Obtener fotos por material
   const getPhotosByMaterial = useCallback((materialId: string): StoredPhoto[] => {
@@ -224,77 +206,20 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
     return photos.filter(photo => photo.metadata.movementId === movementId);
   }, [photos]);
 
-  // Subir fotos pendientes
+  // Subir fotos pendientes (implementación básica)
   const uploadPendingPhotos = useCallback(async () => {
     try {
-      const pendingPhotos = photos.filter(p => p.syncStatus === 'pending');
-      
-      if (pendingPhotos.length === 0) {
-        return;
-      }
-      
-      setIsLoading(true);
-      
-      for (const photo of pendingPhotos) {
-        try {
-          // Simular subida a servidor (aquí iría la lógica real de subida)
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Marcar como subida
-          const updatedPhoto = {
-            ...photo,
-            uploaded: true,
-            syncStatus: 'synced' as const
-          };
-          
-          // Actualizar en almacenamiento local
-          await offlineService.saveOfflinePhotoObject({
-            id: updatedPhoto.id,
-            blob: updatedPhoto.blob,
-            dataUrl: updatedPhoto.dataUrl,
-            timestamp: updatedPhoto.timestamp,
-            metadata: {
-              ...updatedPhoto.metadata,
-              timestamp: updatedPhoto.timestamp
-            },
-            uploaded: true
-          });
-          
-          // Actualizar estado local
-          setPhotos(prev => 
-            prev.map(p => p.id === photo.id ? updatedPhoto : p)
-          );
-          
-        } catch (error) {
-          console.error(`Error al subir foto ${photo.id}:`, error);
-          
-          // Marcar como error
-          setPhotos(prev => 
-            prev.map(p => 
-              p.id === photo.id 
-                ? { ...p, syncStatus: 'error' as const }
-                : p
-            )
-          );
-        }
-      }
-      
-      const successCount = photos.filter(p => p.syncStatus === 'synced').length;
-      const errorCount = photos.filter(p => p.syncStatus === 'error').length;
-      
-      if (successCount > 0) {
-        toast.success(`${successCount} fotos sincronizadas`);
-      }
-      
-      if (errorCount > 0) {
-        toast.error(`${errorCount} fotos con errores de sincronización`);
-      }
-      
+      console.log('Subiendo fotos pendientes...');
+      // Implementación básica - marcar como subidas
+      const updatedPhotos = photos.map(photo => ({
+        ...photo,
+        uploaded: true,
+        syncStatus: 'synced' as const
+      }));
+      setPhotos(updatedPhotos);
+      localStorage.setItem('almacen_photos', JSON.stringify(updatedPhotos));
     } catch (error) {
-      console.error('Error al subir fotos:', error);
-      toast.error('Error al sincronizar fotos');
-    } finally {
-      setIsLoading(false);
+      console.error('Error subiendo fotos:', error);
     }
   }, [photos]);
 
@@ -303,20 +228,12 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
     try {
       const link = document.createElement('a');
       link.href = photo.dataUrl;
-      
-      // Crear nombre descriptivo
-      const timestamp = photo.timestamp.toISOString().slice(0, 19).replace(/:/g, '-');
-      const material = photo.metadata.materialId ? `_${photo.metadata.materialId}` : '';
-      const movement = photo.metadata.movementType ? `_${photo.metadata.movementType}` : '';
-      
-      link.download = `foto${material}${movement}_${timestamp}.jpg`;
-      
+      link.download = `foto_${photo.id}_${photo.timestamp.toISOString().split('T')[0]}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
       toast.success('Foto descargada');
-      
     } catch (error) {
       console.error('Error al descargar foto:', error);
       toast.error('Error al descargar la foto');
@@ -327,20 +244,9 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
   const clearPhotos = useCallback(async () => {
     try {
       setIsLoading(true);
-      
-      // Limpiar almacenamiento local
-      const allPhotos = await offlineService.getOfflinePhotos();
-      await Promise.all(
-        allPhotos.map(photo => 
-          offlineService.deleteOfflinePhoto(photo.id)
-        )
-      );
-      
-      // Limpiar estado local
+      localStorage.removeItem('almacen_photos');
       setPhotos([]);
-      
-      toast.success('Todas las fotos eliminadas');
-      
+      toast.success('Todas las fotos han sido eliminadas');
     } catch (error) {
       console.error('Error al limpiar fotos:', error);
       toast.error('Error al limpiar las fotos');
@@ -348,11 +254,6 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
       setIsLoading(false);
     }
   }, []);
-
-  // Cargar fotos al inicializar
-  useEffect(() => {
-    loadPhotos();
-  }, [loadPhotos]);
 
   return {
     photos,
@@ -368,61 +269,48 @@ export const usePhotoCapture = (): UsePhotoCaptureReturn => {
   };
 };
 
-// Hook para gestionar fotos en un contexto específico (entrada/salida)
+// Hook para fotos de movimientos específicos
 export const useMovementPhotos = (movementId: string, movementType: 'entrada' | 'salida') => {
-  const photoCapture = usePhotoCapture();
+  const { photos, capturePhoto: baseCapturePhoto, ...rest } = usePhotoCapture();
   
-  const captureMovementPhoto = useCallback(async (
-    photo: CapturedPhoto,
-    materialId: string,
-    description?: string
-  ) => {
-    const metadata: PhotoMetadata = {
-      materialId,
+  const movementPhotos = photos.filter(
+    photo => photo.metadata.movementId === movementId && 
+             photo.metadata.movementType === movementType
+  );
+  
+  const capturePhoto = useCallback(async (photo: CapturedPhoto, metadata?: Partial<PhotoMetadata>) => {
+    await baseCapturePhoto(photo, {
+      ...metadata,
       movementId,
-      movementType,
-      description,
-      timestamp: new Date()
-    };
-    
-    await photoCapture.capturePhoto(photo, metadata);
-  }, [photoCapture, movementId, movementType]);
-  
-  const movementPhotos = photoCapture.getPhotosByMovement(movementId);
+      movementType
+    });
+  }, [baseCapturePhoto, movementId, movementType]);
   
   return {
-    ...photoCapture,
-    captureMovementPhoto,
-    movementPhotos
+    photos: movementPhotos,
+    capturePhoto,
+    ...rest
   };
 };
 
-// Hook para gestionar fotos de un material específico
+// Hook para fotos de materiales específicos
 export const useMaterialPhotos = (materialId: string) => {
-  const photoCapture = usePhotoCapture();
+  const { photos, capturePhoto: baseCapturePhoto, ...rest } = usePhotoCapture();
   
-  const captureMaterialPhoto = useCallback(async (
-    photo: CapturedPhoto,
-    movementId?: string,
-    movementType?: 'entrada' | 'salida',
-    description?: string
-  ) => {
-    const metadata: PhotoMetadata = {
-      materialId,
-      movementId,
-      movementType,
-      description,
-      timestamp: new Date()
-    };
-    
-    await photoCapture.capturePhoto(photo, metadata);
-  }, [photoCapture, materialId]);
+  const materialPhotos = photos.filter(
+    photo => photo.metadata.materialId === materialId
+  );
   
-  const materialPhotos = photoCapture.getPhotosByMaterial(materialId);
+  const capturePhoto = useCallback(async (photo: CapturedPhoto, metadata?: Partial<PhotoMetadata>) => {
+    await baseCapturePhoto(photo, {
+      ...metadata,
+      materialId
+    });
+  }, [baseCapturePhoto, materialId]);
   
   return {
-    ...photoCapture,
-    captureMaterialPhoto,
-    materialPhotos
+    photos: materialPhotos,
+    capturePhoto,
+    ...rest
   };
 };

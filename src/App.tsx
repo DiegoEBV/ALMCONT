@@ -2,7 +2,6 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { Suspense, lazy } from 'react'
 import { AuthProvider } from './hooks/useAuth'
-import { PWAProvider } from './components/PWA'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import Login from './components/auth/Login'
 import Layout from './components/layout/Layout'
@@ -44,29 +43,17 @@ const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'))
 const CreateRequirement = lazy(() => import('./pages/CreateRequirement'))
 const RequirementsTracking = lazy(() => import('./pages/RequirementsTracking'))
 const Materiales = lazy(() => import('./pages/Materiales'))
-const OfflinePage = lazy(() => import('./pages/OfflinePage'))
+
 
 function App() {
   return (
     <AuthProvider>
-      <PWAProvider
-        showSplashScreen={true}
-        splashDuration={2000}
-        enableAutoUpdate={true}
-        showInstallBanner={true}
-        showStatusIndicator={true}
-      >
         <Router>
           <Routes>
             {/* Ruta de login */}
             <Route path="/login" element={<Login />} />
             
-            {/* Página offline */}
-            <Route path="/offline" element={
-              <Suspense fallback={<LoadingSpinner />}>
-                <OfflinePage />
-              </Suspense>
-            } />
+
             
             {/* Rutas protegidas con layout */}
             <Route
@@ -354,7 +341,6 @@ function App() {
           closeButton 
           duration={4000}
         />
-      </PWAProvider>
     </AuthProvider>
   )
 }
