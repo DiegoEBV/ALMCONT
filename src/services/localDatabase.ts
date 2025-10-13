@@ -1,4 +1,4 @@
-import database from '../data/database.json'
+// import database from '../data/database.json' // ELIMINADO: No incluir datos de prueba en producción
 import { Usuario, Obra, Material, Requerimiento, StockObraMaterial, Entrada, Salida, SolicitudCompra, OrdenCompra, RqSc, ScOc } from '../types'
 
 // Tipos para las tablas de la base de datos
@@ -27,8 +27,20 @@ class LocalDatabase {
   private data: Record<string, (DatabaseEntity | Record<string, unknown>)[]>
 
   constructor() {
-    // Cargar datos desde el archivo JSON
-    this.data = { ...database }
+    // Inicializar con datos vacíos en lugar de cargar desde database.json
+    this.data = {
+      usuarios: [],
+      obras: [],
+      materiales: [],
+      requerimientos: [],
+      stock_obra_material: [],
+      entradas: [],
+      salidas: [],
+      solicitudes_compra: [],
+      ordenes_compra: [],
+      rq_sc: [],
+      sc_oc: []
+    }
   }
 
   // Obtener todos los registros de una tabla
@@ -138,7 +150,20 @@ class LocalDatabase {
 
   // Resetear a datos iniciales
   reset(): void {
-    this.data = { ...database }
+    // Inicializar con datos vacíos en lugar de cargar desde database.json
+    this.data = {
+      usuarios: [],
+      obras: [],
+      materiales: [],
+      requerimientos: [],
+      stock_obra_material: [],
+      entradas: [],
+      salidas: [],
+      solicitudes_compra: [],
+      ordenes_compra: [],
+      rq_sc: [],
+      sc_oc: []
+    }
     this.saveToStorage()
   }
 

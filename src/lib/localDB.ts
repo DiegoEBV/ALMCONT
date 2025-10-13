@@ -1,5 +1,5 @@
 import { Usuario, Obra, Material, Requerimiento, SolicitudCompra, RqSc, Entrada, Salida, StockObraMaterial, OrdenCompra, ScOc } from '../types'
-import database from '../data/database.json'
+// import database from '../data/database.json' // ELIMINADO: No incluir datos de prueba en producción
 
 interface LocalDBConfig {
   storageKey: string
@@ -75,13 +75,11 @@ class LocalDatabase {
 
   private async loadFromDatabaseFile(): Promise<void> {
     try {
-      // Cargar datos directamente desde la importación
-      this.data = { ...database } as unknown as Partial<DatabaseTable>
-      this.saveData() // Guardar en localStorage para futuras cargas
-      console.log('✅ Datos cargados desde database.json')
+      // No cargar datos de prueba en producción
+      console.log('⚠️ Datos de prueba no cargados en producción')
+      this.initializeData()
     } catch (error) {
-      console.error('Error cargando desde database.json:', error)
-      console.log('Usando datos por defecto')
+      console.error('Error inicializando datos:', error)
       this.initializeData()
     }
   }
@@ -302,7 +300,7 @@ class LocalDatabase {
 
   async forceReloadFromDatabase(): Promise<void> {
     try {
-      console.log('🔄 Forzando recarga desde database.json...')
+      console.log('🔄 Inicializando con datos vacíos para producción...')
       
       // Limpiar localStorage completamente
       localStorage.removeItem('localDB_data')
@@ -317,32 +315,14 @@ class LocalDatabase {
         sc_oc: []
       }
       
-      // Cargar directamente desde database.json usando import
-      const jsonData = database as any
-      console.log('📁 Archivo database.json cargado, tamaño:', Object.keys(jsonData).length)
-      
-      // Asignar datos directamente con type assertions seguras y mapeo de campos
-      this.data = {
-        usuarios: (jsonData.usuarios || []) as Usuario[],
-        obras: (jsonData.obras || []) as Obra[],
-        materiales: (jsonData.materiales || []) as Material[],
-        requerimientos: (jsonData.requerimientos || []) as Requerimiento[],
-        solicitudes_compra: ((jsonData.solicitudes_compra || []) as any[]).map((sc: any) => {
-          return {
-            ...sc,
-            numero_sc: sc.sc_numero || sc.numero_sc // Mapear sc_numero a numero_sc
-          };
-        }) as SolicitudCompra[],
-        rq_sc: (jsonData.rq_sc || []) as RqSc[],
-        ordenes_compra: (jsonData.ordenes_compra || []) as OrdenCompra[],
-        sc_oc: (jsonData.sc_oc || []) as ScOc[]
-      }
+      // No cargar datos de prueba en producción
+      console.log('✅ Base de datos inicializada con datos vacíos')
       
       // Guardar en localStorage
       this.saveData()
       
-      console.log('✅ Recarga completada desde database.json')
-      console.log('📊 Datos cargados:')
+      console.log('✅ Inicialización completada para producción')
+      console.log('📊 Datos inicializados:')
       console.log('- Usuarios:', this.data.usuarios.length)
       console.log('- Obras:', this.data.obras.length)
       console.log('- Materiales:', this.data.materiales.length)
@@ -352,7 +332,7 @@ class LocalDatabase {
       console.log('- Órdenes de compra:', this.data.ordenes_compra?.length || 0)
       console.log('- Relaciones SC-OC:', this.data.sc_oc?.length || 0)
     } catch (error) {
-      console.error('❌ Error al forzar recarga:', error)
+      console.error('❌ Error al inicializar:', error)
       throw error
     }
   }
