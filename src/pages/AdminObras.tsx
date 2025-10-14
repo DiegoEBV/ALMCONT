@@ -203,7 +203,7 @@ const AdminObras: React.FC = () => {
       }
 
       // Construir mensaje detallado con información específica de dependencias
-      let dependenciasDetalladas = [];
+      const dependenciasDetalladas = [];
       let totalDependencias = 0;
       
       if (usuariosAsignados && usuariosAsignados.length > 0) {

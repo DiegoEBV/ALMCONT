@@ -3,10 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import logisticsService from '../services/logisticsService';
@@ -32,19 +30,10 @@ import {
   Route,
   Clock,
   Truck,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
   FileText,
   Plus,
   Search,
-  Filter,
-  Download,
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle,
-  Package,
-  Users
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -641,7 +630,7 @@ const LogisticsDashboard: React.FC = () => {
                     <Label htmlFor="status">Estado</Label>
                     <Select
                       value={newContract.status || 'pending'}
-                      onValueChange={(value) => setNewContract({...newContract, status: value as any})}
+                      onValueChange={(value) => setNewContract({...newContract, status: value as FrameworkContract['status']})}
                     >
                       <SelectTrigger>
                         <SelectValue />

@@ -4,11 +4,8 @@ import {
   Shield, 
   MapPin, 
   Settings,
-  BarChart3,
-  Route,
-  AlertTriangle
+  BarChart3
 } from 'lucide-react';
-import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/Button';
 
 // Loading component

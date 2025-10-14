@@ -4,12 +4,21 @@ import { toast } from 'sonner';
 import { stockService } from '../services/stock';
 import { salidasService } from '../services/salidas';
 import { requerimientosService } from '../services/requerimientos';
-import type { SalidaFormData } from '../types';
+import type { SalidaFormData, Stock} from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { Camera } from '../components/Camera';
 import { PhotoGallery, type GalleryPhoto } from '../components/PhotoGallery';
 import { usePhotoCapture } from '../hooks/usePhotoCapture';
 import type { CapturedPhoto } from '../hooks/usePhotoCapture';
+
+// Tipo extendido para el stock con propiedades adicionales necesarias en la UI
+interface StockWithMaterial extends Stock {
+  codigo: string;
+  descripcion: string;
+  unidad: string;
+  stockActual: number;
+  materialId: string;
+}
 
 const Salidas: React.FC = () => {
   const { user } = useAuth();
@@ -18,15 +27,15 @@ const Salidas: React.FC = () => {
     numeroRequerimiento: '',
     material: ''
   });
-  const [stockDisponible, setStockDisponible] = useState<any[]>([]);
-  const [materialesDisponibles, setMaterialesDisponibles] = useState<any[]>([]);
-  const [materialSeleccionado, setMaterialSeleccionado] = useState<any | null>(null);
+  const [stockDisponible, setStockDisponible] = useState<StockWithMaterial[]>([]);
+  const [materialesDisponibles, setMaterialesDisponibles] = useState<StockWithMaterial[]>([]);
+  const [materialSeleccionado, setMaterialSeleccionado] = useState<StockWithMaterial | null>(null);
   const [cantidadSalida, setCantidadSalida] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [loading, setLoading] = useState(false);
   const [solicitantes, setSolicitantes] = useState<string[]>([]);
   const [showCamera, setShowCamera] = useState(false);
-  const [selectedMaterial, setSelectedMaterial] = useState<any | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<StockWithMaterial | null>(null);
   const [showPhotos, setShowPhotos] = useState<string | null>(null);
   
   // Hook para manejo de fotos
@@ -45,8 +54,18 @@ const Salidas: React.FC = () => {
         requerimientosService.getAll()
       ]);
       
-      setStockDisponible(stock);
-      setMaterialesDisponibles(stock);
+      // Transformar los datos de stock para incluir las propiedades necesarias
+      const stockTransformado: StockWithMaterial[] = stock.map((item: Stock) => ({
+        ...item,
+        codigo: item.material?.codigo || '',
+        descripcion: item.material?.descripcion || item.material?.nombre || '',
+        unidad: item.material?.unidad || '',
+        stockActual: item.cantidad_actual || 0,
+        materialId: item.material_id
+      }));
+      
+      setStockDisponible(stockTransformado);
+      setMaterialesDisponibles(stockTransformado);
       
       // Extraer solicitantes únicos
       const solicitantesUnicos = [...new Set(requerimientos.map(r => r.solicitante).filter(Boolean))] as string[]
@@ -72,14 +91,14 @@ const Salidas: React.FC = () => {
     setMaterialesDisponibles(materialesFiltrados);
   };
 
-  const seleccionarMaterial = (material: any) => {
+  const seleccionarMaterial = (material: StockWithMaterial) => {
     setMaterialSeleccionado(material);
     setCantidadSalida('');
     setObservaciones('');
   };
 
   // Funciones para manejo de fotos
-  const handleCapturePhoto = (material: any) => {
+  const handleCapturePhoto = (material: StockWithMaterial) => {
     setSelectedMaterial(material);
     setShowCamera(true);
   };

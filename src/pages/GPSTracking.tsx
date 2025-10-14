@@ -4,7 +4,6 @@ import { useGPSData } from '../hooks/useGPSData';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { LocationUpdateEvent, GeofenceAlertEvent, SpeedAlertEvent, Vehicle } from '../types/gps';
 import { Loader2, Wifi, WifiOff, AlertTriangle, Navigation } from 'lucide-react';
-import { toast } from 'sonner';
 import 'leaflet/dist/leaflet.css';
 
 // Loading component
@@ -18,7 +17,6 @@ const LoadingSpinner = () => (
 const GPSMap = lazy(() => import('../components/gps/GPSMap'));
 const VehicleList = lazy(() => import('../components/gps/VehicleList'));
 const GPSControls = lazy(() => import('../components/gps/GPSControls'));
-import { MapContainer, TileLayer } from 'react-leaflet';
 
 const GPSTracking: React.FC = () => {
   const [showGeofences, setShowGeofences] = useState(true);

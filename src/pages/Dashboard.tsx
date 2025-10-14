@@ -3,7 +3,7 @@ import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../hooks/useAuth'
 import { dashboardService } from '../services/dashboardService'
 import { obrasService } from '../services/obras'
-import type { Requerimiento, Entrada, Obra } from '../types'
+import type { Requerimiento, Obra } from '../types'
 
 export default function Dashboard() {
   console.log('🚀 Dashboard: Componente inicializándose...')
@@ -79,7 +79,21 @@ export default function Dashboard() {
             estado: req.estado as 'PENDIENTE' | 'APROBADO' | 'RECHAZADO',
             fecha_creacion: String(req.created_at || req.fecha_requerimiento)
           })),
-          entradas: activityData.entradas.map((entrada: any) => ({
+          entradas: activityData.entradas.map((entrada: {
+            id: number;
+            numero_entrada?: string;
+            proveedor?: string;
+            created_at?: string;
+            fecha_entrada?: string;
+            usuario_responsable_id?: string;
+            estado?: string;
+            updated_at?: string;
+            material?: {
+              nombre: string;
+            };
+            cantidad_recibida?: number;
+            usuario_responsable?: string;
+          }) => ({
             id: Number(entrada.id) || 0,
             numero_entrada: String(entrada.numero_entrada || ''),
             proveedor: String(entrada.proveedor || ''),

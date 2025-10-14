@@ -100,7 +100,7 @@ const Templates: React.FC = () => {
     }
   };
 
-  const handleSaveTemplate = (template: Template) => {
+  const handleSaveTemplate = () => {
     setShowEditor(false);
     loadTemplates();
   };
@@ -132,7 +132,7 @@ const Templates: React.FC = () => {
         ]
       };
 
-      const instance = await TemplateService.generateDocument({
+      await TemplateService.generateDocument({
         template_id: template.id,
         data_context: sampleData,
         output_format: 'html',
