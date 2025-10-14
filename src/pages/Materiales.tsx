@@ -3,7 +3,7 @@ import { Plus, Search, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from 'luci
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { CustomModal } from '../components/ui/Modal'
+import { CustomModal } from '../components/ui'
 import { toast } from 'sonner'
 import { materialesService, type MaterialesQuery, type MaterialesResponse } from '../services/materiales'
 import { cacheService } from '../services/cacheService'

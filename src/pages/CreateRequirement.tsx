@@ -22,7 +22,7 @@ import { useNavigate } from 'react-router-dom'
 import { materialesService } from '@/services/materiales'
 import { obrasService } from '@/services/obras'
 import { requerimientosMaterialesService } from '@/services/requerimientosMateriales'
-import type { Material, Obra, RequerimientoMaterialFormData, DetalleRequerimiento } from '@/types'
+import type { Material, Obra, RequerimientoMaterialFormData } from '@/types'
 
 interface MaterialSelection {
   material_id: string

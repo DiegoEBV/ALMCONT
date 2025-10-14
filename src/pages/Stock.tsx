@@ -7,7 +7,7 @@ import { obrasService } from '../services/obras'
 import { Obra, TableColumn } from '../types'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { Select } from '../components/ui/Select'
+import { Select } from '../components/ui'
 import { Table} from '../components/ui/Table'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
