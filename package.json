@@ -12,8 +12,8 @@
     "server:dev": "nodemon",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
     "predeploy": "npm run build",
-    "deploy": "vercel --prod",
-    "deploy:gh": "node deploy.cjs"
+    "deploy": "gh-pages -d dist --dotfiles --nojekyll",
+    "deploy:vercel": "vercel --prod"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",
