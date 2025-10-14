@@ -4,7 +4,7 @@ import { CyclicInventoryService, CountTask, CountResult, CountSummary } from '..
 import { Database } from '../types/database';
 
 type CyclicCount = Database['public']['Tables']['conteos_ciclicos']['Row'];
-import { Button } from './ui/button';
+import { Button } from './ui/Button';
 import LoadingSpinner from './ui/LoadingSpinner';
 
 

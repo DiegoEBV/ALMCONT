@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Clock, Eye, AlertTriangle, User, Calendar, DollarSign } from 'lucide-react';
 import { ApprovalService } from '../services/approvalService';
 import type { Approval } from '../types';
-import { Button } from './ui/button';
+import { Button } from './ui/Button';
 import { CustomModal as Modal, ModalDescription } from './ui/modal';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { toast } from 'sonner';

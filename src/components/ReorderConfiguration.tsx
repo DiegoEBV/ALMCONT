@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Save, RefreshCw, TrendingUp, Package, AlertTriangle, CheckCircle, Edit3 } from 'lucide-react';
 import { ReorderService, ReorderAlert } from '../services/reorderService';
 import { CustomModal as Modal, ModalDescription } from './ui/modal';
-import { Button } from './ui/button';
+import { Button } from './ui/Button';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';

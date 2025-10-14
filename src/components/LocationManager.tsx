@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Move, Search, Grid, List, Plus, Edit3, Navigation, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { LocationService, Location, WarehouseMap } from '../services/locationService';
-import { Button } from './ui/button';
+import { Button } from './ui/Button';
 import { CustomModal as Modal, ModalDescription } from './ui/modal';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { useAuth } from '../hooks/useAuth';

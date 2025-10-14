@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { DocumentArrowUpIcon, DocumentCheckIcon, ExclamationTriangleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import { excelService, ExcelImportResult, ExcelData } from '../services/excelService'
-import { Button } from './ui/button'
+import { Button } from './ui/Button'
 import LoadingSpinner from './ui/LoadingSpinner'
 import { Table } from './ui/table'
 import { TableColumn } from '../types'
