@@ -3,7 +3,7 @@ import { CheckCircle, XCircle, Clock, Eye, AlertTriangle, User, Calendar, Dollar
 import { ApprovalService } from '../services/approvalService';
 import type { Approval } from '../types';
 import { Button } from './ui/Button';
-import { CustomModal as Modal, ModalDescription } from './ui/modal';
+import { CustomModal as Modal, ModalDescription } from './ui/Modal';
 import LoadingSpinner from './ui/LoadingSpinner';
 import { toast } from 'sonner';
 import { useAuth } from '../hooks/useAuth';
