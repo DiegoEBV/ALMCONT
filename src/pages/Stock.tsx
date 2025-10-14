@@ -5,10 +5,10 @@ import { MagnifyingGlassIcon, FunnelIcon, ArrowDownTrayIcon, ClockIcon, CubeIcon
 import { stockService, StockItem, KardexMovimiento } from '../services/stockService'
 import { obrasService } from '../services/obras'
 import { Obra, TableColumn } from '../types'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
+import { Button } from '../components/ui'
+import { Input } from '../components/ui'
 import { Select } from '../components/ui'
-import { Table} from '../components/ui/Table'
+import { Table} from '../components/ui'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 export default function Stock() {

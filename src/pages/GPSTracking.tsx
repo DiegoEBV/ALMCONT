@@ -1,5 +1,5 @@
 import React, { useState, useCallback, Suspense, lazy } from 'react';
-import { Card } from '../components/ui/card';
+import { Card } from '../components/ui';
 import { useGPSData } from '../hooks/useGPSData';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { LocationUpdateEvent, GeofenceAlertEvent, SpeedAlertEvent, Vehicle } from '../types/gps';
@@ -44,11 +44,27 @@ const GPSTracking: React.FC = () => {
   }, [refreshData]);
 
   const handleGeofenceAlert = useCallback((event: GeofenceAlertEvent) => {
+    // Log the geofence alert event
+    console.log('Geofence Alert:', {
+      vehicleId: event.vehicle_id,
+      geofenceId: event.geofence_id,
+      alertType: event.alert_type,
+      timestamp: event.timestamp
+    });
+    
     // Refresh alerts to show new geofence alerts
     refreshData();
   }, [refreshData]);
 
   const handleSpeedAlert = useCallback((event: SpeedAlertEvent) => {
+    // Log the speed alert event
+    console.log('Speed Alert:', {
+      vehicleId: event.vehicle_id,
+      currentSpeed: event.current_speed,
+      speedLimit: event.speed_limit,
+      timestamp: event.timestamp
+    });
+    
     // Refresh alerts to show new speed alerts
     refreshData();
   }, [refreshData]);

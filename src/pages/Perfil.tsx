@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { Button } from '../components/ui/Button'
+import { Button } from '../components/ui'
 import { toast } from 'sonner'
 import { localAuth } from '../services/localAuth'
 import NotificationConfig from '../components/NotificationConfig'

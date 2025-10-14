@@ -3,7 +3,7 @@ import { DocumentArrowUpIcon, DocumentCheckIcon, ExclamationTriangleIcon, ArrowD
 import { excelService, ExcelImportResult, ExcelData } from '../services/excelService'
 import { Button } from './ui/Button'
 import LoadingSpinner from './ui/LoadingSpinner'
-import { Table } from './ui/table'
+import { Table } from './ui'
 import { TableColumn } from '../types'
 
 interface ExcelImportProps {

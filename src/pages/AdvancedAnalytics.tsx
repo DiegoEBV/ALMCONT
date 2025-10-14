@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/badge';
+import { Card, CardContent } from '../components/ui';
+import { Button } from '../components/ui';
+import { Badge } from '../components/ui';
 import {
   BarChart3,
   TrendingUp,

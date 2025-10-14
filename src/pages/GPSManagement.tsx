@@ -6,7 +6,7 @@ import {
   Settings,
   BarChart3
 } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { Button } from '../components/ui';
 
 // Loading component
 const LoadingSpinner = () => (
