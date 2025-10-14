@@ -3,7 +3,7 @@ export { Input } from './Input';
 export { Modal, CustomModal, ModalDescription } from './Modal';
 export { Select } from './Select';
 export { Table } from './Table';
-export { LoadingSpinner } from './LoadingSpinner';
+export { default as LoadingSpinner } from './LoadingSpinner';
 export { Card, CardContent, CardHeader, CardTitle } from './card';
 export { Alert } from './alert';
 export { Badge } from './badge';
