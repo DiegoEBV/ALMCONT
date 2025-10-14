@@ -3,7 +3,7 @@ import { GPSDevice, Vehicle } from '../../types/gps';
 import { GPSService } from '../../services/gpsService';
 import { X, Save, Loader2 } from 'lucide-react';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
+import { Button } from '../ui/Button';
 import { toast } from 'sonner';
 
 interface DeviceFormProps {

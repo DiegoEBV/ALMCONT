@@ -12,7 +12,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
+import { Button } from '../ui/Button';
 
 interface GPSControlsProps {
   filter: MapFilter;

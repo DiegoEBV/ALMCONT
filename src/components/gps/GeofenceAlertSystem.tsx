@@ -4,7 +4,7 @@ import { GPSService } from '../../services/gpsService';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { toast } from 'sonner';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
+import { Button } from '../ui/Button';
 import { Badge } from '../ui/badge';
 import { 
   AlertTriangle, 

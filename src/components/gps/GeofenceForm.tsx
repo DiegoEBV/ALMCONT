@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Geofence, Vehicle } from '../../types/gps';
 import { GPSService } from '../../services/gpsService';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 import { toast } from 'sonner';
 import GeofenceMapDrawer from './GeofenceMapDrawer';
 import { 

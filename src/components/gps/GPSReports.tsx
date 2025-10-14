@@ -16,7 +16,7 @@ import {
   Zap
 } from 'lucide-react';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
+import { Button } from '../ui/Button';
 import {
   Chart as ChartJS,
   CategoryScale,

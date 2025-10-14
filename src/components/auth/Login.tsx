@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
+import { Button } from '../ui/Button'
+import { Input } from '../ui/Input'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 const Login: React.FC = () => {

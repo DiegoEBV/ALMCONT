@@ -18,7 +18,7 @@ import {
   Pentagon as PolygonIcon
 } from 'lucide-react';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
+import { Button } from '../ui/Button';
 import { toast } from 'sonner';
 import GeofenceForm from './GeofenceForm';
 import GeofenceAlertSystem from './GeofenceAlertSystem';

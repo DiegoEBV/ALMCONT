@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, useMapEvents, Circle, Polygon, Marker, Popup } from 'react-leaflet';
 import { LatLng, Map as LeafletMap } from 'leaflet';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 import { toast } from 'sonner';
 import { 
   MapPin, 
