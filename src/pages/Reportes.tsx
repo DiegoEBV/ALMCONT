@@ -6,7 +6,7 @@ import { reportesService, ReporteRequerimientos, ReporteStock, ReporteMovimiento
 import { obrasService } from '../services/obras'
 import { Obra } from '../types'
 
-import { Select } from '../components/ui/select'
+import { Select } from '../components/ui/Select'
 
 
 // Eliminadas las variables stockColumns, movimientosColumns, consumoColumns ya que no se utilizan
