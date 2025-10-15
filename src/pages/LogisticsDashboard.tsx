@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/Button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
-import { Badge } from '../components/ui/Badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/Input';
-import { Label } from '../components/ui/Label';
+import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
-import { Checkbox } from '../components/ui/Checkbox';
+import { Checkbox } from '../components/ui/checkbox';
 import logisticsService from '../services/logisticsService';
 import {
   Dialog,
@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../components/ui/Dialog';
+} from '../components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -24,7 +24,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../components/ui/Table';
+} from '../components/ui/table';
 import {
   MapPin,
   Route,
