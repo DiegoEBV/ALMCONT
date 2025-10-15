@@ -1,3 +1,4 @@
-﻿Deployment forced at 2025-01-26 16:00:00
-Fixed base path from /ALMACEN/ to /ALMCONT/ to match repository name
-Cache cleared and build regenerated with correct paths
+Deployment forced at 2025-01-26 16:15:00
+Fixed base path configuration and regenerated build with correct /ALMCONT/ paths
+Cleared dist folder completely and rebuilt from scratch
+All assets now correctly reference /ALMCONT/ instead of /ALMACEN/
