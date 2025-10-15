@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { warehouseService } from '../services/warehouseService';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Badge } from '../components/ui/Badge';
+import { Progress } from '../components/ui/Progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/Alert';
+import { Checkbox } from '../components/ui/Checkbox';
+import { Input } from '../components/ui/Input';
+import { Label } from '../components/ui/Label';
 import { 
   Package, 
   MapPin, 
