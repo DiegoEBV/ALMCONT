@@ -1,1 +1,1 @@
-Forzar deployment - 2024-01-19 16:45:00 - Rama gh-pages eliminada y recreada
+Forzar deployment - 2024-01-19 17:30:00 - Corregido base path de /ALMCONT/ a /ALMACEN/ y limpiado cache
