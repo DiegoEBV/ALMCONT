@@ -1,82 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALMACEN - Página no encontrada</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .container {
-            text-align: center;
-            max-width: 600px;
-            padding: 2rem;
-        }
-        h1 {
-            font-size: 4rem;
-            margin: 0;
-            opacity: 0.9;
-        }
-        h2 {
-            font-size: 1.5rem;
-            margin: 1rem 0;
-            opacity: 0.8;
-        }
-        p {
-            font-size: 1.1rem;
-            margin: 1.5rem 0;
-            opacity: 0.7;
-        }
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            transition: all 0.3s ease;
-            margin: 0.5rem;
-        }
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-    </style>
-    <script>
-        // Redirección automática para GitHub Pages SPA con HashRouter
-        (function() {
-            // Para HashRouter, redirigir a la página principal con hash
-            var path = window.location.pathname;
-            var search = window.location.search;
-            
-            // Si no es la página principal, redirigir con hash
-            if (path !== '/ALMACEN/' && path !== '/ALMACEN/index.html') {
-                var redirect = '/ALMACEN/#' + path.replace('/ALMACEN', '') + search;
-                window.location.replace(redirect);
-            } else {
-                // Si es la página principal, ir al index
-                window.location.replace('/ALMACEN/');
-            }
-        })();
-    </script>
+  <meta charset="utf-8">
+  <title>ALMCONT - Página no encontrada</title>
+  <script type="text/javascript">
+    // Single Page Apps for GitHub Pages
+    // MIT License
+    // https://github.com/rafgraph/spa-github-pages
+    // This script takes the current url and converts the path and query
+    // string into just a query string, and then redirects the browser
+    // to the new url with only a query string and hash fragment,
+    // e.g. https://www.foo.tld/one/two?a=b&c=d#qwe, becomes
+    // https://www.foo.tld/?/one/two&a=b~and~c=d#qwe
+    // Note: this 404.html file must be at least 512 bytes for it to work
+    // with Internet Explorer (it is currently > 512 bytes)
+
+    // If you're creating a Project Pages site and NOT using a custom domain,
+    // then set pathSegmentsToKeep to 1 (enterprise users may need to set it to > 1).
+    // This way the code will only replace the route part and not the real folder.
+    // Otherwise, leave pathSegmentsToKeep as 0.
+    var pathSegmentsToKeep = 1;
+
+    var l = window.location;
+    l.replace(
+      l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+      l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+      l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+      (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+      l.hash
+    );
+
+  </script>
 </head>
 <body>
-    <div class="container">
-        <h1>404</h1>
-        <h2>Página no encontrada</h2>
-        <p>La página que buscas no existe o ha sido movida.</p>
-        <a href="/ALMACEN/" class="btn">Ir al inicio</a>
-        <a href="javascript:history.back()" class="btn">Volver atrás</a>
-    </div>
 </body>
 </html>
