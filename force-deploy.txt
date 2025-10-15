@@ -1,1 +1,1 @@
-Forzar deployment - 2024-01-19 17:30:00 - Corregido base path de /ALMCONT/ a /ALMACEN/ y limpiado cache
+﻿Force deployment - 2025-10-15 12:58:11 - Fixed base path and cleared cache
