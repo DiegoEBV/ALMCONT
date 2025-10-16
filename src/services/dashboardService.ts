@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { localAuth } from './localAuth';
 
 export interface DashboardStats {
   requerimientosPendientes: number
@@ -13,12 +14,25 @@ export const dashboardService = {
     console.log('📊 Supabase client configurado:', !!supabase)
     
     try {
-      // Obtener requerimientos pendientes
+      // Obtener usuario actual para filtrar por obra
+      const currentUser = localAuth.getCurrentUser()
+      const userObraId = currentUser?.obra_id
+      console.log('📊 Usuario actual obra_id:', userObraId)
+      
+      // Obtener requerimientos pendientes filtrados por obra
       console.log('📊 Consultando requerimientos pendientes...')
-      const { data: requerimientos, error: reqError } = await supabase
+      let requerimientosQuery = supabase
         .from('requerimiento_materiales')
         .select('id, estado')
         .eq('estado', 'PENDIENTE')
+      
+      // Filtrar por obra si el usuario tiene una asignada
+      if (userObraId) {
+        requerimientosQuery = requerimientosQuery.eq('obra_id', userObraId)
+        console.log('📊 Filtrando requerimientos por obra:', userObraId)
+      }
+      
+      const { data: requerimientos, error: reqError } = await requerimientosQuery
       
       if (reqError) {
         console.error('❌ Error consultando requerimientos:', reqError)
@@ -28,12 +42,20 @@ export const dashboardService = {
         console.log('✅ Datos requerimientos:', requerimientos)
       }
 
-      // Obtener stock bajo (menos de 10 unidades)
+      // Obtener stock bajo (menos de 10 unidades) filtrado por obra
       console.log('📊 Consultando stock bajo...')
-      const { data: stockBajo, error: stockError } = await supabase
+      let stockQuery = supabase
         .from('stock_obra_material')
         .select('id, stock_actual')
         .lt('stock_actual', 10)
+      
+      // Filtrar por obra si el usuario tiene una asignada
+      if (userObraId) {
+        stockQuery = stockQuery.eq('obra_id', userObraId)
+        console.log('📊 Filtrando stock por obra:', userObraId)
+      }
+      
+      const { data: stockBajo, error: stockError } = await stockQuery
       
       if (stockError) {
         console.error('❌ Error consultando stock:', stockError)
@@ -43,17 +65,25 @@ export const dashboardService = {
         console.log('✅ Datos stock bajo:', stockBajo)
       }
 
-      // Obtener entradas del mes actual
+      // Obtener entradas del mes actual filtradas por obra
       console.log('📊 Consultando entradas del mes...')
       const inicioMes = new Date()
       inicioMes.setDate(1)
       inicioMes.setHours(0, 0, 0, 0)
       console.log('📊 Fecha inicio mes:', inicioMes.toISOString())
       
-      const { data: entradas, error: entradasError } = await supabase
+      let entradasQuery = supabase
         .from('entradas')
         .select('id, created_at')
         .gte('created_at', inicioMes.toISOString())
+      
+      // Filtrar por obra si el usuario tiene una asignada
+      if (userObraId) {
+        entradasQuery = entradasQuery.eq('obra_id', userObraId)
+        console.log('📊 Filtrando entradas por obra:', userObraId)
+      }
+      
+      const { data: entradas, error: entradasError } = await entradasQuery
       
       if (entradasError) {
         console.error('❌ Error consultando entradas:', entradasError)
@@ -63,12 +93,20 @@ export const dashboardService = {
         console.log('✅ Datos entradas:', entradas)
       }
 
-      // Obtener salidas del mes actual
+      // Obtener salidas del mes actual filtradas por obra
       console.log('📊 Consultando salidas del mes...')
-      const { data: salidas, error: salidasError } = await supabase
+      let salidasQuery = supabase
         .from('salidas')
         .select('id, created_at')
         .gte('created_at', inicioMes.toISOString())
+      
+      // Filtrar por obra si el usuario tiene una asignada
+      if (userObraId) {
+        salidasQuery = salidasQuery.eq('obra_id', userObraId)
+        console.log('📊 Filtrando salidas por obra:', userObraId)
+      }
+      
+      const { data: salidas, error: salidasError } = await salidasQuery
       
       if (salidasError) {
         console.error('❌ Error consultando salidas:', salidasError)
@@ -102,8 +140,13 @@ export const dashboardService = {
 
   async getRecentActivity() {
     try {
-      // Obtener requerimientos recientes (últimos 10)
-      const { data: requerimientos, error: reqError } = await supabase
+      // Obtener usuario actual para filtrar por obra
+      const currentUser = localAuth.getCurrentUser()
+      const userObraId = currentUser?.obra_id
+      console.log('📊 Filtrando actividad reciente por obra:', userObraId)
+      
+      // Obtener requerimientos recientes (últimos 10) filtrados por obra
+      let requerimientosQuery = supabase
         .from('requerimiento_materiales')
         .select(`
           id,
@@ -116,10 +159,17 @@ export const dashboardService = {
         .order('created_at', { ascending: false })
         .limit(10)
       
+      // Filtrar por obra si el usuario tiene una asignada
+      if (userObraId) {
+        requerimientosQuery = requerimientosQuery.eq('obra_id', userObraId)
+      }
+      
+      const { data: requerimientos, error: reqError } = await requerimientosQuery
+      
       if (reqError) throw reqError
       
-      // Obtener entradas recientes (últimas 10) con items
-      const { data: entradas, error: entradasError } = await supabase
+      // Obtener entradas recientes (últimas 10) filtradas por obra
+      let entradasQuery = supabase
         .from('entradas')
         .select(`
           id,
@@ -130,6 +180,13 @@ export const dashboardService = {
         `)
         .order('created_at', { ascending: false })
         .limit(10)
+      
+      // Filtrar por obra si el usuario tiene una asignada
+      if (userObraId) {
+        entradasQuery = entradasQuery.eq('obra_id', userObraId)
+      }
+      
+      const { data: entradas, error: entradasError } = await entradasQuery
       
       if (entradasError) throw entradasError
       

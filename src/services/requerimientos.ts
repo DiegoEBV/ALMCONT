@@ -51,10 +51,21 @@ export const requerimientosService = {
       // Establecer contexto de usuario para RLS
       await setUserContextWithMapping()
       
+      // Obtener usuario actual para filtrar por obra
+      const currentUser = localAuth.getCurrentUser()
+      const userObraId = currentUser?.obra_id
+      console.log('📊 Usuario actual obra_id:', userObraId)
+      
       let query = supabase
         .from('requerimientos')
         .select('*')
         .order('fecha_solicitud', { ascending: false })
+
+      // Filtrar por obra del usuario si está asignada
+      if (userObraId) {
+        query = query.eq('obra_id', userObraId)
+        console.log('📊 Filtrando requerimientos por obra:', userObraId)
+      }
 
       // Aplicar filtros usando los campos correctos de la tabla
       if (filters?.estado) {
