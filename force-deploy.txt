@@ -1,6 +1,8 @@
-Deployment forced at: 2025-01-27 16:05:15
+Deployment forced at: 2025-01-27 16:30:45
 Fixed base path configuration in vite.config.ts
 Fixed 404.html pathSegmentsToKeep to 0 for proper SPA routing
+Created manifest.webmanifest with correct /ALMCONT/ paths
+Added PWA manifest link to index.html with correct base path
 Cleared dist folder and rebuilt from scratch
 All assets now correctly reference /ALMCONT/ instead of /ALMACEN/
 Verified no hardcoded /ALMACEN/ references remain in codebase
