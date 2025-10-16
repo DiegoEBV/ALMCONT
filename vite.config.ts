@@ -41,8 +41,8 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'ALMACEN - Sistema de Gestión',
-        short_name: 'ALMACEN',
+        name: 'ALMCONT - Sistema de Gestión',
+        short_name: 'ALMCONT',
         description: 'Sistema de gestión de almacén e inventario',
         theme_color: '#ffffff',
         background_color: '#ffffff',
