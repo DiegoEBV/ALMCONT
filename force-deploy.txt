@@ -1,10 +1,10 @@
-Deployment forced at: 2025-01-27 16:30:45
-Fixed base path configuration in vite.config.ts
-Fixed 404.html pathSegmentsToKeep to 0 for proper SPA routing
-Created manifest.webmanifest with correct /ALMCONT/ paths
-Added PWA manifest link to index.html with correct base path
-Cleared dist folder and rebuilt from scratch
-All assets now correctly reference /ALMCONT/ instead of /ALMACEN/
-Verified no hardcoded /ALMACEN/ references remain in codebase
-Fresh build generated with correct paths
-GitHub Actions workflow verified and correct
+Deployment forzado: 2025-01-25 16:45:00
+
+Cambios realizados:
+- Configurado PWA completa con vite-plugin-pwa
+- Generado service worker automático (sw.js)
+- Creado manifest.webmanifest optimizado con rutas /ALMCONT/
+- Agregados metadatos PWA completos en index.html
+- Configurado browserconfig.xml para Windows
+- Build PWA exitoso con 166 archivos precacheados
+- Todas las rutas usan /ALMCONT/ consistentemente
