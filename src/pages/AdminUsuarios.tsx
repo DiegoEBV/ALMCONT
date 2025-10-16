@@ -61,20 +61,29 @@ const AdminUsuarios: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [usuariosData, obrasData] = await Promise.all([
-        usuariosService.getAll(),
-        obrasService.getAll()
-      ]);
       
-      // Logs de depuración
-      console.log('🔍 DEBUG - Usuarios cargados:', usuariosData.length);
-      console.log('🔍 DEBUG - Obras cargadas:', obrasData.length);
+      // Intentar cargar usuarios desde Supabase primero
+      console.log('🔍 DEBUG - Intentando cargar usuarios desde Supabase...');
+      let usuariosData: Usuario[] = [];
       
-      // Mostrar algunos ejemplos de usuarios con obra_id
-      const usuariosConObra = usuariosData.filter(u => u.obra_id);
-      console.log('🔍 DEBUG - Usuarios con obra asignada:', usuariosConObra.length);
-      usuariosConObra.slice(0, 3).forEach(usuario => {
-        console.log(`   Usuario: ${usuario.nombre} ${usuario.apellido}, obra_id: ${usuario.obra_id}`);
+      try {
+        usuariosData = await supabaseUsersService.getAll();
+        console.log('✅ DEBUG - Usuarios cargados desde Supabase:', usuariosData.length);
+      } catch (supabaseError) {
+        console.warn('⚠️ DEBUG - Error cargando desde Supabase, intentando localDB:', supabaseError);
+        usuariosData = await usuariosService.getAll();
+        console.log('✅ DEBUG - Usuarios cargados desde localDB:', usuariosData.length);
+      }
+      
+      const obrasData = await obrasService.getAll();
+      
+      // Logs de depuración detallados
+      console.log('🔍 DEBUG - Total usuarios encontrados:', usuariosData.length);
+      console.log('🔍 DEBUG - Total obras cargadas:', obrasData.length);
+      
+      // Mostrar TODOS los usuarios para debugging
+      usuariosData.forEach((usuario, index) => {
+        console.log(`   Usuario ${index + 1}: ${usuario.nombre} ${usuario.apellido} (${usuario.email}), obra_id: ${usuario.obra_id}, rol: ${usuario.rol}, activo: ${usuario.activo}`);
       });
       
       // Mostrar algunos ejemplos de obras
@@ -87,7 +96,7 @@ const AdminUsuarios: React.FC = () => {
       
       console.log('🔍 DEBUG - Obras activas filtradas:', obrasData.filter(obra => obra.estado === 'ACTIVA').length);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
       toast.error('Error al cargar los datos');
     } finally {
       setLoading(false);

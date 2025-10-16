@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { localAuth } from './localAuth'
-import { isValidUUID, validateUUID, sanitizeUUID } from '../utils/uuidValidator'
+import { isValidUUID } from '../utils/uuidValidator'
 import type { Usuario, UserRole } from '../types'
 
 export const supabaseUsersService = {
@@ -135,11 +135,6 @@ export const supabaseUsersService = {
     }
   },
 
-  // Obtener datos del usuario desde Supabase (alias para getById)
-  async getUserData(userId: string) {
-    return this.getById(userId)
-  },
-
   // Sincronizar obra asignada del usuario actual
   async syncCurrentUserObraAsignada(obraId: string | null): Promise<boolean> {
     const user = localAuth.getCurrentUser()
@@ -157,5 +152,86 @@ export const supabaseUsersService = {
     }
 
     return false
+  },
+
+  // Crear usuario en Supabase
+  async create(userData: Partial<Usuario>): Promise<Usuario | null> {
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .insert([{
+          ...userData,
+          id: crypto.randomUUID(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating user in Supabase:', error)
+        throw error
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error creating user in Supabase:', error)
+      return null
+    }
+  },
+
+  // Actualizar usuario en Supabase
+  async update(id: string, userData: Partial<Usuario>): Promise<Usuario | null> {
+    try {
+      if (!isValidUUID(id)) {
+        console.error('Error: userId inválido para actualización Supabase:', id)
+        return null
+      }
+
+      const { data, error } = await supabase
+        .from('usuarios')
+        .update({
+          ...userData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error updating user in Supabase:', error)
+        throw error
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error updating user in Supabase:', error)
+      return null
+    }
+  },
+
+  // Eliminar usuario en Supabase
+  async delete(id: string): Promise<boolean> {
+    try {
+      if (!isValidUUID(id)) {
+        console.error('Error: userId inválido para eliminación Supabase:', id)
+        return false
+      }
+
+      const { error } = await supabase
+        .from('usuarios')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        console.error('Error deleting user in Supabase:', error)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error('Error deleting user in Supabase:', error)
+      return false
+    }
   }
 }
