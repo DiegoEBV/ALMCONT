@@ -1,4 +1,4 @@
-Deployment forzado: 2025-01-25 16:45:00
+Deployment forzado: 2025-01-25 17:15:00
 
 Cambios realizados:
 - Configurado PWA completa con vite-plugin-pwa
@@ -8,3 +8,8 @@ Cambios realizados:
 - Configurado browserconfig.xml para Windows
 - Build PWA exitoso con 166 archivos precacheados
 - Todas las rutas usan /ALMCONT/ consistentemente
+
+DEPLOY FORZADO - GitHub Secrets configurados:
+- VITE_SUPABASE_URL: Configurado en GitHub Secrets
+- VITE_SUPABASE_ANON_KEY: Configurado en GitHub Secrets
+- Forzando nuevo build para aplicar variables de entorno

@@ -6,15 +6,22 @@ const router = Router();
 
 // Configurar VAPID keys (estas deberían estar en variables de entorno)
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa40HI80NM9f7LE4F7qBYVRtjHOu1fJ1wJgLkPTBHm4gcNJoDc9VQHyOfhBGBc';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'your-vapid-private-key-here';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_EMAIL = process.env.VAPID_EMAIL || 'mailto:admin@almacen.com';
 
-// Configurar web-push
-webpush.setVapidDetails(
-  VAPID_EMAIL,
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+// Solo configurar web-push si tenemos las claves VAPID válidas
+if (VAPID_PRIVATE_KEY && VAPID_PRIVATE_KEY !== '') {
+  try {
+    webpush.setVapidDetails(
+      VAPID_EMAIL,
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+  } catch (error) {
+    console.warn('⚠️ VAPID configuration failed:', error.message);
+    console.warn('Push notifications will not be available');
+  }
+}
 
 // Almacenamiento temporal de suscripciones (en producción usar base de datos)
 const subscriptions = new Map<string, any>();
