@@ -41,6 +41,11 @@ export default function Requerimientos() {
   const [showFilters, setShowFilters] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
 
+  // Estados adicionales para el selector de materiales
+  const [materialSearch, setMaterialSearch] = useState('')
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false)
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null)
+
   // Estados de filtros
   const [filters, setFilters] = useState({
     busqueda: '',
@@ -315,6 +320,8 @@ export default function Requerimientos() {
       precio_unitario: 0,
       subtotal: 0
     })
+    setSelectedMaterial(null)
+    setMaterialSearch('')
   }
 
   const handleFilterChange = (field: keyof RequerimientoFilters, value: string) => {
@@ -616,19 +623,88 @@ export default function Requerimientos() {
               </h3>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Input
-                  label="Material"
-                  value={formData.material_nombre}
-                  onChange={(e) => setFormData(prev => ({ ...prev, material_nombre: e.target.value }))}
-                  placeholder="Nombre del material"
-                  required
-                />
+                {/* Selector de Material con Autocomplete */}
+                <div className="relative material-selector">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Material <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={materialSearch}
+                      onChange={(e) => handleMaterialSearchChange(e.target.value)}
+                      onFocus={() => setShowMaterialDropdown(true)}
+                      placeholder="Buscar material por código o nombre..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                    {selectedMaterial && (
+                      <button
+                        type="button"
+                        onClick={handleMaterialClear}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Dropdown de materiales */}
+                  {showMaterialDropdown && materialSearch && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {filteredMateriales.length > 0 ? (
+                        filteredMateriales.map((material) => (
+                          <div
+                            key={material.id}
+                            onClick={() => handleMaterialSelect(material)}
+                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="font-medium text-gray-900">
+                              {material.codigo} - {material.nombre}
+                            </div>
+                            {material.descripcion && (
+                              <div className="text-sm text-gray-600 truncate">
+                                {material.descripcion}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500">
+                              Unidad: {material.unidad_medida} | Categoría: {material.categoria}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-2 text-gray-500 text-sm">
+                          No se encontraron materiales
+                        </div>
+                      )}
+                      
+                      {/* Opción para material personalizado */}
+                      {materialSearch && !selectedMaterial && (
+                        <div
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, material_nombre: materialSearch }))
+                            setShowMaterialDropdown(false)
+                          }}
+                          className="px-4 py-2 hover:bg-green-50 cursor-pointer border-t border-gray-200 bg-green-25"
+                        >
+                          <div className="font-medium text-green-700">
+                            + Usar "{materialSearch}" como material personalizado
+                          </div>
+                          <div className="text-xs text-green-600">
+                            Se creará un nuevo material con este nombre
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 
                 <Input
                   label="Descripción"
                   value={formData.descripcion}
                   onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
                   placeholder="Descripción del material"
+                  disabled={!!selectedMaterial}
                 />
               </div>
 
@@ -650,6 +726,7 @@ export default function Requerimientos() {
                   onChange={(e) => setFormData(prev => ({ ...prev, unidad: e.target.value }))}
                   placeholder="Ej: UND, KG, M"
                   required
+                  disabled={!!selectedMaterial}
                 />
                 
                 <Input
@@ -780,6 +857,509 @@ export default function Requerimientos() {
       </Modal>
 
       {/* Modal de importación Excel */}
+      <Modal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        title="Importar Requerimientos desde Excel"
+        size="xl"
+      >
+        <ExcelImport
+          onDataImported={handleExcelImport}
+          onError={handleImportError}
+          showPreview={true}
+          allowFileUpload={true}
+          title="Importar requerimientos desde Excel"
+        />
+      </Modal>
+    </div>
+  )
+
+  // Función para filtrar materiales basado en la búsqueda
+  const filteredMateriales = materiales.filter(material => 
+    material.codigo?.toLowerCase().includes(materialSearch.toLowerCase()) ||
+    material.nombre?.toLowerCase().includes(materialSearch.toLowerCase()) ||
+    material.descripcion?.toLowerCase().includes(materialSearch.toLowerCase())
+  ).slice(0, 10) // Limitar a 10 resultados para mejor rendimiento
+
+  // Función para manejar la selección de material
+  const handleMaterialSelect = (material: Material) => {
+    setSelectedMaterial(material)
+    setMaterialSearch(`${material.codigo} - ${material.nombre}`)
+    setFormData(prev => ({
+      ...prev,
+      material_nombre: material.nombre || '',
+      descripcion: material.descripcion || '',
+      unidad: material.unidad_medida || ''
+    }))
+    setShowMaterialDropdown(false)
+  }
+
+  // Función para limpiar la selección de material
+  const handleMaterialClear = () => {
+    setSelectedMaterial(null)
+    setMaterialSearch('')
+    setFormData(prev => ({
+      ...prev,
+      material_nombre: '',
+      descripcion: '',
+      unidad: ''
+    }))
+  }
+
+  // Función para manejar cambios en el campo de búsqueda de material
+  const handleMaterialSearchChange = (value: string) => {
+    setMaterialSearch(value)
+    setShowMaterialDropdown(true)
+    
+    // Si el usuario está escribiendo libremente, limpiar la selección
+    if (selectedMaterial && value !== `${selectedMaterial.codigo} - ${selectedMaterial.nombre}`) {
+      setSelectedMaterial(null)
+      setFormData(prev => ({
+        ...prev,
+        material_nombre: value,
+        descripcion: '',
+        unidad: ''
+      }))
+    }
+  }
+
+  // ...
+  // Agregar useEffect para cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.material-selector')) {
+        setShowMaterialDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Requerimientos</h1>
+          <p className="text-gray-600">Gestión de requerimientos de materiales</p>
+        </div>
+        <div className="flex space-x-3">
+          <Button
+            variant="outline"
+            leftIcon={<DocumentArrowUpIcon className="h-4 w-4" />}
+            onClick={() => setShowImportModal(true)}
+          >
+            Importar Excel
+          </Button>
+          <Button
+            variant="outline"
+            leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+          >
+            Exportar
+          </Button>
+          <Button
+            leftIcon={<PlusIcon className="h-4 w-4" />}
+            onClick={() => {
+              resetForm()
+              setShowModal(true)
+            }}
+          >
+            Nuevo Requerimiento
+          </Button>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium">Filtros</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<FunnelIcon className="h-4 w-4" />}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <Input
+            label="Búsqueda"
+            placeholder="N° Requerimiento, descripción, solicitante..."
+            value={filters.busqueda}
+            onChange={(e) => handleFilterChange('busqueda', e.target.value)}
+            leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
+          />
+          
+          <Input
+            label="Empresa"
+            placeholder="Filtrar por empresa"
+            value={filters.empresa}
+            onChange={(e) => handleFilterChange('empresa', e.target.value)}
+          />
+          
+          <Select
+            label="Estado"
+            value={filters.estado}
+            onChange={(e) => handleFilterChange('estado', e.target.value)}
+            options={ESTADOS_REQUERIMIENTO}
+          />
+        </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <Input
+              label="Fecha Desde"
+              type="date"
+              value={filters.fecha_desde}
+              onChange={(e) => handleFilterChange('fecha_desde', e.target.value)}
+            />
+            
+            <Input
+              label="Fecha Hasta"
+              type="date"
+              value={filters.fecha_hasta}
+              onChange={(e) => handleFilterChange('fecha_hasta', e.target.value)}
+            />
+            
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                onClick={clearFilters}
+                fullWidth
+              >
+                Limpiar Filtros
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tabla */}
+      <div className="bg-white rounded-lg shadow">
+        <Table<Requerimiento>
+          columns={columns}
+          data={requerimientos}
+          loading={loading}
+        />
+      </div>
+
+      {/* Modal de formulario */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false)
+          setEditingRequerimiento(null)
+          resetForm()
+        }}
+        title={editingRequerimiento ? 'Editar Requerimiento' : 'Nuevo Requerimiento'}
+        size="4xl"
+      >
+        <div className="max-h-[80vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Información General */}
+            <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                Información General
+              </h3>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Input
+                  label="Bloque"
+                  value={formData.bloque}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bloque: e.target.value }))}
+                  placeholder="Bloque de la obra"
+                  required
+                />
+                
+                <Input
+                  label="Empresa"
+                  value={formData.empresa}
+                  onChange={(e) => setFormData(prev => ({ ...prev, empresa: e.target.value }))}
+                  placeholder="Nombre de la empresa"
+                  required
+                />
+                
+                <Input
+                  label="Tipo"
+                  value={formData.tipo}
+                  onChange={(e) => setFormData(prev => ({ ...prev, tipo: e.target.value }))}
+                  placeholder="Tipo de requerimiento"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Input
+                  label="N° Requerimiento"
+                  value={formData.numero_requerimiento}
+                  onChange={(e) => setFormData(prev => ({ ...prev, numero_requerimiento: e.target.value }))}
+                  placeholder="Se generará automáticamente"
+                />
+                
+                <Input
+                  label="Fecha Solicitud"
+                  type="date"
+                  value={formData.fecha_solicitud}
+                  onChange={(e) => setFormData(prev => ({ ...prev, fecha_solicitud: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+                <Input
+                  label="Solicitante"
+                  value={formData.solicitante}
+                  onChange={(e) => setFormData(prev => ({ ...prev, solicitante: e.target.value }))}
+                  placeholder="Nombre del solicitante"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Sección: Material y Cantidad */}
+            <div className="bg-green-50 rounded-lg p-6 space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-green-200 pb-2">
+                Material y Cantidad
+              </h3>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Selector de Material con Autocomplete */}
+                <div className="relative material-selector">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Material <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={materialSearch}
+                      onChange={(e) => handleMaterialSearchChange(e.target.value)}
+                      onFocus={() => setShowMaterialDropdown(true)}
+                      placeholder="Buscar material por código o nombre..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                    {selectedMaterial && (
+                      <button
+                        type="button"
+                        onClick={handleMaterialClear}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Dropdown de materiales */}
+                  {showMaterialDropdown && materialSearch && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {filteredMateriales.length > 0 ? (
+                        filteredMateriales.map((material) => (
+                          <div
+                            key={material.id}
+                            onClick={() => handleMaterialSelect(material)}
+                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="font-medium text-gray-900">
+                              {material.codigo} - {material.nombre}
+                            </div>
+                            {material.descripcion && (
+                              <div className="text-sm text-gray-600 truncate">
+                                {material.descripcion}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500">
+                              Unidad: {material.unidad_medida} | Categoría: {material.categoria}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-2 text-gray-500 text-sm">
+                          No se encontraron materiales
+                        </div>
+                      )}
+                      
+                      {/* Opción para material personalizado */}
+                      {materialSearch && !selectedMaterial && (
+                        <div
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, material_nombre: materialSearch }))
+                            setShowMaterialDropdown(false)
+                          }}
+                          className="px-4 py-2 hover:bg-green-50 cursor-pointer border-t border-gray-200 bg-green-25"
+                        >
+                          <div className="font-medium text-green-700">
+                            + Usar "{materialSearch}" como material personalizado
+                          </div>
+                          <div className="text-xs text-green-600">
+                            Se creará un nuevo material con este nombre
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                <Input
+                  label="Descripción"
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+                  placeholder="Descripción del material"
+                  disabled={!!selectedMaterial}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Input
+                  label="Cantidad"
+                  type="number"
+                  value={formData.cantidad}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cantidad: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                  required
+                />
+                
+                <Input
+                  label="Unidad"
+                  value={formData.unidad}
+                  onChange={(e) => setFormData(prev => ({ ...prev, unidad: e.target.value }))}
+                  placeholder="Ej: UND, KG, M"
+                  required
+                  disabled={!!selectedMaterial}
+                />
+                
+                <Input
+                  label="Cantidad Atendida"
+                  type="number"
+                  value={formData.cantidad_atendida}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cantidad_atendida: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+
+            {/* Sección: Compras y Proveedores */}
+            <div className="bg-blue-50 rounded-lg p-6 space-y-6">
+              <h3 className="text-lg font-semibold text-gray-900 border-b border-blue-200 pb-2">
+                Compras y Proveedores
+              </h3>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Input
+                  label="Fecha Atención"
+                  type="date"
+                  value={formData.fecha_atencion}
+                  onChange={(e) => setFormData(prev => ({ ...prev, fecha_atencion: e.target.value }))}
+                />
+                
+                <Input
+                  label="Precio Unitario"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.precio_unitario}
+                  onChange={(e) => setFormData(prev => ({ ...prev, precio_unitario: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Input
+                  label="N° Solicitud de Compra"
+                  value={formData.numero_solicitud_compra}
+                  onChange={(e) => setFormData(prev => ({ ...prev, numero_solicitud_compra: e.target.value }))}
+                  placeholder="Número de solicitud de compra"
+                />
+                
+                <Input
+                  label="Orden de Compra"
+                  value={formData.orden_compra}
+                  onChange={(e) => setFormData(prev => ({ ...prev, orden_compra: e.target.value }))}
+                  placeholder="Número de orden de compra"
+                />
+                
+                <Input
+                  label="Proveedor"
+                  value={formData.proveedor}
+                  onChange={(e) => setFormData(prev => ({ ...prev, proveedor: e.target.value }))}
+                  placeholder="Nombre del proveedor"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Input
+                  label="Subtotal"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.subtotal}
+                  onChange={(e) => setFormData(prev => ({ ...prev, subtotal: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                  readOnly
+                  className="bg-gray-100"
+                />
+                
+                <Select
+                  label="Estado"
+                  value={formData.estado}
+                  onChange={(e) => setFormData(prev => ({ ...prev, estado: e.target.value as 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO' }))}
+                  options={[
+                    { value: '', label: 'Seleccionar estado' },
+                    { value: 'PENDIENTE', label: 'Pendiente' },
+                    { value: 'EN_PROCESO', label: 'En Proceso' },
+                    { value: 'ATENDIDO', label: 'Atendido' },
+                    { value: 'CANCELADO', label: 'Cancelado' }
+                  ]}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Observaciones
+                </label>
+                <textarea
+                  value={formData.observaciones}
+                  onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
+                  placeholder="Observaciones adicionales"
+                  className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Botones */}
+            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowModal(false)
+                  setEditingRequerimiento(null)
+                  resetForm()
+                }}
+                className="px-6 py-2"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                type="submit"
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {editingRequerimiento ? 'Actualizar' : 'Crear'} Requerimiento
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Modal de importación */}
       <Modal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
