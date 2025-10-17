@@ -48,24 +48,28 @@ export const requerimientosService = {
     try {
       console.log('🔄 Iniciando carga de requerimientos con filtros:', filters)
       
-      // Establecer contexto de usuario para RLS
-      await setUserContextWithMapping()
+      // DEBUGGING: Verificar conexión a Supabase
+      console.log('🔍 DEBUG - Verificando conexión a Supabase...')
       
-      // Obtener usuario actual para filtrar por obra
+      // Establecer contexto de usuario para RLS (aunque RLS esté deshabilitado)
+      try {
+        await setUserContextWithMapping()
+        console.log('✅ DEBUG - Contexto de usuario establecido')
+      } catch (contextError) {
+        console.warn('⚠️ DEBUG - Error estableciendo contexto de usuario:', contextError)
+      }
+      
+      // Obtener usuario actual
       const currentUser = localAuth.getCurrentUser()
-      const userObraId = currentUser?.obra_id
-      console.log('📊 Usuario actual obra_id:', userObraId)
+      console.log('👤 DEBUG - Usuario actual:', currentUser)
       
+      // CORRECCIÓN: No filtrar por obra_id ya que no existe en la tabla
       let query = supabase
         .from('requerimientos')
         .select('*')
         .order('fecha_solicitud', { ascending: false })
 
-      // Filtrar por obra del usuario si está asignada
-      if (userObraId) {
-        query = query.eq('obra_id', userObraId)
-        console.log('📊 Filtrando requerimientos por obra:', userObraId)
-      }
+      console.log('📊 DEBUG - Query base creada sin filtro de obra_id (campo no existe)')
 
       // Aplicar filtros usando los campos correctos de la tabla
       if (filters?.estado) {
@@ -80,34 +84,48 @@ export const requerimientosService = {
         query = query.lte('fecha_solicitud', filters.fecha_hasta)
         console.log('📅 Filtro fecha hasta:', filters.fecha_hasta)
       }
+      if (filters?.empresa) {
+        query = query.eq('empresa', filters.empresa)
+        console.log('🏢 Filtro por empresa:', filters.empresa)
+      }
+      if (filters?.bloque) {
+        query = query.eq('bloque', filters.bloque)
+        console.log('🏗️ Filtro por bloque:', filters.bloque)
+      }
 
+      console.log('🔍 DEBUG - Ejecutando query a Supabase...')
       const { data, error } = await query
 
       if (error) {
-        console.error('❌ Error de Supabase al obtener requerimientos:', error)
+        console.error('❌ ERROR de Supabase:', error)
+        console.error('❌ Código de error:', error.code)
+        console.error('❌ Mensaje:', error.message)
+        console.error('❌ Detalles:', error.details)
         throw error
       }
-      
-      console.log('📋 Datos obtenidos de Supabase:', data?.length || 0, 'requerimientos')
 
-      // Filtrar en el cliente si hay término de búsqueda
+      console.log('✅ DEBUG - Query exitosa')
+      console.log('📊 DEBUG - Número de requerimientos obtenidos:', data?.length || 0)
+      console.log('📋 DEBUG - Primeros 3 requerimientos:', data?.slice(0, 3))
+
+      // Aplicar filtro de búsqueda del lado del cliente si se especifica
       let filteredData = data || []
-      if (filters?.busqueda) {
-        const searchTerm = filters.busqueda.toLowerCase()
-        console.log('🔍 Aplicando filtro de búsqueda:', searchTerm)
+      if (filters?.search) {
+        const searchTerm = filters.search.toLowerCase()
         filteredData = filteredData.filter(req => 
           req.numero_requerimiento?.toLowerCase().includes(searchTerm) ||
-          req.solicitante?.toLowerCase().includes(searchTerm) ||
           req.descripcion?.toLowerCase().includes(searchTerm) ||
-          req.material?.toLowerCase().includes(searchTerm)
+          req.material?.toLowerCase().includes(searchTerm) ||
+          req.solicitante?.toLowerCase().includes(searchTerm)
         )
-        console.log('🔍 Resultados después del filtro de búsqueda:', filteredData.length)
+        console.log('🔍 Filtro de búsqueda aplicado:', searchTerm)
+        console.log('📊 Resultados después de búsqueda:', filteredData.length)
       }
-      
-      console.log('✅ Requerimientos cargados exitosamente:', filteredData.length)
+
       return filteredData
     } catch (error) {
-      console.error('❌ Error en getAll requerimientos:', error)
+      console.error('❌ ERROR CRÍTICO en getAll requerimientos:', error)
+      console.error('❌ Stack trace:', error.stack)
       return []
     }
   },
