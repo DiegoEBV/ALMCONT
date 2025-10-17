@@ -9,7 +9,11 @@ Cambios realizados:
 - Build PWA exitoso con 166 archivos precacheados
 - Todas las rutas usan /ALMCONT/ consistentemente
 
-DEPLOY FORZADO - GitHub Secrets configurados:
+Force deploy: 2025-01-15 - Fix production login issue for user produccion@obra.com
+- Added detailed debugging logs for Supabase connection
+- Enhanced environment variables validation
+- Added connection test on Supabase client initialization
+- GitHub Secrets verification: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be configured
 - VITE_SUPABASE_URL: Configurado en GitHub Secrets
 - VITE_SUPABASE_ANON_KEY: Configurado en GitHub Secrets
 - Forzando nuevo build para aplicar variables de entorno
