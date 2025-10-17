@@ -30,32 +30,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null)
       setLoading(true)
 
+      console.log('🔐 useAuth: Iniciando login para:', email)
+
       // Intentar autenticación con Supabase
+      console.log('🔍 useAuth: Intentando autenticación con Supabase Auth...')
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
       })
 
       if (authError) {
-        throw new Error(authError.message)
+        console.log('❌ useAuth: Error en Supabase Auth:', authError.message)
+        console.log('🔄 useAuth: Intentando autenticación local...')
+        
+        // Si falla Supabase Auth, intentar autenticación local
+        try {
+          const authUser = await localAuth.signIn(email, password)
+          console.log('✅ useAuth: Autenticación local exitosa:', authUser.email)
+          
+          const newSession = {
+            user: authUser,
+            token: 'local_token_' + Date.now(),
+            expiresAt: Date.now() + (24 * 60 * 60 * 1000)
+          }
+
+          setUser(authUser)
+          setSession(newSession)
+          return
+        } catch (localError) {
+          console.error('❌ useAuth: Error en autenticación local:', localError)
+          throw new Error('Invalid login credentials')
+        }
       }
 
       if (!data.user) {
+        console.log('❌ useAuth: No se recibieron datos de usuario de Supabase')
         throw new Error('No user data received')
       }
 
+      console.log('✅ useAuth: Autenticación Supabase exitosa para:', data.user.email)
+
       // Buscar usuario local correspondiente
+      console.log('🔍 useAuth: Buscando usuario local correspondiente...')
       const usuarios = await localAuth.getUsers()
       const localUser = usuarios.find(u => u.email === email && u.activo)
 
       if (!localUser) {
+        console.log('❌ useAuth: Usuario local no encontrado o inactivo para:', email)
+        console.log('📋 useAuth: Usuarios disponibles:', usuarios.map(u => ({ email: u.email, activo: u.activo })))
         throw new Error('Usuario no encontrado o inactivo')
       }
+
+      console.log('✅ useAuth: Usuario local encontrado:', localUser.email, 'Rol:', localUser.rol)
 
       // Cargar información de la obra si está asignada
       let obra = null
       if (localUser.obra_id) {
+        console.log('🏗️ useAuth: Cargando información de obra:', localUser.obra_id)
         obra = await loadObraInfo(localUser.obra_id)
+        if (obra) {
+          console.log('✅ useAuth: Obra cargada:', obra.nombre)
+        } else {
+          console.log('⚠️ useAuth: No se pudo cargar la obra')
+        }
       }
 
       const authUser: AuthUser = {

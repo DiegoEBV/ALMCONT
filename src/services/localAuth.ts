@@ -21,14 +21,35 @@ class LocalAuthService {
   // Iniciar sesión
   async signIn(email: string, password: string): Promise<AuthUser> {
     try {
+      console.log('🔐 localAuth: Iniciando signIn para:', email)
+      
       // Buscar usuario en la base de datos local
+      console.log('🔍 localAuth: Buscando usuario en base de datos local...')
       const usuarios = await localDB.get('usuarios')
+      console.log('📊 localAuth: Total usuarios en BD local:', usuarios.length)
+      
       const usuario = usuarios.find(u => u.email === email && u.password === password && u.activo)
 
       if (!usuario) {
+        console.log('❌ localAuth: Usuario no encontrado con credenciales válidas')
+        console.log('📋 localAuth: Usuarios disponibles:', usuarios.map(u => ({ 
+          email: u.email, 
+          activo: u.activo, 
+          hasPassword: !!u.password 
+        })))
+        
+        // Verificar si el usuario existe pero con contraseña incorrecta
+        const userExists = usuarios.find(u => u.email === email)
+        if (userExists) {
+          console.log('⚠️ localAuth: Usuario existe pero contraseña incorrecta o usuario inactivo')
+          console.log('   - Activo:', userExists.activo)
+          console.log('   - Tiene contraseña:', !!userExists.password)
+        }
+        
         throw new Error('Credenciales inválidas')
       }
 
+      console.log('✅ localAuth: Usuario encontrado:', usuario.email, 'Rol:', usuario.rol)
       // Obtener obra asignada si existe
       let obra = null
       if (usuario.obra_id) {
