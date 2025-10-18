@@ -9,11 +9,44 @@ Cambios realizados:
 - Build PWA exitoso con 166 archivos precacheados
 - Todas las rutas usan /ALMCONT/ consistentemente
 
-Force deploy: 2025-01-15 - Fix production login issue for user produccion@obra.com
-- Added detailed debugging logs for Supabase connection
-- Enhanced environment variables validation
-- Added connection test on Supabase client initialization
-- GitHub Secrets verification: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be configured
-- VITE_SUPABASE_URL: Configurado en GitHub Secrets
-- VITE_SUPABASE_ANON_KEY: Configurado en GitHub Secrets
-- Forzando nuevo build para aplicar variables de entorno
+FORCE DEPLOY - 2025-01-15 16:15:47
+
+🚨 REBUILD CRÍTICO PARA SOLUCIONAR LOGIN PRODUCCION 🚨
+
+PROBLEMA PERSISTENTE:
+- Usuario "produccion@obra.com" sigue sin poder hacer login en GitHub Pages
+- Error: "Invalid login credentials" 
+- Causa: Variables de entorno Supabase no llegan al build de producción
+
+CAMBIOS REALIZADOS EN ESTE DEPLOY:
+
+1. ✅ HEALTH CHECK CRÍTICO CREADO (public/health-check.html):
+   - Diagnóstico completo de variables de entorno
+   - Test directo de conexión Supabase con fetch API
+   - Verificación específica del usuario produccion@obra.com
+   - Detección automática de GitHub Pages
+   - Instrucciones paso a paso para configurar GitHub Secrets
+
+2. ✅ DEBUGGING AVANZADO en src/lib/supabase.ts:
+   - Logs detallados para GitHub Pages
+   - Verificación múltiple de variables (import.meta.env y process.env)
+   - Test de conexión inmediato con manejo de errores
+   - Mensajes de error específicos con soluciones
+
+3. ✅ VARIABLES DE ENTORNO CONFIRMADAS:
+   - VITE_SUPABASE_URL: https://gqhyrntdedrazmcjndhs.supabase.co
+   - VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxaHlybnRkZWRyYXptY2puZGhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMzM4MTcsImV4cCI6MjA3MDYwOTgxN30.OhT5KmCBG3JT34qbSJe0Q4XkOlNEbNS9uRXQRLC-k3Q
+
+4. ✅ WORKFLOW VERIFICADO (.github/workflows/deploy.yml):
+   - Variables de entorno correctamente configuradas en build
+   - Debug logs incluidos en el proceso de deploy
+
+ACCIONES INMEDIATAS REQUERIDAS:
+1. 🔧 Configurar GitHub Secrets en Settings → Secrets and variables → Actions
+2. 🔍 Usar health check en: https://diegoebv.github.io/ALMCONT/health-check.html
+3. 🧪 Probar login inmediatamente después del deploy
+
+USUARIO OBJETIVO: produccion@obra.com (contraseña: 123456)
+RESULTADO ESPERADO: Login exitoso en https://diegoebv.github.io/ALMCONT/
+
+Este deploy incluye herramientas de diagnóstico completas para identificar y resolver el problema de login en GitHub Pages.
