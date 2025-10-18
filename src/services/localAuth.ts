@@ -4,6 +4,7 @@ import { setSupabaseUserContext, supabase } from '../lib/supabase'
 import { mapLocalIdToUUID } from '../utils/idMapper'
 import { obrasService } from './obras'
 import { userCache } from './userCache'
+import { supabaseUsersService } from './supabaseUsersService'
 import { Usuario, AuthUser, AuthSession } from '../types'
 
 // Re-exportar tipos para uso externo
@@ -23,30 +24,55 @@ class LocalAuthService {
     try {
       console.log('🔐 localAuth: Iniciando signIn para:', email)
       
-      // Buscar usuario en la base de datos local
-      console.log('🔍 localAuth: Buscando usuario en base de datos local...')
-      const usuarios = await localDB.get('usuarios')
-      console.log('📊 localAuth: Total usuarios en BD local:', usuarios.length)
+      // PRIORIDAD 1: Buscar usuario en Supabase primero
+      console.log('🔍 localAuth: Buscando usuario en Supabase...')
+      let usuario: Usuario | null = null
       
-      const usuario = usuarios.find(u => u.email === email && u.password === password && u.activo)
-
-      if (!usuario) {
-        console.log('❌ localAuth: Usuario no encontrado con credenciales válidas')
-        console.log('📋 localAuth: Usuarios disponibles:', usuarios.map(u => ({ 
-          email: u.email, 
-          activo: u.activo, 
-          hasPassword: !!u.password 
-        })))
+      try {
+        usuario = await supabaseUsersService.getByEmail(email)
+        console.log('📊 localAuth: Usuario encontrado en Supabase:', !!usuario)
         
-        // Verificar si el usuario existe pero con contraseña incorrecta
-        const userExists = usuarios.find(u => u.email === email)
-        if (userExists) {
-          console.log('⚠️ localAuth: Usuario existe pero contraseña incorrecta o usuario inactivo')
-          console.log('   - Activo:', userExists.activo)
-          console.log('   - Tiene contraseña:', !!userExists.password)
+        if (usuario) {
+          // Verificar credenciales y estado activo
+          if (usuario.password === password && usuario.activo) {
+            console.log('✅ localAuth: Usuario válido encontrado en Supabase')
+          } else {
+            console.log('❌ localAuth: Usuario en Supabase pero credenciales inválidas o inactivo')
+            console.log('   - Activo:', usuario.activo)
+            console.log('   - Contraseña coincide:', usuario.password === password)
+            usuario = null // Invalidar usuario
+          }
         }
+      } catch (supabaseError) {
+        console.warn('⚠️ localAuth: Error consultando Supabase, intentando localDB:', supabaseError)
+      }
+      
+      // FALLBACK: Si no se encuentra en Supabase, buscar en localDB
+      if (!usuario) {
+        console.log('🔍 localAuth: Buscando usuario en base de datos local...')
+        const usuarios = await localDB.get('usuarios')
+        console.log('📊 localAuth: Total usuarios en BD local:', usuarios.length)
         
-        throw new Error('Credenciales inválidas')
+        usuario = usuarios.find(u => u.email === email && u.password === password && u.activo) || null
+
+        if (!usuario) {
+          console.log('❌ localAuth: Usuario no encontrado con credenciales válidas')
+          console.log('📋 localAuth: Usuarios disponibles:', usuarios.map(u => ({ 
+            email: u.email, 
+            activo: u.activo, 
+            hasPassword: !!u.password 
+          })))
+          
+          // Verificar si el usuario existe pero con contraseña incorrecta
+          const userExists = usuarios.find(u => u.email === email)
+          if (userExists) {
+            console.log('⚠️ localAuth: Usuario existe pero contraseña incorrecta o usuario inactivo')
+            console.log('   - Activo:', userExists.activo)
+            console.log('   - Tiene contraseña:', !!userExists.password)
+          }
+          
+          throw new Error('Usuario no encontrado o inactivo')
+        }
       }
 
       console.log('✅ localAuth: Usuario encontrado:', usuario.email, 'Rol:', usuario.rol)

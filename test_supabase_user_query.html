@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Supabase User Query - produccion@obra.com</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            background-color: #f8f9fa;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .warning {
+            border-left-color: #ffc107;
+            background-color: #fff3cd;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Test Supabase User Query</h1>
+        <div class="info">
+            <strong>Objetivo:</strong> Verificar si el usuario "produccion@obra.com" existe en la tabla usuarios de Supabase y está activo.
+            <br><strong>Problema:</strong> GitHub Pages muestra "Usuario no encontrado o inactivo" para este usuario.
+        </div>
+        
+        <button onclick="testSupabaseConnection()">🔗 Test Conexión Supabase</button>
+        <button onclick="queryUserByEmail()">👤 Buscar produccion@obra.com</button>
+        <button onclick="getAllUsers()">📋 Obtener Todos los Usuarios</button>
+        <button onclick="testRLSPolicies()">🔒 Test Políticas RLS</button>
+        <button onclick="clearResults()">🧹 Limpiar Resultados</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Configuración de Supabase
+        const SUPABASE_URL = 'https://gqhyrntdedrazmcjndhs.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxaHlybnRkZWRyYXptY2puZGhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMzM4MTcsImV4cCI6MjA3MDYwOTgxN30.OhT5KmCBG3JT34qbSJe0Q4XkOlNEbNS9uRXQRLC-k3Q';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function addResult(message, type = 'result') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testSupabaseConnection() {
+            addResult('🔗 Probando conexión a Supabase...', 'result');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('usuarios')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (error) {
+                    addResult(`❌ Error de conexión: ${error.message}`, 'error');
+                    console.error('Supabase connection error:', error);
+                } else {
+                    addResult(`✅ Conexión exitosa. Total de usuarios en tabla: ${data || 'N/A'}`, 'success');
+                }
+            } catch (err) {
+                addResult(`❌ Error de conexión: ${err.message}`, 'error');
+                console.error('Connection test error:', err);
+            }
+        }
+        
+        async function queryUserByEmail() {
+            const email = 'produccion@obra.com';
+            addResult(`🔍 Buscando usuario: ${email}`, 'result');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('usuarios')
+                    .select('*')
+                    .eq('email', email)
+                    .single();
+                
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        addResult(`❌ Usuario NO encontrado: ${email}`, 'error');
+                    } else {
+                        addResult(`❌ Error en consulta: ${error.message}`, 'error');
+                    }
+                    console.error('Query error:', error);
+                } else if (data) {
+                    addResult(`✅ Usuario ENCONTRADO:`, 'success');
+                    addResult(`<pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+                    
+                    // Verificar estado activo
+                    if (data.activo === true) {
+                        addResult(`✅ Usuario está ACTIVO`, 'success');
+                    } else {
+                        addResult(`⚠️ Usuario está INACTIVO (activo: ${data.activo})`, 'warning');
+                    }
+                } else {
+                    addResult(`❌ Usuario no encontrado (data es null)`, 'error');
+                }
+            } catch (err) {
+                addResult(`❌ Error en consulta: ${err.message}`, 'error');
+                console.error('Query user error:', err);
+            }
+        }
+        
+        async function getAllUsers() {
+            addResult('📋 Obteniendo todos los usuarios...', 'result');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('usuarios')
+                    .select('id, email, nombre, apellido, rol, activo, created_at')
+                    .order('email');
+                
+                if (error) {
+                    addResult(`❌ Error obteniendo usuarios: ${error.message}`, 'error');
+                    console.error('Get all users error:', error);
+                } else if (data && data.length > 0) {
+                    addResult(`✅ Encontrados ${data.length} usuarios:`, 'success');
+                    data.forEach((user, index) => {
+                        const status = user.activo ? '✅ Activo' : '❌ Inactivo';
+                        addResult(`${index + 1}. ${user.email} (${user.rol}) - ${status}`, 'result');
+                    });
+                    
+                    // Buscar específicamente produccion@obra.com
+                    const prodUser = data.find(u => u.email === 'produccion@obra.com');
+                    if (prodUser) {
+                        addResult(`🎯 Usuario produccion@obra.com encontrado en la lista:`, 'success');
+                        addResult(`<pre>${JSON.stringify(prodUser, null, 2)}</pre>`, 'success');
+                    } else {
+                        addResult(`❌ Usuario produccion@obra.com NO encontrado en la lista`, 'error');
+                    }
+                } else {
+                    addResult(`⚠️ No se encontraron usuarios en la tabla`, 'warning');
+                }
+            } catch (err) {
+                addResult(`❌ Error obteniendo usuarios: ${err.message}`, 'error');
+                console.error('Get all users error:', err);
+            }
+        }
+        
+        async function testRLSPolicies() {
+            addResult('🔒 Probando políticas RLS (Row Level Security)...', 'result');
+            
+            try {
+                // Test 1: Consulta sin autenticación
+                const { data: anonData, error: anonError } = await supabase
+                    .from('usuarios')
+                    .select('email')
+                    .limit(1);
+                
+                if (anonError) {
+                    addResult(`❌ RLS bloquea consultas anónimas: ${anonError.message}`, 'error');
+                } else {
+                    addResult(`✅ RLS permite consultas anónimas. Usuarios accesibles: ${anonData?.length || 0}`, 'success');
+                }
+                
+                // Test 2: Verificar si RLS está habilitado
+                addResult(`ℹ️ Según la configuración de Supabase, RLS está HABILITADO en la tabla usuarios`, 'result');
+                addResult(`ℹ️ Esto significa que pueden existir políticas que restrinjan el acceso a los datos`, 'warning');
+                
+            } catch (err) {
+                addResult(`❌ Error probando RLS: ${err.message}`, 'error');
+                console.error('RLS test error:', err);
+            }
+        }
+        
+        // Ejecutar test de conexión automáticamente al cargar
+        window.addEventListener('load', () => {
+            addResult('🚀 Página cargada. Listo para realizar pruebas.', 'result');
+        });
+    </script>
+</body>
+</html>
