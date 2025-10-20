@@ -53,6 +53,7 @@ export default function Dashboard() {
     console.log('🔐 Dashboard: User authenticated:', !!user)
     console.log('🏢 Dashboard: User obra_id:', user?.obra_id)
     console.log('👥 Dashboard: User role:', user?.rol)
+    console.log('⚠️ Dashboard: ATENCIÓN - Este es el dashboard GENERAL, no específico por rol')
     
     const loadDashboardData = async () => {
       try {

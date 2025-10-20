@@ -7,7 +7,13 @@ import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select';
 import { Checkbox } from '../components/ui/checkbox';
-import logisticsService from '../services/logisticsService';
+import { useAuth } from '../hooks/useAuth';
+import logisticsService, { 
+  DeliveryLocation, 
+  PriceComparison, 
+  FrameworkContract, 
+  OptimizedRoute 
+} from '../services/logisticsService';
 import {
   Dialog,
   DialogContent,
@@ -37,83 +43,15 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface DeliveryLocation {
-  id: string;
-  workId: string;
-  workName: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  priority: 'high' | 'medium' | 'low';
-  estimatedDeliveryTime: number;
-  materials: {
-    materialId: string;
-    materialName: string;
-    quantity: number;
-    weight: number;
-  }[];
-}
-
-interface OptimizedRoute {
-  id: string;
-  locations: DeliveryLocation[];
-  totalDistance: number;
-  estimatedTime: number;
-  vehicleCapacity: number;
-  totalWeight: number;
-  route: string[];
-  savings: {
-    distance: number;
-    time: number;
-    fuel: number;
-  };
-}
-
-interface PriceComparison {
-  materialId: string;
-  materialName: string;
-  suppliers: {
-    supplierId: string;
-    supplierName: string;
-    price: number;
-    availability: boolean;
-    deliveryTime: number;
-  }[];
-  bestPrice: number;
-  savings: number;
-}
-
-interface FrameworkContract {
-  id: string;
-  contractNumber: string;
-  supplierName: string;
-  supplierId: string;
-  startDate: string;
-  endDate: string;
-  status: 'active' | 'expired' | 'pending' | 'cancelled';
-  totalValue: number;
-  materials: {
-    materialId: string;
-    materialName: string;
-    agreedPrice: number;
-    currentMarketPrice: number;
-    savings: number;
-    quantity: number;
-  }[];
-  terms: {
-    paymentTerms: string;
-    deliveryTerms: string;
-    qualityStandards: string;
-    penalties: string;
-  };
-  performance: {
-    onTimeDelivery: number;
-    qualityScore: number;
-    complianceScore: number;
-  };
-}
+// Las interfaces ahora se importan desde logisticsService
 
 const LogisticsDashboard: React.FC = () => {
+  const { user } = useAuth()
+  
+  console.log('🚛 LogisticsDashboard: Componente inicializándose...')
+  console.log('🚛 LogisticsDashboard: Usuario:', user?.email, 'Rol:', user?.rol)
+  console.log('✅ LogisticsDashboard: Este es el dashboard ESPECÍFICO de LOGÍSTICA')
+  
   const [deliveryLocations, setDeliveryLocations] = useState<DeliveryLocation[]>([]);
   const [optimizedRoute, setOptimizedRoute] = useState<OptimizedRoute | null>(null);
   const [priceComparisons, setPriceComparisons] = useState<PriceComparison[]>([]);

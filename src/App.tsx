@@ -16,6 +16,7 @@ const LoadingSpinner = () => (
 
 // Lazy load pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const RoleBasedDashboard = lazy(() => import('./components/RoleBasedDashboard'))
 const Requerimientos = lazy(() => import('./pages/Requerimientos'))
 const SolicitudesCompra = lazy(() => import('./pages/SolicitudesCompra'))
 const OrdenesCompra = lazy(() => import('./pages/OrdenesCompra'))
@@ -64,10 +65,10 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              {/* Dashboard principal */}
+              {/* Dashboard principal - Redirige automáticamente según el rol */}
               <Route index element={
                 <Suspense fallback={<LoadingSpinner />}>
-                  <Dashboard />
+                  <RoleBasedDashboard />
                 </Suspense>
               } />
               

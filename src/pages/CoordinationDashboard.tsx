@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { httpService } from '@/services/httpService';
 import { materialesService } from '@/services/materiales';
 import { MaterialFormData } from '@/types';
+import { useAuth } from '../hooks/useAuth';
 
 interface KPIData {
   totalWorks: number;
@@ -63,11 +64,16 @@ interface DashboardMetrics {
 
 const CoordinationDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const mountedRef = useRef(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Logs de debugging para identificar el componente
+  console.log('🏢 CoordinationDashboard: Componente inicializado');
+  console.log('🏢 CoordinationDashboard: Usuario actual:', user?.email, 'Rol:', user?.role);
   
   // Material creation form state
   const [materialForm, setMaterialForm] = useState<MaterialFormData>({
