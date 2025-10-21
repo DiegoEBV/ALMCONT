@@ -44,7 +44,9 @@ export const useWebSocket = ({
         reconnection: true,
         reconnectionAttempts: maxReconnectAttempts,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000
+        reconnectionDelayMax: 5000,
+        // Configurar límites para evitar memory leaks
+        maxListeners: 10
       });
 
       socketRef.current = socket;
@@ -120,6 +122,8 @@ export const useWebSocket = ({
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
+      // Remover todos los listeners antes de desconectar
+      socketRef.current.removeAllListeners();
       socketRef.current.disconnect();
       socketRef.current = null;
     }
@@ -152,14 +156,14 @@ export const useWebSocket = ({
     return () => {
       disconnect();
     };
-  }, [autoConnect, connect, disconnect]);
+  }, [autoConnect]); // Remover connect y disconnect de las dependencias para evitar loops
 
-  // Cleanup on unmount
+  // Cleanup on unmount - SIMPLIFICADO
   useEffect(() => {
     return () => {
       disconnect();
     };
-  }, [disconnect]);
+  }, []); // Sin dependencias para evitar re-creación
 
   // Handle page visibility changes to manage connection
   useEffect(() => {

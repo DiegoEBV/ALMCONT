@@ -80,25 +80,39 @@ class LocalAuthService {
       let obra = null
       if (usuario.obra_id) {
         try {
-          // Primero intentar mapear el ID local a UUID de Supabase
-          const obraUUID = await mapLocalIdToUUID(usuario.obra_id, 'obra')
-          if (obraUUID) {
-            // Usar el UUID para obtener la obra de Supabase
-            obra = await obrasService.getById(obraUUID)
+          console.log('🏗️ localAuth: Cargando obra con ID:', usuario.obra_id)
+          
+          // Verificar si el obra_id ya es un UUID válido
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          
+          if (uuidRegex.test(usuario.obra_id)) {
+            // Es un UUID, usar directamente
+            console.log('🏗️ localAuth: obra_id es UUID válido, consultando directamente')
+            obra = await obrasService.getById(usuario.obra_id)
           } else {
-            // Fallback: intentar obtener de la base de datos local
-            console.warn(`No se pudo mapear obra_id ${usuario.obra_id} a UUID, intentando obtener localmente`)
-            const obraLocal = await localDB.getById('obras', usuario.obra_id)
-            if (obraLocal) {
-              obra = obraLocal
+            // Es un ID local, intentar mapear a UUID
+            console.log('🏗️ localAuth: obra_id es ID local, intentando mapear a UUID')
+            const obraUUID = await mapLocalIdToUUID(usuario.obra_id, 'obra')
+            if (obraUUID) {
+              console.log('🏗️ localAuth: UUID mapeado:', obraUUID)
+              obra = await obrasService.getById(obraUUID)
+            } else {
+              // Fallback: intentar obtener de la base de datos local
+              console.warn(`No se pudo mapear obra_id ${usuario.obra_id} a UUID, intentando obtener localmente`)
+              const obraLocal = await localDB.getById('obras', usuario.obra_id)
+              if (obraLocal) {
+                obra = obraLocal
+              }
             }
           }
           
-          if (!obra) {
-            console.warn(`Obra con ID ${usuario.obra_id} no encontrada`)
+          if (obra) {
+            console.log('✅ localAuth: Obra cargada exitosamente:', obra.nombre)
+          } else {
+            console.warn(`⚠️ localAuth: Obra con ID ${usuario.obra_id} no encontrada`)
           }
         } catch (error) {
-          console.error('Error obteniendo obra:', error)
+          console.error('❌ localAuth: Error obteniendo obra:', error)
           // No fallar la autenticación por este error
         }
       }

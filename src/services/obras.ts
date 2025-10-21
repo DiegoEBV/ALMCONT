@@ -19,6 +19,19 @@ export const obrasService = {
 
   async getById(id: string): Promise<Obra | null> {
     try {
+      // Validar que el ID sea un UUID válido
+      if (!id || typeof id !== 'string') {
+        console.error('Error: ID de obra inválido:', id)
+        return null
+      }
+
+      // Verificar formato UUID básico
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(id)) {
+        console.error('Error: ID de obra no es un UUID válido:', id)
+        return null
+      }
+
       const { data, error } = await supabase
         .from('obras')
         .select('*')
@@ -27,6 +40,7 @@ export const obrasService = {
       
       if (error) {
         if (error.code === 'PGRST116') return null // No rows returned
+        console.error('Error en consulta de obra:', error)
         throw error
       }
       return data

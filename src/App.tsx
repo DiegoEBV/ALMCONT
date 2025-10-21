@@ -15,7 +15,7 @@ const LoadingSpinner = () => (
 )
 
 // Lazy load pages
-const Dashboard = lazy(() => import('./pages/Dashboard'))
+
 const RoleBasedDashboard = lazy(() => import('./components/RoleBasedDashboard'))
 const Requerimientos = lazy(() => import('./pages/Requerimientos'))
 const SolicitudesCompra = lazy(() => import('./pages/SolicitudesCompra'))
@@ -35,7 +35,6 @@ const CoordinationDashboard = lazy(() => import('./pages/CoordinationDashboard')
 const LogisticsDashboard = lazy(() => import('./pages/LogisticsDashboard'))
 const WarehouseDashboard = lazy(() => import('./pages/WarehouseDashboard'))
 const AdvancedAnalytics = lazy(() => import('./pages/AdvancedAnalytics'))
-const GPSTracking = lazy(() => import('./pages/GPSTracking'))
 const GPSManagement = lazy(() => import('./pages/GPSManagement'))
 const Perfil = lazy(() => import('./pages/Perfil'))
 const AdminObras = lazy(() => import('./pages/AdminObras'))

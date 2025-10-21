@@ -326,44 +326,34 @@ const AdminUsuarios: React.FC = () => {
   };
 
   const getObraNombre = (obraId: string) => {
-    console.log('🔍 DEBUG - Buscando obra con ID:', obraId);
-    console.log('🔍 DEBUG - Obras disponibles:', obras.map(o => ({ id: o.id, nombre: o.nombre })));
+    console.log('🔍 DEBUG - getObraNombre llamado con obraId:', obraId, 'tipo:', typeof obraId);
+    console.log('🔍 DEBUG - Obras disponibles:', obras.map(o => ({ 
+      id: o.id, 
+      nombre: o.nombre, 
+      tipo_id: typeof o.id,
+      coincide: o.id === obraId 
+    })));
     
     if (!obraId) {
       console.log('🔍 DEBUG - obra_id está vacío o null');
       return 'Sin asignar';
     }
     
-    // Primero buscar por ID exacto (UUID)
-    let obra = obras.find(o => o.id === obraId);
+    // Buscar por ID exacto (UUID de Supabase)
+    const obra = obras.find(o => {
+      const coincide = o.id === obraId;
+      console.log(`🔍 DEBUG - Comparando obra.id: "${o.id}" con obraId: "${obraId}" = ${coincide}`);
+      return coincide;
+    });
     
-    // Si no se encuentra y el obraId parece ser un ID local (número), buscar por código o posición
-    if (!obra && /^\d+$/.test(obraId)) {
-      console.log('🔍 DEBUG - ID parece ser local (numérico), buscando alternativas...');
-      
-      // Intentar buscar por código que contenga el número
-      obra = obras.find(o => o.codigo && o.codigo.includes(obraId));
-      
-      // Si aún no se encuentra, intentar por posición en el array (ID local como índice)
-      if (!obra) {
-        const index = parseInt(obraId) - 1; // Asumiendo que IDs locales empiezan en 1
-        if (index >= 0 && index < obras.length) {
-          obra = obras[index];
-          console.log('🔍 DEBUG - Encontrada obra por índice:', obra);
-        }
-      }
-      
-      // Como último recurso, buscar la primera obra activa si el ID es "1"
-      if (!obra && obraId === "1") {
-        obra = obras[0]; // Tomar la primera obra disponible
-        console.log('🔍 DEBUG - Asignando primera obra disponible para ID local "1":', obra);
-      }
+    if (obra) {
+      console.log('🔍 DEBUG - Obra encontrada:', obra.nombre);
+      return obra.nombre;
     }
     
-    const resultado = obra ? obra.nombre : 'Sin asignar';
-    
-    console.log('🔍 DEBUG - Resultado búsqueda obra:', resultado);
-    return resultado;
+    console.log('🔍 DEBUG - Obra no encontrada para ID:', obraId);
+    console.log('🔍 DEBUG - Total obras disponibles:', obras.length);
+    return 'Sin asignar';
   };
 
   if (loading) {

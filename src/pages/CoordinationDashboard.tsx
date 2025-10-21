@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { coordinationService } from '../services/coordinationService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/Button';
@@ -73,7 +72,7 @@ const CoordinationDashboard: React.FC = () => {
 
   // Logs de debugging para identificar el componente
   console.log('🏢 CoordinationDashboard: Componente inicializado');
-  console.log('🏢 CoordinationDashboard: Usuario actual:', user?.email, 'Rol:', user?.role);
+  console.log('🏢 CoordinationDashboard: Usuario actual:', user?.email, 'Rol:', user?.rol);
   
   // Material creation form state
   const [materialForm, setMaterialForm] = useState<MaterialFormData>({

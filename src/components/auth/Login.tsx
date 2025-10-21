@@ -9,7 +9,7 @@ const Login: React.FC = () => {
   const { user, signIn, loading } = useAuth()
   const location = useLocation()
   const [formData, setFormData] = useState({
-    email: 'logistica@obra.com',
+    email: 'coordinador@obra.com',
     password: 'password123'
   })
   const [showPassword, setShowPassword] = useState(false)

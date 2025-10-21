@@ -3,6 +3,8 @@ import { localAuth } from '../services/localAuth'
 import { supabaseUsersService } from '../services/supabaseUsers'
 import { supabase } from '../lib/supabase'
 import { obrasService } from '../services/obras'
+import { localDB } from '../lib/localDB'
+import { mapLocalIdToUUID } from '../utils/idMapper'
 import type { AuthUser, AuthContextType, AuthSession } from '../types'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -16,8 +18,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Helper function to load obra information
   const loadObraInfo = async (obraId: string) => {
     try {
-      const obra = await obrasService.getById(obraId)
-      return obra
+      console.log('🏗️ useAuth: Cargando obra con ID:', obraId)
+      
+      // Verificar si el obra_id ya es un UUID válido
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      
+      if (uuidRegex.test(obraId)) {
+        // Es un UUID, usar directamente
+        console.log('🏗️ useAuth: obra_id es UUID válido, consultando directamente')
+        const obra = await obrasService.getById(obraId)
+        return obra
+      } else {
+        // Es un ID local, intentar mapear a UUID
+        console.log('🏗️ useAuth: obra_id es ID local, intentando mapear a UUID')
+        const obraUUID = await mapLocalIdToUUID(obraId, 'obra')
+        if (obraUUID) {
+          console.log('🏗️ useAuth: UUID mapeado:', obraUUID)
+          const obra = await obrasService.getById(obraUUID)
+          return obra
+        } else {
+          // Fallback: intentar obtener de la base de datos local
+          console.warn(`No se pudo mapear obra_id ${obraId} a UUID, intentando obtener localmente`)
+          const obraLocal = await localDB.getById('obras', obraId)
+          if (obraLocal) {
+            console.log('✅ useAuth: Obra obtenida de BD local:', obraLocal.nombre)
+            return obraLocal
+          }
+        }
+      }
+      
+      console.warn(`⚠️ useAuth: Obra con ID ${obraId} no encontrada`)
+      return null
     } catch (error) {
       console.error('Error loading obra info:', error)
       return null
@@ -281,7 +312,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     error,
     signIn: async (email: string, password: string): Promise<AuthUser> => {
-      await signIn(email, password)
+      const result = await signIn(email, password)
+      // Esperar a que el estado se actualice
+      await new Promise(resolve => setTimeout(resolve, 100))
       if (!user) throw new Error('No user after sign-in')
       return user
     },

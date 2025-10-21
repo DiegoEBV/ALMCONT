@@ -106,7 +106,12 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
           intervalRef.current = null;
         }
       } else if (document.visibilityState === 'visible' && isRealTimeActive) {
-        startRealTimeUpdates();
+        // Usar setTimeout para evitar crear intervalos inmediatamente
+        setTimeout(() => {
+          if (isMountedRef.current && isRealTimeActive) {
+            startRealTimeUpdates();
+          }
+        }, 100);
       }
     };
 
@@ -114,7 +119,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isRealTimeActive]);
+  }, [isRealTimeActive]); // Solo depender de isRealTimeActive
 
   // Funciones optimizadas con useCallback
 
@@ -228,9 +233,9 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
         } else {
           console.log('[RealTimeMetrics] Skipping update - component unmounted or document hidden');
         }
-      }, 10000); // 10 segundos
+      }, refreshInterval); // Usar refreshInterval prop en lugar de hardcoded 10000
     }
-  }, [loadRealTimeData]);
+  }, [loadRealTimeData, refreshInterval]); // Agregar refreshInterval como dependencia
 
   // Función para detener actualizaciones
   const stopRealTimeUpdates = useCallback(() => {
@@ -249,16 +254,24 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
     loadRealTimeData();
   }, [loadRealTimeData]);
 
-  // Efecto para manejar el estado de tiempo real
+  // Efecto para manejar el estado de tiempo real - SIMPLIFICADO
   useEffect(() => {
     if (isRealTimeActive) {
-      startRealTimeUpdates();
+      // Usar setTimeout para evitar crear intervalos inmediatamente en el render
+      const timeoutId = setTimeout(() => {
+        if (isMountedRef.current) {
+          startRealTimeUpdates();
+        }
+      }, 100);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        stopRealTimeUpdates();
+      };
     } else {
       stopRealTimeUpdates();
     }
-    
-    return () => stopRealTimeUpdates();
-  }, [isRealTimeActive, startRealTimeUpdates, stopRealTimeUpdates]);
+  }, [isRealTimeActive]); // Solo depender de isRealTimeActive, no de las funciones
 
   const generateRealTimeData = useCallback(async () => {
     if (!isMountedRef.current) return;
