@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 GITHUB PAGES HEALTH CHECK - Sistema de Almacén</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+        .critical-alert {
+            background: rgba(244, 67, 54, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 5px solid #ff1744;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background: rgba(76, 175, 80, 0.8); }
+        .error { background: rgba(244, 67, 54, 0.8); }
+        .warning { background: rgba(255, 152, 0, 0.8); }
+        .info { background: rgba(33, 150, 243, 0.8); }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        .test-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #45a049;
+        }
+        .test-button.critical {
+            background: #f44336;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .login-test {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 300px;
+        }
+        .login-form input {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .github-secrets {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 GITHUB PAGES HEALTH CHECK</h1>
+        
+        <div class="critical-alert">
+            <h2>⚠️ PROBLEMA CRÍTICO DETECTADO</h2>
+            <p><strong>El usuario "produccion@obra.com" NO puede hacer login en GitHub Pages</strong></p>
+            <p>Causa probable: Variables de entorno de Supabase no configuradas en GitHub Secrets</p>
+        </div>
+
+        <div class="github-secrets">
+            <h3>🔧 SOLUCIÓN INMEDIATA - Configurar GitHub Secrets</h3>
+            <p><strong>1. Ve a tu repositorio → Settings → Secrets and variables → Actions</strong></p>
+            <p><strong>2. Agrega estos secrets EXACTAMENTE:</strong></p>
+            <ul>
+                <li><code>VITE_SUPABASE_URL</code> = <code>https://gqhyrntdedrazmcjndhs.supabase.co</code></li>
+                <li><code>VITE_SUPABASE_ANON_KEY</code> = <code>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxaHlybnRkZWRyYXptY2puZGhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMzM4MTcsImV4cCI6MjA3MDYwOTgxN30.OhT5KmCBG3JT34qbSJe0Q4XkOlNEbNS9uRXQRLC-k3Q</code></li>
+            </ul>
+            <p><strong>3. Haz un commit para forzar nuevo deploy</strong></p>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔍 Variables de Entorno</h2>
+            <div id="env-status"></div>
+            <button class="test-button critical" onclick="checkEnvironment()">🚨 VERIFICAR VARIABLES CRÍTICAS</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🔗 Conexión a Supabase</h2>
+            <div id="connection-status"></div>
+            <button class="test-button" onclick="testConnection()">Probar Conexión</button>
+        </div>
+
+        <div class="test-section">
+            <h2>👥 Verificar Usuario Producción</h2>
+            <div id="users-status"></div>
+            <button class="test-button" onclick="testUsers()">Verificar Usuario produccion@obra.com</button>
+        </div>
+
+        <div class="login-test">
+            <h2>🔐 TEST CRÍTICO - Login Producción</h2>
+            <div class="login-form">
+                <input type="email" id="email" value="produccion@obra.com" placeholder="Email" readonly>
+                <input type="password" id="password" value="123456" placeholder="Contraseña" readonly>
+                <button class="test-button critical" onclick="testLogin()">🚨 PROBAR LOGIN CRÍTICO</button>
+            </div>
+            <div id="login-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Logs del Sistema</h2>
+            <button class="test-button" onclick="clearLogs()">Limpiar Logs</button>
+            <button class="test-button" onclick="exportLogs()">Exportar Logs</button>
+            <pre id="system-logs"></pre>
+        </div>
+    </div>
+
+    <script type="module">
+        // Intentar importar desde CDN con fallback
+        let supabase = null;
+        let logs = [];
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            logs.push(logEntry);
+            console.log(logEntry);
+            updateLogsDisplay();
+        }
+
+        function updateLogsDisplay() {
+            document.getElementById('system-logs').textContent = logs.slice(-30).join('\n');
+        }
+
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Función para detectar si estamos en GitHub Pages
+        function isGitHubPages() {
+            return window.location.hostname.includes('github.io');
+        }
+
+        window.checkEnvironment = function() {
+            addLog('🔍 VERIFICANDO VARIABLES DE ENTORNO CRÍTICAS...');
+            
+            const isGH = isGitHubPages();
+            addLog(`Entorno detectado: ${isGH ? 'GITHUB PAGES' : 'LOCAL/OTRO'}`, isGH ? 'warning' : 'info');
+            
+            // Intentar acceder a las variables de diferentes maneras
+            let supabaseUrl, supabaseKey;
+            
+            // Método 1: import.meta.env (Vite)
+            try {
+                supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+                supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+                addLog('Método 1 (import.meta.env): ' + (supabaseUrl ? 'URL encontrada' : 'URL no encontrada'));
+            } catch (e) {
+                addLog('Método 1 falló: ' + e.message, 'warning');
+            }
+            
+            // Método 2: process.env (fallback)
+            if (!supabaseUrl && typeof process !== 'undefined') {
+                try {
+                    supabaseUrl = process.env?.VITE_SUPABASE_URL;
+                    supabaseKey = process.env?.VITE_SUPABASE_ANON_KEY;
+                    addLog('Método 2 (process.env): ' + (supabaseUrl ? 'URL encontrada' : 'URL no encontrada'));
+                } catch (e) {
+                    addLog('Método 2 falló: ' + e.message, 'warning');
+                }
+            }
+            
+            let status = '';
+            let type = 'success';
+            
+            if (!supabaseUrl) {
+                status += '🚨 CRÍTICO: VITE_SUPABASE_URL NO DEFINIDA<br>';
+                status += '❌ Esto impide la conexión a Supabase<br>';
+                type = 'error';
+                addLog('CRÍTICO: VITE_SUPABASE_URL no está definida', 'error');
+            } else {
+                status += `✅ VITE_SUPABASE_URL: ${supabaseUrl}<br>`;
+                addLog(`VITE_SUPABASE_URL encontrada: ${supabaseUrl}`, 'success');
+            }
+            
+            if (!supabaseKey) {
+                status += '🚨 CRÍTICO: VITE_SUPABASE_ANON_KEY NO DEFINIDA<br>';
+                status += '❌ Esto impide la autenticación<br>';
+                type = 'error';
+                addLog('CRÍTICO: VITE_SUPABASE_ANON_KEY no está definida', 'error');
+            } else {
+                status += `✅ VITE_SUPABASE_ANON_KEY: ${supabaseKey.substring(0, 50)}...<br>`;
+                addLog(`VITE_SUPABASE_ANON_KEY encontrada: ${supabaseKey.length} caracteres`, 'success');
+            }
+            
+            status += `🌍 Entorno: ${import.meta.env?.MODE || 'unknown'}<br>`;
+            status += `🔗 URL actual: ${window.location.href}<br>`;
+            status += `📍 GitHub Pages: ${isGH ? 'SÍ' : 'NO'}<br>`;
+            
+            if (isGH && (!supabaseUrl || !supabaseKey)) {
+                status += '<br>🚨 <strong>ACCIÓN REQUERIDA PARA GITHUB PAGES:</strong><br>';
+                status += '1. Ve a Settings → Secrets and variables → Actions<br>';
+                status += '2. Agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY<br>';
+                status += '3. Haz un commit para forzar nuevo deploy<br>';
+            }
+            
+            if (supabaseUrl && supabaseKey) {
+                try {
+                    // Intentar crear cliente Supabase
+                    // Como no podemos importar dinámicamente aquí, usaremos fetch directo
+                    status += '✅ Variables disponibles para crear cliente Supabase';
+                    addLog('Variables disponibles para crear cliente Supabase', 'success');
+                } catch (error) {
+                    status += `❌ Error preparando cliente: ${error.message}`;
+                    type = 'error';
+                    addLog(`Error preparando cliente: ${error.message}`, 'error');
+                }
+            }
+            
+            showStatus('env-status', status, type);
+        }
+
+        window.testConnection = async function() {
+            addLog('🔄 PROBANDO CONEXIÓN DIRECTA A SUPABASE...');
+            
+            const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+            const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+            
+            if (!supabaseUrl || !supabaseKey) {
+                showStatus('connection-status', '❌ No se puede probar conexión: Variables no definidas', 'error');
+                addLog('Error: Variables de Supabase no definidas', 'error');
+                return;
+            }
+            
+            try {
+                // Test directo con fetch API
+                const response = await fetch(`${supabaseUrl}/rest/v1/usuarios?select=count`, {
+                    method: 'HEAD',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const count = response.headers.get('Content-Range')?.split('/')[1] || 'unknown';
+                    showStatus('connection-status', `✅ Conexión exitosa a Supabase. Usuarios: ${count}`, 'success');
+                    addLog(`Conexión exitosa. Usuarios en BD: ${count}`, 'success');
+                } else {
+                    showStatus('connection-status', `❌ Error HTTP ${response.status}: ${response.statusText}`, 'error');
+                    addLog(`Error HTTP ${response.status}: ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showStatus('connection-status', `❌ Error de red: ${error.message}`, 'error');
+                addLog(`Error de red: ${error.message}`, 'error');
+            }
+        }
+
+        window.testUsers = async function() {
+            addLog('👥 VERIFICANDO USUARIO PRODUCCION...');
+            
+            const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+            const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+            
+            if (!supabaseUrl || !supabaseKey) {
+                showStatus('users-status', '❌ Variables no definidas', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/usuarios?email=eq.produccion@obra.com`, {
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const users = await response.json();
+                    if (users.length > 0) {
+                        const user = users[0];
+                        const status = `✅ Usuario produccion@obra.com encontrado:<br>
+                                      📧 Email: ${user.email}<br>
+                                      👤 Rol: ${user.rol}<br>
+                                      ✅ Activo: ${user.activo ? 'SÍ' : 'NO'}<br>
+                                      🆔 ID: ${user.id}`;
+                        showStatus('users-status', status, user.activo ? 'success' : 'warning');
+                        addLog(`Usuario encontrado: ${user.email}, activo: ${user.activo}`, user.activo ? 'success' : 'warning');
+                    } else {
+                        showStatus('users-status', '❌ Usuario produccion@obra.com NO ENCONTRADO en la base de datos', 'error');
+                        addLog('Usuario produccion@obra.com NO ENCONTRADO', 'error');
+                    }
+                } else {
+                    showStatus('users-status', `❌ Error consultando usuarios: HTTP ${response.status}`, 'error');
+                    addLog(`Error consultando usuarios: HTTP ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showStatus('users-status', `❌ Error: ${error.message}`, 'error');
+                addLog(`Error verificando usuarios: ${error.message}`, 'error');
+            }
+        }
+
+        window.testLogin = async function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            addLog(`🔐 PROBANDO LOGIN CRÍTICO: ${email}`);
+            
+            const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
+            const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+            
+            if (!supabaseUrl || !supabaseKey) {
+                showStatus('login-status', '❌ No se puede probar login: Variables no definidas', 'error');
+                addLog('Error: No se puede probar login sin variables de Supabase', 'error');
+                return;
+            }
+            
+            try {
+                // Test 1: Supabase Auth
+                addLog('Probando Supabase Auth...');
+                const authResponse = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                if (authResponse.ok) {
+                    const authData = await authResponse.json();
+                    showStatus('login-status', `✅ LOGIN EXITOSO con Supabase Auth: ${email}`, 'success');
+                    addLog(`LOGIN EXITOSO con Supabase Auth: ${email}`, 'success');
+                    return;
+                }
+                
+                addLog(`Supabase Auth falló (${authResponse.status}), probando búsqueda directa...`, 'warning');
+                
+                // Test 2: Búsqueda directa en tabla
+                const userResponse = await fetch(`${supabaseUrl}/rest/v1/usuarios?email=eq.${email}&activo=eq.true`, {
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (userResponse.ok) {
+                    const users = await userResponse.json();
+                    if (users.length > 0) {
+                        showStatus('login-status', `✅ Usuario encontrado en BD (sin auth): ${users[0].email} (${users[0].rol})`, 'success');
+                        addLog(`Usuario encontrado en BD: ${users[0].email}`, 'success');
+                    } else {
+                        showStatus('login-status', '❌ Usuario no encontrado o inactivo en BD', 'error');
+                        addLog('Usuario no encontrado o inactivo en BD', 'error');
+                    }
+                } else {
+                    showStatus('login-status', `❌ Error consultando BD: HTTP ${userResponse.status}`, 'error');
+                    addLog(`Error consultando BD: HTTP ${userResponse.status}`, 'error');
+                }
+                
+            } catch (error) {
+                showStatus('login-status', `❌ Error en login: ${error.message}`, 'error');
+                addLog(`Error en login: ${error.message}`, 'error');
+            }
+        }
+
+        window.clearLogs = function() {
+            logs = [];
+            updateLogsDisplay();
+            addLog('Logs limpiados');
+        }
+
+        window.exportLogs = function() {
+            const logText = logs.join('\n');
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `github-pages-health-check-${new Date().toISOString().slice(0, 19)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            addLog('Logs exportados');
+        }
+
+        // Inicialización automática
+        addLog('🚨 GITHUB PAGES HEALTH CHECK INICIADO');
+        addLog(`URL actual: ${window.location.href}`);
+        addLog(`GitHub Pages: ${isGitHubPages() ? 'DETECTADO' : 'NO DETECTADO'}`);
+        
+        // Ejecutar verificación automática
+        setTimeout(() => {
+            checkEnvironment();
+        }, 1000);
+    </script>
+</body>
+</html>
