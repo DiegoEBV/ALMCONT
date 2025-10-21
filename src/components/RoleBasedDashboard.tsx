@@ -53,7 +53,7 @@ const RoleBasedDashboard: React.FC = () => {
       return <Navigate to="/produccion/dashboard" replace />
     
     default:
-      console.log('⚠️ RoleBasedDashboard: Rol desconocido, manteniendo en dashboard general')
+      { console.log('⚠️ RoleBasedDashboard: Rol desconocido, manteniendo en dashboard general')
       // Para roles desconocidos o como fallback, mantener el dashboard general
       const Dashboard = React.lazy(() => import('../pages/Dashboard'))
       return (
@@ -64,7 +64,7 @@ const RoleBasedDashboard: React.FC = () => {
         }>
           <Dashboard />
         </React.Suspense>
-      )
+      ) }
   }
 }
 
