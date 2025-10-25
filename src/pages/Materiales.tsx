@@ -115,23 +115,37 @@ const Materiales: React.FC = () => {
   }, [materiales])
 
   // Handlers optimizados con useCallback
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'precio_referencial' || name === 'precio_unitario' || name === 'stock_minimo' || name === 'stock_maximo' 
-        ? parseFloat(value) || 0 
+      [name]: name === 'precio_referencial' || name === 'precio_unitario' || name === 'stock_minimo' || name === 'stock_maximo'
+        ? parseFloat(value) || 0
         : value
     }))
   }, [])
 
-  const handleFieldChange = useCallback((field: string, value: string | number) => {
+  const handleFieldChange = useCallback(async (field: string, value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: field === 'precio_referencial' || field === 'precio_unitario' || field === 'stock_minimo' || field === 'stock_maximo'
-        ? parseFloat(value.toString()) || 0 
+        ? (typeof value === 'string' ? parseFloat(value) || 0 : value)
         : value
     }))
+
+    // Generar código automáticamente cuando se selecciona una categoría
+    if (field === 'categoria' && typeof value === 'string' && value) {
+      try {
+        const generatedCode = await materialesService.generateMaterialCode(value)
+        setFormData(prev => ({
+          ...prev,
+          codigo: generatedCode
+        }))
+      } catch (error) {
+        console.error('Error generando código:', error)
+        toast.error('Error al generar código automático')
+      }
+    }
   }, [])
 
   const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,7 +206,19 @@ const Materiales: React.FC = () => {
       loadMateriales(currentPage)
     } catch (error) {
       console.error('Error al eliminar material:', error)
-      toast.error('Error al eliminar material')
+      
+      // Mostrar mensaje de error específico basado en el tipo de error
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al eliminar material'
+      
+      if (errorMessage.includes('requerimientos existentes')) {
+        toast.error('No se puede eliminar: El material está siendo usado en requerimientos existentes')
+      } else if (errorMessage.includes('stock disponible')) {
+        toast.error('No se puede eliminar: El material tiene stock disponible en una o más obras')
+      } else if (errorMessage.includes('verificar dependencias') || errorMessage.includes('verificar stock')) {
+        toast.error('Error al verificar dependencias del material. Intente nuevamente.')
+      } else {
+        toast.error(`Error al eliminar material: ${errorMessage}`)
+      }
     }
   }, [currentPage, loadMateriales])
 
@@ -438,20 +464,19 @@ const Materiales: React.FC = () => {
       >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {formData.codigo && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Código (Generado automáticamente)
-                </label>
-                <Input
-                  value={formData.codigo}
-                  readOnly
-                  className="bg-gray-50"
-                  placeholder="Se generará automáticamente"
-                />
-              </div>
-            )}
-            <div className={formData.codigo ? '' : 'col-span-2'}>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Código (Generado automáticamente)
+              </label>
+              <Input
+                name="codigo"
+                value={formData.codigo}
+                readOnly
+                className="bg-gray-50"
+                placeholder="Se generará al seleccionar categoría"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Nombre *
               </label>

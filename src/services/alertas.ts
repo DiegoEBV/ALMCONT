@@ -11,7 +11,7 @@ export const alertasService = {
         .from('alertas')
         .select('*')
         .eq('usuario_id', usuarioId)
-        .order('created_at', { ascending: false })
+        .order('fecha_creacion', { ascending: false })
       
       if (limit) {
         query = query.limit(limit)
@@ -40,7 +40,7 @@ export const alertasService = {
         .select('*')
         .eq('usuario_id', usuarioId)
         .eq('leida', false)
-        .order('created_at', { ascending: false })
+        .order('fecha_creacion', { ascending: false })
       
       if (error) throw error
       return data || []
@@ -75,9 +75,7 @@ export const alertasService = {
         .insert({
           ...alertaData,
           leida: false,
-          fecha_creacion: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          fecha_creacion: new Date().toISOString()
         })
         .select()
         .single()
@@ -96,9 +94,7 @@ export const alertasService = {
       const { data, error } = await supabase
         .from('alertas')
         .update({
-          leida: true,
-          fecha_lectura: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          leida: true
         })
         .eq('id', id)
         .select()
@@ -118,9 +114,7 @@ export const alertasService = {
       const { error } = await supabase
         .from('alertas')
         .update({
-          leida: true,
-          fecha_lectura: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          leida: true
         })
         .eq('usuario_id', usuarioId)
         .eq('leida', false)
@@ -205,7 +199,7 @@ export const alertasService = {
       const { error } = await supabase
         .from('alertas')
         .delete()
-        .lt('created_at', fechaLimite.toISOString())
+        .lt('fecha_creacion', fechaLimite.toISOString())
       
       if (error) throw error
       console.log('✅ Alertas antiguas limpiadas')

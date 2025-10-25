@@ -17,6 +17,23 @@ export interface MaterialesResponse {
   totalPages: number
 }
 
+// Mapeo de categorías a prefijos de código
+const CATEGORY_PREFIXES: Record<string, string> = {
+  'Acero': 'ACE',
+  'Madera': 'MAD',
+  'Consumible': 'CON',
+  'Alambre': 'ALA',
+  'Aditivos': 'ADI',
+  'Cemento': 'CEM',
+  'Agregados': 'AGR',
+  'Herramientas': 'HER',
+  'Equipos': 'EQU',
+  'Pinturas': 'PIN',
+  'Electricidad': 'ELE',
+  'Plomería': 'PLO',
+  'Otros': 'OTR'
+}
+
 class MaterialesService {
   async getAll(query: MaterialesQuery = {}): Promise<MaterialesResponse> {
     const { page = 1, limit = 50, search, categoria, activo } = query
@@ -201,6 +218,50 @@ class MaterialesService {
   }
 
   async delete(id: string): Promise<void> {
+    // Verificar si el material está siendo usado en requerimientos
+    const { data: requerimientoItems, error: reqError } = await supabase
+      .from('requerimiento_items')
+      .select('id')
+      .eq('material_id', id)
+      .limit(1)
+
+    if (reqError) {
+      throw new Error(`Error al verificar dependencias: ${reqError.message}`)
+    }
+
+    if (requerimientoItems && requerimientoItems.length > 0) {
+      throw new Error('No se puede eliminar el material porque está siendo usado en requerimientos existentes')
+    }
+
+    // Verificar si el material está en stock de alguna obra
+    const { data: stockItems, error: stockError } = await supabase
+      .from('stock_obra_material')
+      .select('id, stock_actual')
+      .eq('material_id', id)
+      .limit(1)
+
+    if (stockError) {
+      throw new Error(`Error al verificar stock: ${stockError.message}`)
+    }
+
+    if (stockItems && stockItems.length > 0) {
+      const hasStock = stockItems.some(item => item.stock_actual > 0)
+      if (hasStock) {
+        throw new Error('No se puede eliminar el material porque tiene stock disponible en una o más obras')
+      } else {
+        // Si no hay stock, eliminar primero los registros de stock_obra_material
+        const { error: deleteStockError } = await supabase
+          .from('stock_obra_material')
+          .delete()
+          .eq('material_id', id)
+
+        if (deleteStockError) {
+          throw new Error(`Error al limpiar registros de stock: ${deleteStockError.message}`)
+        }
+      }
+    }
+
+    // Proceder con la eliminación del material
     const { error } = await supabase
       .from('materiales')
       .delete()
@@ -242,6 +303,46 @@ class MaterialesService {
       console.log('Datos críticos pre-cargados exitosamente')
     } catch (error) {
       console.error('Error al pre-cargar datos críticos:', error)
+    }
+  }
+
+  /**
+   * Genera automáticamente un código para un material basado en su categoría
+   */
+  async generateMaterialCode(categoria: string): Promise<string> {
+    try {
+      // Obtener el prefijo para la categoría
+      const prefix = CATEGORY_PREFIXES[categoria] || 'OTR'
+      
+      // Buscar el último código usado para esta categoría
+      const { data: lastMaterial, error } = await supabase
+        .from('materiales')
+        .select('codigo')
+        .like('codigo', `${prefix}%`)
+        .order('codigo', { ascending: false })
+        .limit(1)
+        .single()
+
+      let nextNumber = 1
+
+      if (!error && lastMaterial?.codigo) {
+        // Extraer el número del último código
+        const lastNumber = parseInt(lastMaterial.codigo.replace(prefix, ''))
+        if (!isNaN(lastNumber)) {
+          nextNumber = lastNumber + 1
+        }
+      }
+
+      // Formatear el número con ceros a la izquierda (3 dígitos)
+      const formattedNumber = nextNumber.toString().padStart(3, '0')
+      
+      return `${prefix}${formattedNumber}`
+    } catch (error) {
+      console.error('Error generando código de material:', error)
+      // En caso de error, generar un código con timestamp
+      const timestamp = Date.now().toString().slice(-3)
+      const prefix = CATEGORY_PREFIXES[categoria] || 'OTR'
+      return `${prefix}${timestamp}`
     }
   }
 }

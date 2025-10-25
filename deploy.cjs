@@ -1,27 +1,34 @@
 const ghpages = require('gh-pages');
 const path = require('path');
-const fs = require('fs');
 
-// Try alternative approach: use gh-pages with minimal configuration
+// Configure gh-pages with Windows-specific options
 const options = {
-  dotfiles: true,
   branch: 'gh-pages',
-  user: {
-    name: 'gh-pages',
-    email: 'gh-pages@users.noreply.github.com'
-  },
-  // Try without specifying dest to avoid path issues
-  silent: false
+  dest: '.',
+  dotfiles: true,
+  nojekyll: true,
+  history: false,
+  // Use shorter temporary directory name to avoid path length issues
+  repo: undefined, // Will use origin by default
+  silent: false,
+  // Additional Windows-specific configurations
+  git: 'git',
+  clone: path.join(require('os').tmpdir(), 'gh-tmp'),
+  push: true,
+  message: 'Deploy',
+  // Force clean deployment
+  remove: '**/*'
 };
 
-console.log('Deploying to GitHub Pages...');
+console.log('Starting deployment to GitHub Pages...');
+console.log('Build directory:', path.resolve('dist'));
 
 ghpages.publish('dist', options, function(err) {
   if (err) {
     console.error('Deployment failed:', err);
     process.exit(1);
   } else {
-    console.log('Deployment successful!');
+    console.log('Successfully deployed to GitHub Pages!');
     process.exit(0);
   }
 });
