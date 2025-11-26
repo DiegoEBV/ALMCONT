@@ -80,20 +80,47 @@ class ExcelService {
   }
 
   /**
-   * Lee el archivo Excel específico de assets (reqprueb.xlsx)
+   * Lee el archivo Excel específico de assets (reqprueb.xlsx) con fallback a JSON
    */
   async readRequirementsExcel(): Promise<ExcelImportResult> {
     try {
-      // Importar el archivo desde assets
-      const excelUrl = '/src/assets/reqprueb.xlsx'
+      const excelUrl = new URL('../assets/reqprueb.xlsx', import.meta.url).toString()
       return await this.readExcelFile(excelUrl)
     } catch (error) {
-      console.error('Error al leer archivo de requerimientos:', error)
-      return {
-        data: [],
-        headers: [],
-        totalRows: 0,
-        errors: [`Error al cargar archivo de requerimientos: ${error instanceof Error ? error.message : 'Error desconocido'}`]
+      try {
+        const jsonUrl = new URL('../assets/reqprueb.json', import.meta.url).toString()
+        const response = await fetch(jsonUrl)
+        const json = await response.json()
+        if (!Array.isArray(json) || json.length === 0) {
+          return {
+            data: [],
+            headers: [],
+            totalRows: 0,
+            errors: ['El archivo de datos en JSON está vacío o es inválido']
+          }
+        }
+        const headers = Object.keys(json[0])
+        const data: ExcelData[] = json.map((row: Record<string, unknown>, index: number) => {
+          const obj: ExcelData = {}
+          headers.forEach(h => {
+            obj[h] = row[h] as string | number | Date | undefined
+          })
+          obj._rowIndex = index + 2
+          return obj
+        })
+        return {
+          data,
+          headers,
+          totalRows: data.length,
+          errors: []
+        }
+      } catch (e) {
+        return {
+          data: [],
+          headers: [],
+          totalRows: 0,
+          errors: ['No se pudo cargar reqprueb.xlsx ni reqprueb.json']
+        }
       }
     }
   }

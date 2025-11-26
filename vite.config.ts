@@ -16,7 +16,28 @@ export default defineConfig({
       output: {
         assetFileNames: 'assets/[name]-[hash].[ext]',
         chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js'
+        entryFileNames: 'assets/[name]-[hash].js',
+        manualChunks: {
+          vendor: [
+            'react',
+            'react-dom',
+            'react-router-dom'
+          ],
+          supabase: ['@supabase/supabase-js'],
+          charts: ['chart.js', 'react-chartjs-2', 'recharts'],
+          maps: ['leaflet', 'react-leaflet'],
+          grapesjs: [
+            'grapesjs',
+            'grapesjs-preset-webpage',
+            'grapesjs-preset-newsletter',
+            'grapesjs-plugin-forms',
+            'grapesjs-blocks-basic',
+            'grapesjs-style-bg',
+            'grapesjs-typed',
+            'grapesjs-tui-image-editor',
+            'grapesjs-plugin-export'
+          ]
+        }
       }
     }
   },

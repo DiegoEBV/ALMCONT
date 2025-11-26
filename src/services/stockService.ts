@@ -206,7 +206,7 @@ export const stockService = {
         .select(`
           *,
           obras:obra_id(nombre),
-          materiales:material_id(nombre, categoria, unidad_medida)
+          materiales:material_id(codigo, descripcion, nombre, categoria, unidad)
         `);
   
       // Aplicar filtro de obra si se proporciona y es válido
@@ -303,127 +303,110 @@ export const stockService = {
       
       const movimientos: KardexMovimiento[] = [];
       
-      // Obtener entradas si no se especifica tipo o si es 'ENTRADA'
+      // Obtener entradas sin joins automáticos
       if (!tipoMovimiento || tipoMovimiento === 'ENTRADA') {
         console.log('📥 Consultando entrada_items...');
-        
         let entradaQuery = supabase
           .from('entrada_items')
-          .select(`
-            *,
-            entradas:entrada_id(fecha_entrada, numero_entrada, obra_id, observaciones, obras:obra_id(nombre)),
-            materiales:material_id(nombre, unidad_medida),
-            usuarios:entradas(recibido_por(nombre))
-          `);
-      
-        if (sanitizedMaterialId) {
-          entradaQuery = entradaQuery.eq('material_id', sanitizedMaterialId);
-        }
-      
-        const { data: entradas, error: entradaError } = await entradaQuery;
-      
-        if (entradaError) {
-          console.error('❌ Error consultando entrada_items:', entradaError);
-        } else {
-          console.log('✅ Entrada items obtenidos:', entradas?.length || 0);
-          
-          if (entradas) {
-            for (const entrada of entradas) {
-              // Filtrar por obra si se especifica
-              if (sanitizedObraId && entrada.entradas?.obra_id !== sanitizedObraId) {
-                continue;
-              }
-      
-              // Filtrar por fechas si se especifican
-              if (fechaInicio && entrada.entradas?.fecha_entrada && entrada.entradas.fecha_entrada < fechaInicio) {
-                continue;
-              }
-              if (fechaFin && entrada.entradas?.fecha_entrada && entrada.entradas.fecha_entrada > fechaFin) {
-                continue;
-              }
-      
-              const movimiento: KardexMovimiento = {
-                id: entrada.id,
-                material_id: entrada.material_id,
-                obra_id: entrada.entradas?.obra_id || '',
-                tipo_movimiento: 'ENTRADA',
-                cantidad: entrada.cantidad_recibida || entrada.cantidad_aceptada || 0,
-                cantidad_anterior: 0, // Se calculará después
-                cantidad_nueva: 0, // Se calculará después
-                fecha_movimiento: entrada.entradas?.fecha_entrada || '',
-                referencia: entrada.entradas?.numero_entrada || '',
-                observaciones: entrada.entradas?.observaciones || entrada.observaciones || '',
-                usuario_id: entrada.entradas?.recibido_por || '',
-                material: entrada.materiales,
-                obra: entrada.entradas?.obras,
-                usuario: entrada.usuarios
-              };
-      
-              movimientos.push(movimiento);
-            }
+          .select('id, entrada_id, material_id, cantidad_recibida, cantidad_aceptada, observaciones');
+        if (sanitizedMaterialId) entradaQuery = entradaQuery.eq('material_id', sanitizedMaterialId);
+        const { data: entradaItems, error: entradaError } = await entradaQuery;
+        if (!entradaError && entradaItems && entradaItems.length > 0) {
+          const entradaIds = Array.from(new Set(entradaItems.map(e => e.entrada_id).filter(Boolean)));
+          const materialIds = Array.from(new Set(entradaItems.map(e => e.material_id).filter(Boolean)));
+          const { data: entradasData } = await supabase
+            .from('entradas')
+            .select('id, fecha_entrada, numero_entrada, obra_id, observaciones, recibido_por');
+          const entradasMap = new Map((entradasData || []).map(e => [e.id, e]));
+          const { data: materialesData } = await supabase
+            .from('materiales')
+            .select('id, nombre, unidad_medida')
+            .in('id', materialIds);
+          const materialesMap = new Map((materialesData || []).map(m => [m.id, m]));
+          const obraIds = Array.from(new Set((entradasData || []).map(e => e.obra_id).filter(Boolean)));
+          const { data: obrasData } = await supabase
+            .from('obras')
+            .select('id, nombre, codigo')
+            .in('id', obraIds);
+          const obrasMap = new Map((obrasData || []).map(o => [o.id, o]));
+          for (const item of entradaItems) {
+            const entrada = entradasMap.get(item.entrada_id);
+            if (!entrada) continue;
+            if (sanitizedObraId && entrada.obra_id !== sanitizedObraId) continue;
+            if (fechaInicio && entrada.fecha_entrada && entrada.fecha_entrada < fechaInicio) continue;
+            if (fechaFin && entrada.fecha_entrada && entrada.fecha_entrada > fechaFin) continue;
+            movimientos.push({
+              id: item.id,
+              material_id: item.material_id,
+              obra_id: entrada.obra_id || '',
+              tipo_movimiento: 'ENTRADA',
+              cantidad: item.cantidad_recibida || item.cantidad_aceptada || 0,
+              cantidad_anterior: 0,
+              cantidad_nueva: 0,
+              fecha_movimiento: entrada.fecha_entrada || '',
+              referencia: entrada.numero_entrada || '',
+              observaciones: entrada.observaciones || item.observaciones || '',
+              usuario_id: entrada.recibido_por || '',
+              material: materialesMap.get(item.material_id) as any,
+              obra: obrasMap.get(entrada.obra_id || '') as any
+            });
           }
+        } else if (entradaError) {
+          console.error('❌ Error consultando entrada_items:', entradaError);
         }
       }
       
       // Obtener salidas si no se especifica tipo o si es 'SALIDA'
       if (!tipoMovimiento || tipoMovimiento === 'SALIDA') {
         console.log('📤 Consultando salida_items...');
-        
         let salidaQuery = supabase
           .from('salida_items')
-          .select(`
-            *,
-            salidas:salida_id(fecha_salida, numero_salida, obra_id, observaciones, obras:obra_id(nombre)),
-            materiales:material_id(nombre, unidad_medida),
-            usuarios:salidas(solicitado_por(nombre))
-          `);
-      
-        if (sanitizedMaterialId) {
-          salidaQuery = salidaQuery.eq('material_id', sanitizedMaterialId);
-        }
-      
-        const { data: salidas, error: salidaError } = await salidaQuery;
-      
-        if (salidaError) {
-          console.error('❌ Error consultando salida_items:', salidaError);
-        } else {
-          console.log('✅ Salida items obtenidos:', salidas?.length || 0);
-          
-          if (salidas) {
-            for (const salida of salidas) {
-              // Filtrar por obra si se especifica
-              if (sanitizedObraId && salida.salidas?.obra_id !== sanitizedObraId) {
-                continue;
-              }
-      
-              // Filtrar por fechas si se especifican
-              if (fechaInicio && salida.salidas?.fecha_salida && salida.salidas.fecha_salida < fechaInicio) {
-                continue;
-              }
-              if (fechaFin && salida.salidas?.fecha_salida && salida.salidas.fecha_salida > fechaFin) {
-                continue;
-              }
-      
-              const movimiento: KardexMovimiento = {
-                id: salida.id,
-                material_id: salida.material_id,
-                obra_id: salida.salidas?.obra_id || '',
-                tipo_movimiento: 'SALIDA',
-                cantidad: -(salida.cantidad_entregada || salida.cantidad_autorizada || salida.cantidad_solicitada || 0),
-                cantidad_anterior: 0, // Se calculará después
-                cantidad_nueva: 0, // Se calculará después
-                fecha_movimiento: salida.salidas?.fecha_salida || '',
-                referencia: salida.salidas?.numero_salida || '',
-                observaciones: salida.salidas?.observaciones || salida.observaciones || '',
-                usuario_id: salida.salidas?.solicitado_por || '',
-                material: salida.materiales,
-                obra: salida.salidas?.obras,
-                usuario: salida.usuarios
-              };
-      
-              movimientos.push(movimiento);
-            }
+          .select('id, salida_id, material_id, cantidad_solicitada, cantidad_autorizada, cantidad_entregada, observaciones');
+        if (sanitizedMaterialId) salidaQuery = salidaQuery.eq('material_id', sanitizedMaterialId);
+        const { data: salidaItems, error: salidaError } = await salidaQuery;
+        if (!salidaError && salidaItems && salidaItems.length > 0) {
+          const salidaIds = Array.from(new Set(salidaItems.map(s => s.salida_id).filter(Boolean)));
+          const materialIds = Array.from(new Set(salidaItems.map(s => s.material_id).filter(Boolean)));
+          const { data: salidasData } = await supabase
+            .from('salidas')
+            .select('id, fecha_salida, numero_salida, obra_id, observaciones, solicitado_por');
+          const salidasMap = new Map((salidasData || []).map(s => [s.id, s]));
+          const { data: materialesData } = await supabase
+            .from('materiales')
+            .select('id, nombre, unidad_medida')
+            .in('id', materialIds);
+          const materialesMap = new Map((materialesData || []).map(m => [m.id, m]));
+          const obraIds = Array.from(new Set((salidasData || []).map(s => s.obra_id).filter(Boolean)));
+          const { data: obrasData } = await supabase
+            .from('obras')
+            .select('id, nombre, codigo')
+            .in('id', obraIds);
+          const obrasMap = new Map((obrasData || []).map(o => [o.id, o]));
+          for (const item of salidaItems) {
+            const salida = salidasMap.get(item.salida_id);
+            if (!salida) continue;
+            if (sanitizedObraId && salida.obra_id !== sanitizedObraId) continue;
+            if (fechaInicio && salida.fecha_salida && salida.fecha_salida < fechaInicio) continue;
+            if (fechaFin && salida.fecha_salida && salida.fecha_salida > fechaFin) continue;
+            const cantidad = -(item.cantidad_entregada || item.cantidad_autorizada || item.cantidad_solicitada || 0);
+            movimientos.push({
+              id: item.id,
+              material_id: item.material_id,
+              obra_id: salida.obra_id || '',
+              tipo_movimiento: 'SALIDA',
+              cantidad,
+              cantidad_anterior: 0,
+              cantidad_nueva: 0,
+              fecha_movimiento: salida.fecha_salida || '',
+              referencia: salida.numero_salida || '',
+              observaciones: salida.observaciones || item.observaciones || '',
+              usuario_id: salida.solicitado_por || '',
+              material: materialesMap.get(item.material_id) as any,
+              obra: obrasMap.get(salida.obra_id || '') as any
+            });
           }
+        } else if (salidaError) {
+          console.error('❌ Error consultando salida_items:', salidaError);
         }
       }
       

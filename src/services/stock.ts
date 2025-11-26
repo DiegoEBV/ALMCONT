@@ -550,4 +550,64 @@ export const stockService = {
       return ''
     }
   }
+  ,
+  // Sembrar stock demo para todos los materiales en una obra
+  async seedDemoStock(obraId?: string, cantidad: number = 50): Promise<boolean> {
+    try {
+      // Seleccionar obra destino
+      let targetObraId = obraId;
+      if (!targetObraId) {
+        const { data: obras } = await supabase
+          .from('obras')
+          .select('id')
+          .limit(1);
+        targetObraId = obras?.[0]?.id || null as any;
+      }
+      if (!targetObraId) throw new Error('No se encontró obra para asignar stock');
+
+      // Obtener materiales
+      const { data: materiales, error: matError } = await supabase
+        .from('materiales')
+        .select('id');
+      if (matError) throw matError;
+
+      for (const m of materiales || []) {
+        // Verificar si existe registro
+        const { data: existente, error: exError } = await supabase
+          .from('stock_obra_material')
+          .select('id, stock_actual')
+          .eq('obra_id', targetObraId)
+          .eq('material_id', m.id)
+          .single();
+        if (exError && exError.code !== 'PGRST116') throw exError;
+
+        if (existente) {
+          const { error: updErr } = await supabase
+            .from('stock_obra_material')
+            .update({
+              stock_actual: cantidad,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existente.id);
+          if (updErr) throw updErr;
+        } else {
+          const { error: insErr } = await supabase
+            .from('stock_obra_material')
+            .insert({
+              obra_id: targetObraId,
+              material_id: m.id,
+              stock_actual: cantidad,
+              stock_minimo: 10,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          if (insErr) throw insErr;
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('Error al sembrar stock demo:', error);
+      return false;
+    }
+  }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Vehicle, GPSDevice, GPSLocation, Geofence, GPSAlert, MapFilter } from '../types/gps';
+import { Vehicle, GPSDevice, Geofence, GPSAlert, MapFilter } from '../types/gps';
 import { GPSService } from '../services/gpsService';
 import { toast } from 'sonner';
 
@@ -28,43 +28,6 @@ export const useGPSData = (): UseGPSDataReturn => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [filter, setFilter] = useState<MapFilter>({});
 
-  // Filter vehicles based on current filter settings
-  const filteredVehicles = vehicles.filter(vehicle => {
-    // Search filter
-    if (filter.search) {
-      const searchLower = filter.search.toLowerCase();
-      const matchesSearch = 
-        vehicle.plate_number.toLowerCase().includes(searchLower) ||
-        vehicle.model.toLowerCase().includes(searchLower) ||
-        vehicle.driver_name?.toLowerCase().includes(searchLower);
-      
-      if (!matchesSearch) return false;
-    }
-
-    // Status filter
-    if (filter.status) {
-      const vehicleStatus = getVehicleStatus(vehicle);
-      if (vehicleStatus !== filter.status) return false;
-    }
-
-    // Vehicle type filter
-    if (filter.vehicleType && vehicle.vehicle_type !== filter.vehicleType) {
-      return false;
-    }
-
-    // Speed filter
-    if (filter.minSpeed && vehicle.current_location) {
-      if (vehicle.current_location.speed < filter.minSpeed) return false;
-    }
-
-    // Battery filter
-    if (filter.minBattery && vehicle.current_location) {
-      if (vehicle.current_location.battery_level < filter.minBattery) return false;
-    }
-
-    return true;
-  });
-
   // Helper function to determine vehicle status
   const getVehicleStatus = (vehicle: Vehicle) => {
     if (!vehicle.current_location) return 'offline';
@@ -78,31 +41,90 @@ export const useGPSData = (): UseGPSDataReturn => {
     return 'idle';
   };
 
+  // Filter vehicles based on current filter settings
+  const filteredVehicles = vehicles.filter(vehicle => {
+    if (filter.search) {
+      const searchLower = filter.search.toLowerCase();
+      const matchesSearch = 
+        vehicle.plate_number.toLowerCase().includes(searchLower) ||
+        vehicle.model.toLowerCase().includes(searchLower) ||
+        vehicle.driver_name?.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    if (filter.status) {
+      const vehicleStatus = getVehicleStatus(vehicle);
+      if (vehicleStatus !== filter.status) return false;
+    }
+
+    if (filter.vehicleType && vehicle.vehicle_type !== filter.vehicleType) {
+      return false;
+    }
+
+    if (filter.minSpeed && vehicle.current_location) {
+      if (vehicle.current_location.speed < filter.minSpeed) return false;
+    }
+
+    if (filter.minBattery && vehicle.current_location) {
+      if (vehicle.current_location.battery_level < filter.minBattery) return false;
+    }
+
+    return true;
+  });
+
   // Load initial data
   const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      const [vehiclesData, devicesData, geofencesData, alertsData] = await Promise.all([
-        GPSService.getVehicles(),
-        GPSService.getGPSDevices(),
-        GPSService.getGeofences(),
-        GPSService.getGPSAlerts()
-      ]);
+    const results = await Promise.allSettled([
+      GPSService.getVehiclesWithCurrentLocation(),
+      GPSService.getGPSDevices(),
+      GPSService.getGeofences(),
+      GPSService.getGPSAlerts()
+    ]);
 
-      setVehicles(vehiclesData);
-      setDevices(devicesData);
-      setGeofences(geofencesData);
-      setAlerts(alertsData);
+    const [vehiclesRes, devicesRes, geofencesRes, alertsRes] = results;
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al cargar datos GPS';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
+    let failures = 0;
+
+    if (vehiclesRes.status === 'fulfilled') {
+      setVehicles(vehiclesRes.value as Vehicle[]);
+    } else {
+      failures++;
+      toast.warning('No se pudieron cargar vehículos');
+      setVehicles([]);
     }
+
+    if (devicesRes.status === 'fulfilled') {
+      setDevices(devicesRes.value);
+    } else {
+      failures++;
+      toast.warning('No se pudieron cargar dispositivos');
+      setDevices([]);
+    }
+
+    if (geofencesRes.status === 'fulfilled') {
+      setGeofences(geofencesRes.value);
+    } else {
+      failures++;
+      toast.warning('No se pudieron cargar geocercas');
+      setGeofences([]);
+    }
+
+    if (alertsRes.status === 'fulfilled') {
+      setAlerts(alertsRes.value);
+    } else {
+      failures++;
+      setAlerts([]);
+    }
+
+    if (failures === results.length) {
+      setError('Error al cargar datos GPS');
+      toast.error('Error al cargar datos GPS');
+    }
+
+    setLoading(false);
   }, []);
 
   // Refresh data function

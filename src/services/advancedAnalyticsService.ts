@@ -70,8 +70,31 @@ class AdvancedAnalyticsService {
   // Obtener métricas del dashboard en tiempo real
   async getDashboardMetricas(): Promise<DashboardMetricas> {
     try {
-      // Usar datos locales directamente ya que las tablas de Supabase no existen
-      return this.getDashboardMetricasLocal();
+      const hoy = new Date().toISOString().split('T')[0];
+      const inicioMes = new Date();
+      inicioMes.setDate(1);
+      const inicioMesStr = inicioMes.toISOString().split('T')[0];
+
+      const [consumoHoy, consumoMes, rotacion, alertas, tiempoAtencion] = await Promise.all([
+        this.getConsumoDelDia(hoy),
+        this.getConsumoPorPeriodo(inicioMesStr, hoy),
+        this.getRotacionInventario(),
+        this.getAlertasStockBajo(),
+        this.getTiempoPromedioAtencion()
+      ]);
+
+      const rotacionPromedio = rotacion.length > 0
+        ? Math.round(rotacion.reduce((s, r) => s + r.rotacionDias, 0) / rotacion.length)
+        : 0;
+
+      return {
+        consumoHoy: consumoHoy.total,
+        consumoMesActual: consumoMes.total,
+        rotacionPromedio,
+        alertasActivas: alertas.length,
+        eficienciaAlmacen: await this.getEficienciaAlmacen(),
+        tiempoPromedioAtencion: tiempoAtencion
+      };
     } catch (error) {
       console.error('Error obteniendo métricas del dashboard:', error);
       return this.getDashboardMetricasLocal();
@@ -92,30 +115,34 @@ class AdvancedAnalyticsService {
   // Calcular rotación de inventario
   async getRotacionInventario(): Promise<RotacionInventario[]> {
     try {
-      // Intentar obtener materiales de Supabase, pero usar cálculos locales
       const { data: materiales } = await supabase
         .from('materiales')
-        .select(`
-          id,
-          nombre,
-          stock_actual,
-          stock_minimo,
-          categoria
-        `);
+        .select('id, nombre, categoria, stock_minimo');
 
-      if (materiales && materiales.length > 0) {
-        // Si tenemos materiales, usar datos locales para el cálculo de rotación
-        return materiales.map(material => ({
-          materialId: material.id,
-          materialNombre: material.nombre,
-          stockActual: material.stock_actual,
-          consumoPromedio: 5, // Valor fijo local
-          rotacionDias: material.stock_actual > 0 ? material.stock_actual / 5 : 0,
-          categoria: material.categoria
-        })).sort((a, b) => a.rotacionDias - b.rotacionDias);
-      } else {
+      if (!materiales || materiales.length === 0) {
         return this.getRotacionInventarioLocal();
       }
+
+      const rotaciones: RotacionInventario[] = [];
+      for (const material of materiales) {
+        const { data: stockRows } = await supabase
+          .from('stock_obra_material')
+          .select('stock_actual')
+          .eq('material_id', material.id);
+
+        const stockActual = (stockRows || []).reduce((sum, r: any) => sum + (r.stock_actual || 0), 0);
+        const consumoPromedio = await this.getConsumoPromedioDiario(material.id);
+        const rotacionDias = stockActual > 0 && consumoPromedio > 0 ? Math.round(stockActual / consumoPromedio) : 0;
+        rotaciones.push({
+          materialId: material.id,
+          materialNombre: material.nombre,
+          stockActual,
+          consumoPromedio,
+          rotacionDias,
+          categoria: material.categoria
+        });
+      }
+      return rotaciones.sort((a, b) => a.rotacionDias - b.rotacionDias);
     } catch (error) {
       console.error('Error calculando rotación de inventario:', error);
       return this.getRotacionInventarioLocal();
@@ -127,35 +154,41 @@ class AdvancedAnalyticsService {
     try {
       const { data: materiales } = await supabase
         .from('materiales')
-        .select('id, nombre, stock_actual, stock_minimo')
-        .lt('stock_actual', 'stock_minimo'); // Stock por debajo del mínimo
+        .select('id, nombre, stock_minimo');
 
-      if (materiales && materiales.length > 0) {
-        return materiales.map(material => {
-          const diasRestantes = material.stock_actual > 0 ? material.stock_actual / 5 : 0; // Usar consumo fijo
-          
-          let nivelCriticidad: 'bajo' | 'medio' | 'alto' = 'bajo';
-          if (material.stock_actual <= material.stock_minimo) {
-            nivelCriticidad = 'alto';
-          } else if (diasRestantes <= 7) {
-            nivelCriticidad = 'medio';
-          }
-          
-          return {
-            materialId: material.id,
-            materialNombre: material.nombre,
-            stockActual: material.stock_actual,
-            stockMinimo: material.stock_minimo,
-            nivelCriticidad,
-            diasRestantes: Math.round(diasRestantes)
-          };
-        }).sort((a, b) => {
-          const orden = { alto: 3, medio: 2, bajo: 1 };
-          return orden[b.nivelCriticidad] - orden[a.nivelCriticidad];
-        });
-      } else {
+      if (!materiales || materiales.length === 0) {
         return this.getAlertasStockBajoLocal();
       }
+
+      const alertas: AlertaStock[] = [];
+      for (const material of materiales) {
+        const { data: stockRows } = await supabase
+          .from('stock_obra_material')
+          .select('stock_actual')
+          .eq('material_id', material.id);
+        const stockActual = (stockRows || []).reduce((sum, r: any) => sum + (r.stock_actual || 0), 0);
+        const diasRestantes = stockActual > 0 ? stockActual / 5 : 0;
+        let nivelCriticidad: 'bajo' | 'medio' | 'alto' = 'bajo';
+        if (material.stock_minimo != null && stockActual <= material.stock_minimo) {
+          nivelCriticidad = 'alto';
+        } else if (diasRestantes <= 7) {
+          nivelCriticidad = 'medio';
+        }
+        alertas.push({
+          materialId: material.id,
+          materialNombre: material.nombre,
+          stockActual,
+          stockMinimo: material.stock_minimo || 0,
+          nivelCriticidad,
+          diasRestantes: Math.round(diasRestantes)
+        });
+      }
+      return alertas
+        .filter(a => a.stockMinimo > 0 && a.stockActual <= a.stockMinimo)
+        .sort((a, b) => {
+          const orden = { alto: 3, medio: 2, bajo: 1 } as const;
+          return orden[b.nivelCriticidad] - orden[a.nivelCriticidad];
+        });
     } catch (error) {
       console.error('Error obteniendo alertas de stock:', error);
       return this.getAlertasStockBajoLocal();
@@ -165,7 +198,7 @@ class AdvancedAnalyticsService {
   // Generar predicciones de demanda
   async getPrediccionesDemanda(): Promise<PrediccionDemanda[]> {
     try {
-      // Obtener materiales únicos de requerimientos
+      // Obtener materiales únicos desde la columna "material" (compatibilidad)
       const { data: requerimientos, error } = await supabase
         .from('requerimientos')
         .select('material')
@@ -182,12 +215,12 @@ class AdvancedAnalyticsService {
       const predicciones: PrediccionDemanda[] = [];
       
       for (const material of materialesUnicos.slice(0, 10)) { // Limitar a 10 materiales
-        const historico = await this.getHistoricoConsumo(material, 30);
+        const historico = await this.getHistoricoConsumo(material as string, 30);
         const prediccion = this.calcularPrediccionDemanda(historico);
         
         predicciones.push({
-          materialId: material,
-          materialNombre: material,
+          materialId: material as string,
+          materialNombre: material as string,
           demandaPredichaProximoMes: prediccion.demandaPredicha,
           tendencia: prediccion.tendencia,
           confianza: prediccion.confianza,
@@ -210,7 +243,7 @@ class AdvancedAnalyticsService {
         .select('*')
         .gte('fecha_solicitud', fechaInicio)
         .lte('fecha_solicitud', fechaFin)
-        .eq('estado', 'Entregado');
+        .eq('estado', 'ATENDIDO');
 
       if (error || !requerimientos) {
         console.warn('No se pudieron obtener datos para análisis de costos:', error);
@@ -221,11 +254,11 @@ class AdvancedAnalyticsService {
       const costosPorObra: { [obra: string]: AnalisisCostos } = {};
       
       requerimientos.forEach(req => {
-        const obra = req.obra || 'Obra General';
+        const obra = req.obra_nombre || req.obra_id || 'Obra General';
         const cantidad = parseFloat(req.cantidad) || 0;
         const precio = parseFloat(req.precio_unitario) || 0;
         const costoTotal = cantidad * precio;
-        const material = req.material || 'Material desconocido';
+        const material = req.material_nombre || req.material || 'Material desconocido';
         
         if (!costosPorObra[obra]) {
           costosPorObra[obra] = {
@@ -251,7 +284,7 @@ class AdvancedAnalyticsService {
           materialExistente.costo += costoTotal;
         } else {
           costosPorObra[obra].costoPorMaterial.push({
-            materialId: req.id?.toString() || '1',
+            materialId: (req.material_id || req.id)?.toString() || '1',
             nombre: material,
             costo: costoTotal
           });
@@ -330,7 +363,7 @@ class AdvancedAnalyticsService {
         .from('requerimientos')
         .select('cantidad, precio_unitario')
         .eq('fecha_solicitud', fecha)
-        .eq('estado', 'Entregado');
+        .in('estado', ['ATENDIDO', 'Entregado']);
 
       if (error || !requerimientos) {
         console.warn('No se pudieron obtener datos de consumo del día:', error);
@@ -357,7 +390,7 @@ class AdvancedAnalyticsService {
         .select('cantidad, precio_unitario')
         .gte('fecha_solicitud', fechaInicio)
         .lte('fecha_solicitud', fechaFin)
-        .eq('estado', 'Entregado');
+        .in('estado', ['ATENDIDO', 'Entregado']);
 
       if (error || !requerimientos) {
         console.warn('No se pudieron obtener datos de consumo por período:', error);
@@ -397,8 +430,8 @@ class AdvancedAnalyticsService {
     try {
       const { data: requerimientos, error } = await supabase
         .from('requerimientos')
-        .select('fecha_solicitud, fecha_entrega')
-        .not('fecha_entrega', 'is', null);
+        .select('fecha_solicitud, fecha_atencion, fecha_aprobacion, fecha_entrega')
+        .or('fecha_atencion.is.not.null,fecha_aprobacion.is.not.null,fecha_entrega.is.not.null');
 
       if (error || !requerimientos || requerimientos.length === 0) {
         console.warn('No se pudieron obtener datos de requerimientos para tiempo de atención:', error);
@@ -407,8 +440,9 @@ class AdvancedAnalyticsService {
 
       const tiempos = requerimientos.map(req => {
         const fechaSolicitud = new Date(req.fecha_solicitud);
-        const fechaEntrega = new Date(req.fecha_entrega);
-        return Math.abs(fechaEntrega.getTime() - fechaSolicitud.getTime()) / (1000 * 60 * 60); // en horas
+        const finStr = req.fecha_atencion || req.fecha_aprobacion || req.fecha_entrega;
+        const fin = new Date(finStr);
+        return Math.abs(fin.getTime() - fechaSolicitud.getTime()) / (1000 * 60 * 60);
       });
 
       const promedio = tiempos.reduce((sum, tiempo) => sum + tiempo, 0) / tiempos.length;
@@ -436,7 +470,7 @@ class AdvancedAnalyticsService {
       
       const { data: requerimientos, error } = await supabase
         .from('requerimientos')
-        .select('cantidad, fecha_solicitud')
+        .select('cantidad, fecha_solicitud, material')
         .eq('material', materialId)
         .gte('fecha_solicitud', fechaInicio.toISOString().split('T')[0])
         .order('fecha_solicitud', { ascending: true });
@@ -526,7 +560,7 @@ class AdvancedAnalyticsService {
         .select('*')
         .gte('fecha_solicitud', fechaInicio)
         .lte('fecha_solicitud', fechaFin)
-        .eq('estado', 'Entregado');
+        .in('estado', ['ATENDIDO', 'Entregado']);
 
       if (error || !requerimientos) {
         console.warn('No se pudieron obtener métricas de consumo:', error);
@@ -535,12 +569,12 @@ class AdvancedAnalyticsService {
 
       return requerimientos.map(req => ({
         fecha: req.fecha_solicitud,
-        materialId: req.id?.toString() || '1',
-        materialNombre: req.material || 'Material desconocido',
+        materialId: (req.material_id || req.id)?.toString() || '1',
+        materialNombre: req.material_nombre || req.material || 'Material desconocido',
         cantidad: parseFloat(req.cantidad) || 0,
         costo: (parseFloat(req.cantidad) || 0) * (parseFloat(req.precio_unitario) || 0),
-        obraId: req.obra || '1',
-        obraNombre: req.obra || 'Obra desconocida'
+        obraId: (req.obra_id || req.obra || '1').toString(),
+        obraNombre: req.obra_nombre || req.obra || req.obra_id || 'Obra desconocida'
       }));
     } catch (error) {
       console.error('Error obteniendo métricas de consumo desde Supabase:', error);

@@ -51,6 +51,8 @@ interface GPSMapProps {
   trails?: { [vehicleId: string]: GPSLocation[] };
   center?: [number, number];
   zoom?: number;
+  recenterKey?: number;
+  centerMode?: 'fitAll' | 'selected' | 'default';
   className?: string;
 }
 
@@ -168,6 +170,8 @@ const GPSMap: React.FC<GPSMapProps> = ({
   trails = {},
   center = [-12.0464, -77.0428], // Lima, Peru default
   zoom = 13,
+  recenterKey,
+  centerMode = 'fitAll',
   className = ''
 }) => {
   const [mapReady, setMapReady] = useState(false);
@@ -212,6 +216,27 @@ const GPSMap: React.FC<GPSMapProps> = ({
       default: return 'Desconocido';
     }
   };
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (!mapReady) return;
+    if (centerMode === 'selected' && selectedVehicle?.current_location) {
+      const loc = selectedVehicle.current_location;
+      mapRef.current.setView([loc.latitude, loc.longitude], 15);
+      return;
+    }
+    if (centerMode === 'fitAll') {
+      const validVehicles = vehicles.filter(v => v.current_location);
+      if (validVehicles.length > 0) {
+        const bounds = L.latLngBounds(
+          validVehicles.map(v => [v.current_location!.latitude, v.current_location!.longitude])
+        );
+        mapRef.current.fitBounds(bounds, { padding: [20, 20] });
+        return;
+      }
+    }
+    mapRef.current.setView(center, zoom);
+  }, [recenterKey, centerMode, selectedVehicle, vehicles, center, zoom, mapReady]);
 
   return (
     <div className={`relative w-full h-full ${className}`}>

@@ -23,6 +23,8 @@ interface GPSControlsProps {
   onToggleGeofences: (show: boolean) => void;
   showTrails: boolean;
   onToggleTrails: (show: boolean) => void;
+  onCenterMap?: () => void;
+  onShowAlerts?: () => void;
   className?: string;
 }
 
@@ -35,6 +37,8 @@ const GPSControls: React.FC<GPSControlsProps> = ({
   onToggleGeofences,
   showTrails,
   onToggleTrails,
+  onCenterMap,
+  onShowAlerts,
   className = ''
 }) => {
   const [showFilters, setShowFilters] = useState(false);
@@ -287,6 +291,7 @@ const GPSControls: React.FC<GPSControlsProps> = ({
           variant="outline"
           size="sm"
           className="flex items-center gap-2"
+          onClick={onCenterMap}
         >
           <Navigation className="w-4 h-4" />
           Centrar mapa
@@ -296,6 +301,7 @@ const GPSControls: React.FC<GPSControlsProps> = ({
           variant="outline"
           size="sm"
           className="flex items-center gap-2"
+          onClick={onShowAlerts}
         >
           <AlertTriangle className="w-4 h-4" />
           Ver alertas

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { stockService } from '../services/stock';
 import { salidasService } from '../services/salidas';
 import { requerimientosService } from '../services/requerimientos';
+import { solicitudesCompraService } from '../services/solicitudesCompra';
 import type { SalidaFormData, Stock} from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { Camera } from '../components/Camera';
@@ -25,13 +26,16 @@ const Salidas: React.FC = () => {
   const [filtros, setFiltros] = useState({
     solicitante: '',
     numeroRequerimiento: '',
-    material: ''
+    material: '',
+    numeroSolicitudCompra: ''
   });
   const [stockDisponible, setStockDisponible] = useState<StockWithMaterial[]>([]);
   const [materialesDisponibles, setMaterialesDisponibles] = useState<StockWithMaterial[]>([]);
+  const [requerimientosTodos, setRequerimientosTodos] = useState<any[]>([]);
   const [materialSeleccionado, setMaterialSeleccionado] = useState<StockWithMaterial | null>(null);
   const [cantidadSalida, setCantidadSalida] = useState('');
   const [observaciones, setObservaciones] = useState('');
+  const [numeroGuia, setNumeroGuia] = useState('');
   const [loading, setLoading] = useState(false);
   const [solicitantes, setSolicitantes] = useState<string[]>([]);
   const [showCamera, setShowCamera] = useState(false);
@@ -60,12 +64,13 @@ const Salidas: React.FC = () => {
         codigo: item.material?.codigo || '',
         descripcion: item.material?.descripcion || item.material?.nombre || '',
         unidad: item.material?.unidad || '',
-        stockActual: item.cantidad_actual || 0,
+        stockActual: (item as any).stock_actual || 0,
         materialId: item.material_id
       }));
       
       setStockDisponible(stockTransformado);
       setMaterialesDisponibles(stockTransformado);
+      setRequerimientosTodos(requerimientos);
       
       // Extraer solicitantes únicos
       const solicitantesUnicos = [...new Set(requerimientos.map(r => r.solicitante).filter(Boolean))] as string[]
@@ -78,9 +83,48 @@ const Salidas: React.FC = () => {
     }
   };
 
-  const aplicarFiltros = () => {
-    let materialesFiltrados = stockDisponible;
+  const aplicarFiltros = async () => {
+    let materialesFiltrados = [...stockDisponible];
 
+    // Filtrar por solicitante y número de requerimiento
+    if (filtros.solicitante || filtros.numeroRequerimiento || filtros.numeroSolicitudCompra) {
+      let reqs = [...requerimientosTodos];
+      if (filtros.solicitante) {
+        reqs = reqs.filter(r => (r.solicitante || '').toLowerCase() === filtros.solicitante.toLowerCase());
+      }
+      if (filtros.numeroRequerimiento) {
+        const term = filtros.numeroRequerimiento.toLowerCase();
+        reqs = reqs.filter(r => (r.numero_requerimiento || '').toLowerCase().includes(term));
+      }
+      // Si hay número de SC, obtener requerimientos vinculados
+      if (filtros.numeroSolicitudCompra) {
+        try {
+          const scs = await solicitudesCompraService.searchByNumeroSC(filtros.numeroSolicitudCompra);
+          const reqsSC = scs.flatMap(sc => sc.requerimientos || []);
+          // Unir ambos conjuntos
+          reqs = [...reqs, ...reqsSC];
+        } catch (e) {
+          // si falla, continuar con reqs existentes
+        }
+      }
+      // Construir conjunto de materiales permitidos por requerimientos
+      const nombresPermitidos = new Set<string>(
+        reqs
+          .map(r => (r.material_nombre || r.material || '').toString().toLowerCase())
+          .filter(Boolean as any)
+      );
+      const idsPermitidos = new Set<string>(
+        reqs
+          .map(r => r.material_id)
+          .filter(Boolean)
+      );
+      materialesFiltrados = materialesFiltrados.filter(m => {
+        const nombre = (m.descripcion || '').toLowerCase();
+        return idsPermitidos.has(m.materialId) || nombresPermitidos.has(nombre);
+      });
+    }
+
+    // Búsqueda por material (texto)
     if (filtros.material) {
       materialesFiltrados = materialesFiltrados.filter(m => 
         m.descripcion.toLowerCase().includes(filtros.material.toLowerCase()) ||
@@ -90,6 +134,11 @@ const Salidas: React.FC = () => {
 
     setMaterialesDisponibles(materialesFiltrados);
   };
+
+  useEffect(() => {
+    aplicarFiltros();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros, stockDisponible, requerimientosTodos]);
 
   const seleccionarMaterial = (material: StockWithMaterial) => {
     setMaterialSeleccionado(material);
@@ -131,7 +180,7 @@ const Salidas: React.FC = () => {
   };
 
   const registrarSalida = async () => {
-    if (!materialSeleccionado || !filtros.solicitante || !cantidadSalida) {
+    if (!materialSeleccionado || !cantidadSalida) {
       toast.error('Complete todos los campos obligatorios');
       return;
     }
@@ -157,7 +206,8 @@ const Salidas: React.FC = () => {
         cantidad_entregada: cantidad,
         fecha_salida: new Date().toISOString(),
         fecha_entrega: new Date().toISOString(),
-        solicitante: filtros.solicitante,
+        solicitante: filtros.solicitante || user?.nombre || user?.email || 'Sin solicitante',
+        documento_referencia: numeroGuia || filtros.numeroRequerimiento || undefined,
         motivo: 'Salida de almacén',
         observaciones: observaciones || undefined,
         created_by: user?.email || 'Sistema'
@@ -180,6 +230,7 @@ const Salidas: React.FC = () => {
       setMaterialSeleccionado(null);
       setCantidadSalida('');
       setObservaciones('');
+      setNumeroGuia('');
     } catch (error) {
       console.error('Error al registrar salida:', error);
       toast.error('Error al registrar la salida');
@@ -231,6 +282,19 @@ const Salidas: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <FileText className="inline h-4 w-4 mr-1" />
+                Número de Solicitud de Compra
+              </label>
+              <input
+                type="text"
+                value={filtros.numeroSolicitudCompra}
+                onChange={(e) => setFiltros(prev => ({ ...prev, numeroSolicitudCompra: e.target.value }))}
+                placeholder="SC-2024-001"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -246,6 +310,22 @@ const Salidas: React.FC = () => {
                 onKeyUp={aplicarFiltros}
               />
             </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={async () => {
+                const ok = await stockService.seedDemoStock();
+                if (ok) {
+                  toast.success('Stock demo agregado');
+                  await cargarDatosIniciales();
+                } else {
+                  toast.error('No se pudo agregar stock demo');
+                }
+              }}
+              className="px-3 py-2 text-sm border rounded-md bg-green-600 text-white hover:bg-green-700"
+            >
+              Poner Stock Demo
+            </button>
           </div>
         </div>
 
@@ -337,7 +417,7 @@ const Salidas: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => seleccionarMaterial(material)}
-                          disabled={material.stockActual <= 0 || !filtros.solicitante}
+                          disabled={material.stockActual <= 0}
                           className="text-blue-600 hover:text-blue-900 disabled:text-gray-400 disabled:cursor-not-allowed"
                         >
                           Seleccionar
@@ -385,6 +465,16 @@ const Salidas: React.FC = () => {
                   placeholder="0.00"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Número de Guía / Documento</label>
+                <input
+                  type="text"
+                  value={numeroGuia}
+                  onChange={(e) => setNumeroGuia(e.target.value)}
+                  placeholder="GR-2024-001 o documento de referencia"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>

@@ -83,26 +83,28 @@ export class ReturnService {
         };
       }
 
-      // Generar código de devolución
-      const codigoDevolucion = await this.generateReturnCode(request.tipo_devolucion);
+      // Generar número de devolución
+      const numeroDevolucion = await this.generateReturnCode(request.tipo_devolucion);
 
-      // Calcular valor total
+      // Calcular valor total (solo para reporte local)
       const valorTotal = await this.calculateReturnValue(request.detalles);
 
       // Crear registro de devolución
+      const tipoMap: Record<string, string> = {
+        cliente: 'devolucion_obra',
+        proveedor: 'devolucion_proveedor',
+        interna: 'exceso_inventario'
+      };
       const { data: devolucion, error: devolucionError } = await supabase
         .from('devoluciones')
         .insert({
-          codigo: codigoDevolucion,
-          tipo_devolucion: request.tipo_devolucion,
-          documento_origen_id: request.documento_origen_id,
-          documento_origen_tipo: request.documento_origen_tipo,
+          numero_devolucion: numeroDevolucion,
+          tipo_devolucion: tipoMap[request.tipo_devolucion] || 'devolucion_obra',
           motivo: request.motivo,
           observaciones: request.observaciones,
-          estado: 'pendiente',
-          solicitado_por: request.solicitado_por,
-          fecha_solicitud: request.fecha_solicitud || new Date().toISOString(),
-          valor_total: valorTotal
+          estado: 'solicitada',
+          solicitante: request.solicitado_por,
+          fecha_solicitud: request.fecha_solicitud || new Date().toISOString()
         })
         .select()
         .single();
@@ -116,12 +118,9 @@ export class ReturnService {
         devolucion_id: devolucion.id,
         material_id: detalle.material_id,
         cantidad: detalle.cantidad,
-        precio_unitario: detalle.precio_unitario || 0,
-        subtotal: detalle.cantidad * (detalle.precio_unitario || 0),
-        motivo_detalle: detalle.motivo_detalle,
-        ubicacion_origen: detalle.ubicacion_origen,
-        ubicacion_destino: detalle.ubicacion_destino,
-        estado_detalle: 'pendiente'
+        observaciones: detalle.motivo_detalle,
+        estado_material: 'bueno',
+        accion_tomada: 'reintegrar'
       }));
 
       const { error: detallesError } = await supabase
@@ -352,7 +351,7 @@ export class ReturnService {
           observaciones_aprobacion: observaciones
         })
         .eq('id', devolucionId)
-        .eq('estado', 'pendiente');
+        .eq('estado', 'solicitada');
 
       if (error) {
         throw new Error(`Error al aprobar devolución: ${error.message}`);
@@ -389,7 +388,7 @@ export class ReturnService {
           motivo_rechazo: motivoRechazo
         })
         .eq('id', devolucionId)
-        .eq('estado', 'pendiente');
+        .eq('estado', 'solicitada');
 
       if (error) {
         throw new Error(`Error al rechazar devolución: ${error.message}`);
@@ -683,10 +682,10 @@ export class ReturnService {
         .from('devoluciones')
         .select(`
           *,
-          usuarios_solicitante:usuarios!solicitado_por(nombre),
+          usuario:usuarios!solicitante(nombre),
           detalle_devoluciones(
             *,
-            materiales(nombre, unidad_medida)
+            materiales(nombre, unidad_medida, precio_unitario)
           )
         `);
 
@@ -695,7 +694,8 @@ export class ReturnService {
       }
 
       if (filtros?.estado) {
-        query = query.eq('estado', filtros.estado);
+        const estado = filtros.estado === 'pendiente' ? 'solicitada' : filtros.estado;
+        query = query.eq('estado', estado);
       }
 
       if (filtros?.solicitado_por) {
@@ -740,13 +740,13 @@ export class ReturnService {
         .from('devoluciones')
         .select(`
           *,
-          usuarios_solicitante:usuarios!solicitado_por(nombre),
+          usuario:usuarios!solicitante(nombre),
           detalle_devoluciones(
             *,
-            materiales(nombre, unidad_medida)
+            materiales(nombre, unidad_medida, precio_unitario)
           )
         `)
-        .eq('estado', 'pendiente');
+        .eq('estado', 'solicitada');
 
       if (filtros?.tipo_devolucion) {
         query = query.eq('tipo_devolucion', filtros.tipo_devolucion);
@@ -791,11 +791,10 @@ export class ReturnService {
         .select(`
           tipo_devolucion,
           estado,
-          valor_total,
           detalle_devoluciones(
             material_id,
             cantidad,
-            materiales(nombre)
+            materiales(nombre, precio_unitario)
           )
         `);
 
@@ -832,7 +831,7 @@ export class ReturnService {
       };
 
       const devolucionesPorEstado = {
-        pendiente: devoluciones?.filter(d => d.estado === 'pendiente').length || 0,
+        pendiente: devoluciones?.filter(d => d.estado === 'solicitada').length || 0,
         aprobada: devoluciones?.filter(d => d.estado === 'aprobada').length || 0,
         procesada: devoluciones?.filter(d => d.estado === 'procesada').length || 0,
         rechazada: devoluciones?.filter(d => d.estado === 'rechazada').length || 0,

@@ -174,6 +174,7 @@ export interface SalidaFormData {
   obra_id: string
   material_id: string
   requerimiento_id?: string
+  documento_referencia?: string
   cantidad: number
   cantidad_entregada: number
   fecha_salida: string
@@ -268,6 +269,7 @@ export interface Salida {
   id: string
   obra_id: string
   requerimiento_id?: string
+  documento_referencia?: string
   material_id: string
   cantidad_entregada: number
   fecha_entrega: string

@@ -274,9 +274,18 @@ export default function SolicitudesCompra() {
     setShowModal(true)
   }
 
-  const handleView = (solicitud: SolicitudCompra) => {
-    setSelectedSolicitud(solicitud)
-    setShowDetailsModal(true)
+  const handleView = async (solicitud: SolicitudCompra) => {
+    try {
+      const asociados = await RqScService.getRequerimientosBySC(solicitud.id)
+      setSelectedSolicitud({
+        ...solicitud,
+        requerimientos: asociados
+      })
+    } catch (e) {
+      setSelectedSolicitud(solicitud)
+    } finally {
+      setShowDetailsModal(true)
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -684,15 +693,17 @@ export default function SolicitudesCompra() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium text-gray-900">
-                            <p className="font-medium text-gray-900">
-                              {String(req.codigo || req.numero_requerimiento || 'Sin código')}
-                            </p>
+                            {String(req.numero_requerimiento || req.codigo || 'Sin código')}
                           </p>
                           {req.descripcion && (
                             <p className="text-sm text-gray-600 mt-1">{req.descripcion}</p>
                           )}
-                          {req.material_nombre && (
-                            <p className="text-sm text-blue-600 mt-1">Material: {req.material_nombre}</p>
+                          {(
+                            (req as any).material?.nombre || (req as any).material_nombre || (req as any).material
+                          ) && (
+                            <p className="text-sm text-blue-600 mt-1">
+                              Material: {((req as any).material?.nombre) || (req as any).material_nombre || (req as any).material}
+                            </p>
                           )}
                         </div>
                         <div className="text-right">

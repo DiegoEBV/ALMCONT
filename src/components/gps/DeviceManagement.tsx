@@ -8,17 +8,15 @@ import {
   Search, 
   Filter,
   Smartphone,
-  Battery,
-  Signal,
   AlertCircle,
   CheckCircle,
-  Clock,
   Settings
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
 import DeviceForm from './DeviceForm';
+import { Navigation } from 'lucide-react';
 
 interface DeviceManagementProps {
   className?: string;
@@ -82,19 +80,7 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({ className = '' }) =
     return isActive ? 'Activo' : 'Inactivo';
   };
 
-  const getBatteryColor = (level?: number) => {
-    if (!level) return 'text-gray-400';
-    if (level > 50) return 'text-green-600';
-    if (level > 20) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getSignalColor = (strength?: number) => {
-    if (!strength) return 'text-gray-400';
-    if (strength > 70) return 'text-green-600';
-    if (strength > 40) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+  
 
   const getVehicleName = (vehicleId?: string) => {
     if (!vehicleId) return 'Sin asignar';
@@ -117,18 +103,54 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({ className = '' }) =
     }
   };
 
-  const formatLastCommunication = (timestamp?: string) => {
-    if (!timestamp) return 'Nunca';
-    
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffMinutes < 1) return 'Ahora';
-    if (diffMinutes < 60) return `Hace ${diffMinutes}m`;
-    if (diffMinutes < 1440) return `Hace ${Math.floor(diffMinutes / 60)}h`;
-    return date.toLocaleDateString('es-PE');
+  const sendTestLocation = async (device: GPSDevice) => {
+    try {
+      // Ensure device is linked to a vehicle; create one if missing
+      let vehicleId = device.vehicle_id;
+      if (!vehicleId) {
+        const plate = `TEST-${device.imei.slice(-4)}`;
+        const newVehicle = await GPSService.createVehicle({
+          plate_number: plate,
+          model: 'Vehículo de Prueba',
+          vehicle_type: 'truck',
+          fuel_capacity: 80,
+          is_active: true
+        } as Omit<Parameters<typeof GPSService.createVehicle>[0], 'id' | 'created_at' | 'updated_at'>);
+        await GPSService.updateGPSDevice(device.id, { vehicle_id: newVehicle.id });
+        vehicleId = newVehicle.id;
+      }
+
+      const lat = -12.0464 + (Math.random() - 0.5) * 0.02;
+      const lng = -77.0428 + (Math.random() - 0.5) * 0.02;
+      await GPSService.addGPSLocation({
+        device_id: device.id,
+        vehicle_id: vehicleId,
+        latitude: lat,
+        longitude: lng,
+        speed: 20,
+        heading: 180,
+        satellites: 9,
+        battery_level: 80,
+        recorded_at: new Date().toISOString()
+      } as {
+        device_id: string;
+        vehicle_id: string;
+        latitude: number;
+        longitude: number;
+        speed: number;
+        heading: number;
+        satellites: number;
+        battery_level: number;
+        recorded_at: string;
+      });
+      toast.success('Ubicación de prueba registrada');
+      await loadData();
+    } catch (error) {
+      console.error('Error sending test location:', error);
+      toast.error('Error al registrar ubicación de prueba');
+    }
   };
+
 
   if (loading) {
     return (
@@ -178,7 +200,7 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({ className = '' }) =
             <Filter className="w-4 h-4 text-gray-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive' | 'maintenance')}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">Todos los estados</option>
@@ -330,6 +352,15 @@ const DeviceManagement: React.FC<DeviceManagementProps> = ({ className = '' }) =
                   >
                     <Edit className="w-4 h-4" />
                     Editar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => sendTestLocation(device)}
+                    className="flex items-center gap-2"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    Ubicación de prueba
                   </Button>
                   <Button
                     variant="outline"

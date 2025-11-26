@@ -270,12 +270,21 @@ export const salidasService = {
       
       const numeroSalida = `SAL-${String((count || 0) + 1).padStart(6, '0')}`
 
+      const payload = {
+        obra_id: salidaData.obra_id,
+        material_id: salidaData.material_id,
+        cantidad_entregada: salidaData.cantidad_entregada,
+        fecha_entrega: salidaData.fecha_entrega,
+        solicitante: salidaData.solicitante,
+        motivo: salidaData.motivo,
+        observaciones: salidaData.observaciones,
+        numero_salida: numeroSalida,
+        documento_referencia: salidaData.documento_referencia
+      }
+
       const { data, error } = await supabase
         .from('salidas')
-        .insert({
-          ...salidaData,
-          numero_salida: numeroSalida
-        })
+        .insert(payload)
         .select(`
           *,
           obra:obras(*),

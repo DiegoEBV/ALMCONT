@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { localAuth } from './localAuth';
 
 // GPS Device Types
 export interface GPSDevice {
@@ -52,7 +53,7 @@ export interface GPSAlert {
   device_id: string;
   geofence_id: string | null;
   alert_type: string;
-  alert_data: any;
+  alert_data: Record<string, unknown>;
   is_resolved: boolean;
   triggered_at: string;
   resolved_at: string | null;
@@ -64,7 +65,7 @@ export interface GPSAlert {
   metadata?: {
     vehicle_plate?: string;
     geofence_name?: string;
-    [key: string]: any;
+    [key: string]: string | number | boolean | undefined;
   };
 }
 
@@ -81,18 +82,23 @@ export interface VehicleAssignment {
 
 // GPS Service Class
 export class GPSService {
+  private static async apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const session = localAuth.getSession();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(session ? { Authorization: `Bearer ${session.token}` } : {})
+    };
+    const res = await fetch(`/api/gps${endpoint}`, { ...options, headers });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      throw new Error(`API error ${res.status}: ${err || res.statusText}`);
+    }
+    return res.json();
+  }
   // GPS Devices Management
   static async getGPSDevices(): Promise<GPSDevice[]> {
     try {
-      const { data, error } = await supabase
-        .from('gps_devices')
-        .select(`
-          *,
-          vehicle:vehicles(*)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await this.apiFetch<GPSDevice[]>(`/devices`);
       return data || [];
     } catch (error) {
       console.error('Error fetching GPS devices:', error);
@@ -102,9 +108,16 @@ export class GPSService {
 
   static async createGPSDevice(device: Omit<GPSDevice, 'id' | 'created_at' | 'updated_at'>): Promise<GPSDevice> {
     try {
+      const payload: Omit<GPSDevice, 'id' | 'created_at' | 'updated_at'> = {
+        ...device,
+        vehicle_id: device.vehicle_id && device.vehicle_id !== '' ? device.vehicle_id : null,
+        report_interval: Number(device.report_interval) || 30,
+        is_active: !!device.is_active
+      };
+
       const { data, error } = await supabase
         .from('gps_devices')
-        .insert([device])
+        .insert([payload])
         .select()
         .single();
 
@@ -118,14 +131,17 @@ export class GPSService {
 
   static async updateGPSDevice(id: string, updates: Partial<GPSDevice>): Promise<GPSDevice> {
     try {
-      const { data, error } = await supabase
-        .from('gps_devices')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      const payload: Partial<GPSDevice> = {
+        ...updates,
+        vehicle_id: updates.vehicle_id === '' ? null : updates.vehicle_id,
+        report_interval: updates.report_interval !== undefined ? Number(updates.report_interval) : undefined,
+        is_active: updates.is_active !== undefined ? !!updates.is_active : undefined
+      };
 
-      if (error) throw error;
+      const data = await this.apiFetch<GPSDevice>(`/devices/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
       return data;
     } catch (error) {
       console.error('Error updating GPS device:', error);
@@ -202,13 +218,10 @@ export class GPSService {
 
   static async addGPSLocation(location: Omit<GPSLocation, 'id' | 'created_at'>): Promise<GPSLocation> {
     try {
-      const { data, error } = await supabase
-        .from('gps_locations')
-        .insert([location])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await this.apiFetch<GPSLocation>(`/locations`, {
+        method: 'POST',
+        body: JSON.stringify(location)
+      });
       return data;
     } catch (error) {
       console.error('Error adding GPS location:', error);
@@ -219,12 +232,7 @@ export class GPSService {
   // Vehicles Management
   static async getVehicles(): Promise<Vehicle[]> {
     try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .order('plate_number', { ascending: true });
-
-      if (error) throw error;
+      const data = await this.apiFetch<Vehicle[]>(`/vehicles`);
       return data || [];
     } catch (error) {
       console.error('Error fetching vehicles:', error);
@@ -234,13 +242,10 @@ export class GPSService {
 
   static async createVehicle(vehicle: Omit<Vehicle, 'id' | 'created_at'>): Promise<Vehicle> {
     try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .insert([vehicle])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await this.apiFetch<Vehicle>(`/vehicles`, {
+        method: 'POST',
+        body: JSON.stringify(vehicle)
+      });
       return data;
     } catch (error) {
       console.error('Error creating vehicle:', error);
@@ -250,14 +255,10 @@ export class GPSService {
 
   static async updateVehicle(id: string, updates: Partial<Vehicle>): Promise<Vehicle> {
     try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await this.apiFetch<Vehicle>(`/vehicles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+      });
       return data;
     } catch (error) {
       console.error('Error updating vehicle:', error);
@@ -268,12 +269,7 @@ export class GPSService {
   // Geofences Management
   static async getGeofences(): Promise<Geofence[]> {
     try {
-      const { data, error } = await supabase
-        .from('geofences')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await this.apiFetch<Geofence[]>(`/geofences`);
       return data || [];
     } catch (error) {
       console.error('Error fetching geofences:', error);
@@ -331,22 +327,8 @@ export class GPSService {
   // GPS Alerts Management
   static async getGPSAlerts(isResolved?: boolean): Promise<GPSAlert[]> {
     try {
-      let query = supabase
-        .from('gps_alerts')
-        .select(`
-          *,
-          device:gps_devices(*),
-          geofence:geofences(*)
-        `)
-        .order('triggered_at', { ascending: false });
-
-      if (typeof isResolved === 'boolean') {
-        query = query.eq('is_resolved', isResolved);
-      }
-
-      const { data, error } = await query.limit(100);
-
-      if (error) throw error;
+      const params = isResolved !== undefined ? `?status=${isResolved ? 'resolved' : 'active'}` : '';
+      const data = await this.apiFetch<GPSAlert[]>(`/alerts${params}`);
       return data || [];
     } catch (error) {
       console.error('Error fetching GPS alerts:', error);
@@ -485,7 +467,7 @@ export class GPSService {
 
       return vehicles.map(vehicle => {
         const currentLocation = locations.find(loc => 
-          (loc as any).device?.vehicle_id === vehicle.id
+          (loc as { device?: { vehicle_id?: string } }).device?.vehicle_id === vehicle.id
         );
         return {
           ...vehicle,

@@ -468,26 +468,56 @@ export const RqScService = {
 
   async getRequerimientosBySC(scId: string): Promise<Requerimiento[]> {
     try {
-      // Establecer contexto de usuario para RLS
       await setUserContextWithMapping()
-      
-      const { data, error } = await supabase
+      // Obtener los IDs de requerimientos asociados
+      const { data: links, error: linkError } = await supabase
         .from('rq_sc')
-        .select(`
-          requerimientos!inner(
-            *,
-            obra:obras(*),
-            material:materiales(*)
-          )
-        `)
+        .select('rq_id')
         .eq('sc_id', scId)
-      
-      if (error) throw error
-      
-      // Extraer los requerimientos de la estructura anidada
-      const requerimientos = (data?.map(item => item.requerimientos).filter(Boolean) || []) as unknown as Requerimiento[]
-      console.log('Requerimientos obtenidos para SC:', scId, requerimientos)
-      return requerimientos
+
+      if (linkError) throw linkError
+      const rqIds = (links || []).map(l => l.rq_id).filter(Boolean)
+      if (rqIds.length === 0) return []
+
+      // Obtener requerimientos
+      const { data: reqs, error: reqError } = await supabase
+        .from('requerimientos')
+        .select('*')
+        .in('id', rqIds)
+
+      if (reqError) throw reqError
+      const requerimientos = reqs || []
+
+      // Enriquecer con materiales
+      const matIds = requerimientos.map(r => r.material_id).filter(Boolean)
+      let materiales: any[] = []
+      if (matIds.length > 0) {
+        const { data: mats } = await supabase
+          .from('materiales')
+          .select('id, nombre, codigo, descripcion, unidad, precio_unitario')
+          .in('id', matIds)
+        materiales = mats || []
+      }
+
+      // Enriquecer con obras
+      const obraIds = requerimientos.map(r => r.obra_id).filter(Boolean)
+      let obras: any[] = []
+      if (obraIds.length > 0) {
+        const { data: obs } = await supabase
+          .from('obras')
+          .select('id, nombre, codigo')
+          .in('id', obraIds)
+        obras = obs || []
+      }
+
+      const enriched = requerimientos.map((r: any) => ({
+        ...r,
+        material: materiales.find(m => m.id === r.material_id) || null,
+        material_nombre: r.material_nombre || (materiales.find(m => m.id === r.material_id)?.nombre),
+        obra: obras.find(o => o.id === r.obra_id) || null
+      })) as unknown as Requerimiento[]
+
+      return enriched
     } catch (error) {
       console.error('Error al obtener requerimientos por SC:', error)
       return []

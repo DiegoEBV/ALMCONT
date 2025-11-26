@@ -17,11 +17,15 @@ const LoadingSpinner = () => (
 const GPSMap = lazy(() => import('../components/gps/GPSMap'));
 const VehicleList = lazy(() => import('../components/gps/VehicleList'));
 const GPSControls = lazy(() => import('../components/gps/GPSControls'));
+const GeofenceAlertSystem = lazy(() => import('../components/gps/GeofenceAlertSystem'));
 
 const GPSTracking: React.FC = () => {
   const [showGeofences, setShowGeofences] = useState(true);
   const [showTrails, setShowTrails] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [recenterKey, setRecenterKey] = useState<number>(0);
+  const [centerMode, setCenterMode] = useState<'fitAll' | 'selected' | 'default'>('fitAll');
 
   const {
     vehicles,
@@ -83,6 +87,15 @@ const GPSTracking: React.FC = () => {
   const handleRefresh = useCallback(async () => {
     await refreshData();
   }, [refreshData]);
+
+  const handleCenterMap = useCallback(() => {
+    setCenterMode(selectedVehicle ? 'selected' : 'fitAll');
+    setRecenterKey(Date.now());
+  }, [selectedVehicle]);
+
+  const handleShowAlerts = useCallback(() => {
+    setShowAlertsModal(true);
+  }, []);
 
   // Calculate map center based on vehicles
   const getMapCenter = (): [number, number] => {
@@ -215,6 +228,8 @@ const GPSTracking: React.FC = () => {
                   onToggleGeofences={setShowGeofences}
                   showTrails={showTrails}
                   onToggleTrails={setShowTrails}
+                  onCenterMap={handleCenterMap}
+                  onShowAlerts={handleShowAlerts}
                 />
               </Suspense>
             </div>
@@ -253,6 +268,8 @@ const GPSTracking: React.FC = () => {
               center={getMapCenter()}
               zoom={selectedVehicle ? 15 : 12}
               showTrails={showTrails}
+              recenterKey={recenterKey}
+              centerMode={centerMode}
               className="h-full w-full"
             />
           </Suspense>
@@ -342,6 +359,20 @@ const GPSTracking: React.FC = () => {
           )}
         </div>
       </div>
+
+      {showAlertsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Alertas</h3>
+              <button onClick={() => setShowAlertsModal(false)} className="px-3 py-1 border rounded">Cerrar</button>
+            </div>
+            <Suspense fallback={<LoadingSpinner />}>
+              <GeofenceAlertSystem vehicles={vehicles} geofences={geofences} />
+            </Suspense>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

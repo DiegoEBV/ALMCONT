@@ -170,7 +170,7 @@ export default function Stock() {
       sortable: true,
       render: (value: string, item: StockItem) => (
         <div>
-          <div className="font-medium">{item.material?.descripcion}</div>
+          <div className="font-medium">{item.material?.nombre || item.material?.descripcion}</div>
           <div className="text-sm text-gray-500">{item.material?.descripcion}</div>
         </div>
       )
@@ -184,23 +184,23 @@ export default function Stock() {
       )
     },
     {
-      key: 'cantidad_actual',
+      key: 'stock_actual',
       title: 'Stock Actual',
       sortable: true,
       render: (value: number, item: StockItem) => (
         <span className={`font-semibold ${
-          item.cantidad_actual <= item.cantidad_minima ? 'text-red-600' : 'text-green-600'
+          (item.stock_actual || 0) <= (item.stock_minimo || 0) ? 'text-red-600' : 'text-green-600'
         }`}>
-          {item.cantidad_actual as number} {item.material?.unidad}
+          {item.stock_actual as number} {item.material?.unidad}
         </span>
       )
     },
     {
-      key: 'cantidad_minima',
+      key: 'stock_minimo',
       title: 'Stock Mínimo',
       sortable: true,
       render: (value: number, item: StockItem) => (
-        <span className="text-gray-600">{item.cantidad_minima as number} {item.material?.unidad}</span>
+        <span className="text-gray-600">{item.stock_minimo as number} {item.material?.unidad}</span>
       )
     },
     {
@@ -216,8 +216,8 @@ export default function Stock() {
       title: 'Estado',
       sortable: false,
       render: (value: string, item: StockItem) => {
-        const isLow = item.cantidad_actual <= item.cantidad_minima
-        const isEmpty = item.cantidad_actual === 0
+        const isLow = (item.stock_actual || 0) <= (item.stock_minimo || 0)
+        const isEmpty = (item.stock_actual || 0) === 0
         return (
           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
             isEmpty ? 'bg-red-100 text-red-800' :
