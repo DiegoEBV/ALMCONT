@@ -357,16 +357,18 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({
               <p className="font-medium">{new Date(approval.fecha_solicitud).toLocaleDateString()}</p>
             </div>
             {approval.datos_solicitud?.monto && (
-              <div className="col-span-2">
-                <span className="text-gray-600">Monto:</span>
-                <p className="font-medium text-lg">{formatCurrency(Number(approval.datos_solicitud.monto as number || 0))}</p>
-              </div>
-              {approval.codigo_validacion && (
-                <div>
-                  <span className="text-gray-600">Código de Validación:</span>
-                  <p className="font-medium">{approval.codigo_validacion}</p>
+              <>
+                <div className="col-span-2">
+                  <span className="text-gray-600">Monto:</span>
+                  <p className="font-medium text-lg">{formatCurrency(Number(approval.datos_solicitud.monto as number || 0))}</p>
                 </div>
-              </div>
+                {approval.codigo_validacion && (
+                  <div className="col-span-2">
+                    <span className="text-gray-600">Código de Validación:</span>
+                    <p className="font-medium">{approval.codigo_validacion}</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
