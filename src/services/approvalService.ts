@@ -136,6 +136,7 @@ export class ApprovalService {
     request: ApprovalRequest
   ): Promise<Approval> {
     try {
+      const codigo = `APR-${Date.now()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
       const { data: approval, error } = await supabase
         .from('aprobaciones')
         .insert({
@@ -146,7 +147,8 @@ export class ApprovalService {
           estado: 'pendiente',
           fecha_solicitud: new Date().toISOString(),
           comentarios: request.descripcion,
-          datos_solicitud: request.metadata || {}
+          datos_solicitud: request.metadata || {},
+          codigo_validacion: codigo
         })
         .select()
         .single();
@@ -198,9 +200,29 @@ export class ApprovalService {
         throw new Error(`Error al procesar aprobación: ${error.message}`);
       }
 
-      // Si fue aprobada, actualizar el documento original
+      // Si fue aprobada, evaluar si hay siguiente nivel
       if (action === 'aprobar') {
-        await this.updateDocumentStatus(approval);
+        const { data: rules } = await supabase
+          .from('reglas_aprobacion')
+          .select('*')
+          .eq('tipo_documento', approval.tipo)
+          .eq('activa', true)
+          .order('nivel_aprobacion', { ascending: true });
+        const nextRule = (rules || []).find(r => r.nivel_aprobacion > approval.nivel_aprobacion);
+        if (nextRule) {
+          // Crear siguiente registro de aprobación (pasar a COORDINACION/COSTOS según regla)
+          await this.createApprovalRecord(nextRule as any, {
+            tipo_documento: approval.tipo,
+            documento_id: approval.referencia_id,
+            usuario_solicitante: approval.solicitante_id,
+            descripcion: comments || 'Aprobado nivel previo',
+            metadata: approval.datos_solicitud as any,
+            created_at: new Date().toISOString()
+          } as any);
+        } else {
+          // No hay más niveles, actualizar documento original como aprobado
+          await this.updateDocumentStatus(approval);
+        }
       }
 
       return {
@@ -248,7 +270,19 @@ export class ApprovalService {
 
       // Verificar nivel de aprobación
       const requiredLevel = approval.nivel_aprobacion;
-      const userLevel = user.rol === 'admin' ? 999 : user.rol === 'supervisor' ? 2 : 1;
+      const roleMap: Record<string, number> = {
+        ADMIN: 999,
+        SUPERVISOR: 2,
+        COSTOS: 2,
+        COORDINADOR: 3,
+        LOGISTICA: 2,
+        ALMACENERO: 1,
+        PRODUCCION: 1,
+      } as any;
+      let userLevel = roleMap[String(user.rol).toUpperCase()] ?? 1;
+      if (String(user.email).toLowerCase() === 'residente@obra.com') {
+        userLevel = 1;
+      }
 
       return userLevel >= requiredLevel;
     } catch (error) {
@@ -302,7 +336,20 @@ export class ApprovalService {
         return [];
       }
 
-      const userLevel = user.rol === 'admin' ? 999 : user.rol === 'supervisor' ? 2 : 1;
+      const roleMap: Record<string, number> = {
+        ADMIN: 999,
+        SUPERVISOR: 2,
+        COSTOS: 2,
+        COORDINADOR: 3,
+        LOGISTICA: 2,
+        ALMACENERO: 1,
+        PRODUCCION: 1,
+      } as any;
+      let userLevel = roleMap[String(user.rol).toUpperCase()] ?? 1;
+      const isResidenteEmail = String(user.email).toLowerCase() === 'residente@obra.com';
+      if (isResidenteEmail) {
+        userLevel = 1;
+      }
 
       // Obtener aprobaciones pendientes que el usuario puede procesar
       const { data: approvals, error } = await supabase
@@ -319,7 +366,12 @@ export class ApprovalService {
         throw new Error(`Error al obtener aprobaciones pendientes: ${error.message}`);
       }
 
-      return approvals || [];
+      let result = approvals || [];
+      // Restringir al "Residente" (según email) a ver solo Producción
+      if (isResidenteEmail) {
+        result = result.filter(a => String((a.datos_solicitud as any)?.departamento_origen || '').toUpperCase() === 'PRODUCCION');
+      }
+      return result;
     } catch (error) {
       console.error('Error getting pending approvals:', error);
       throw error;

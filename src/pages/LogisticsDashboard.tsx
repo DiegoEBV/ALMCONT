@@ -42,6 +42,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatCurrency } from '../utils/currency';
 
 // Las interfaces ahora se importan desde logisticsService
 
@@ -613,7 +614,7 @@ const LogisticsDashboard: React.FC = () => {
                          contract.status === 'pending' ? 'Pendiente' : 'Cancelado'}
                       </Badge>
                       <span className="text-lg font-bold">
-                        S/ {contract.totalValue.toLocaleString()}
+                        {formatCurrency(contract.totalValue)}
                       </span>
                     </div>
                   </div>

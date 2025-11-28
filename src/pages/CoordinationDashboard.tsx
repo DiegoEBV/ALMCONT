@@ -12,6 +12,7 @@ import { httpService } from '@/services/httpService';
 import { materialesService } from '@/services/materiales';
 import { MaterialFormData } from '@/types';
 import { useAuth } from '../hooks/useAuth';
+import { formatCurrency } from '../utils/currency';
 
 interface KPIData {
   totalWorks: number;
@@ -504,7 +505,7 @@ const CoordinationDashboard: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Valor Stock</p>
-                      <p className="text-xl font-semibold">S/ {work.stockValue.toLocaleString()}</p>
+                      <p className="text-xl font-semibold">{formatCurrency(work.stockValue)}</p>
                     </div>
                   </div>
                   
@@ -607,7 +608,7 @@ const CoordinationDashboard: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`S/ ${Number(value).toLocaleString()}`, 'Valor']} />
+                    <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Valor']} />
                     <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>

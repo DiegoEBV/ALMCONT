@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, Clock, Eye, AlertTriangle, User, Calendar, DollarSign } from 'lucide-react';
+import { formatCurrency } from '../utils/currency';
 import { ApprovalService } from '../services/approvalService';
 import type { Approval } from '../types';
 import { Button } from './ui/Button';
@@ -244,7 +245,7 @@ export const ApprovalWorkflow: React.FC<ApprovalWorkflowProps> = ({ className })
                     {approval.datos_solicitud?.monto && (
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4" />
-                        <span>Monto: ${approval.datos_solicitud.monto.toLocaleString()}</span>
+                        <span>Monto: {formatCurrency(Number(approval.datos_solicitud.monto as number || 0))}</span>
                       </div>
                     )}
                   </div>
@@ -358,7 +359,13 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({
             {approval.datos_solicitud?.monto && (
               <div className="col-span-2">
                 <span className="text-gray-600">Monto:</span>
-                <p className="font-medium text-lg">${approval.datos_solicitud.monto.toLocaleString()}</p>
+                <p className="font-medium text-lg">{formatCurrency(Number(approval.datos_solicitud.monto as number || 0))}</p>
+              </div>
+              {approval.codigo_validacion && (
+                <div>
+                  <span className="text-gray-600">Código de Validación:</span>
+                  <p className="font-medium">{approval.codigo_validacion}</p>
+                </div>
               </div>
             )}
           </div>

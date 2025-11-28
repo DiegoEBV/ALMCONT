@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { advancedAnalyticsService, DashboardMetricas, IndicadorKPI } from '../../services/advancedAnalyticsService';
 import { toast } from 'sonner';
+import { formatCurrency } from '../../utils/currency';
 
 interface FiltroAvanzado {
   id: string;
@@ -264,7 +265,7 @@ const AdvancedDashboard: React.FC<AdvancedDashboardProps> = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Consumo Hoy</p>
-                  <p className="text-2xl font-bold">${metricas.consumoHoy.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(metricas.consumoHoy)}</p>
                 </div>
                 <DollarSign className="h-8 w-8 text-green-500" />
               </div>
@@ -276,7 +277,7 @@ const AdvancedDashboard: React.FC<AdvancedDashboardProps> = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Consumo Mes</p>
-                  <p className="text-2xl font-bold">${metricas.consumoMesActual.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(metricas.consumoMesActual)}</p>
                 </div>
                 <Activity className="h-8 w-8 text-blue-500" />
               </div>
@@ -357,7 +358,7 @@ const AdvancedDashboard: React.FC<AdvancedDashboardProps> = () => {
                     <XAxis dataKey="fecha" />
                     <YAxis />
                     <Tooltip formatter={(value, name) => [
-                      name === 'costo' ? `$${value.toLocaleString()}` : value,
+                      name === 'costo' ? formatCurrency(Number(value)) : value,
                       name === 'costo' ? 'Costo' : 'Cantidad'
                     ]} />
                     <Area type="monotone" dataKey="costo" stackId="1" stroke="#8884d8" fill="#8884d8" />
@@ -487,7 +488,7 @@ const AdvancedDashboard: React.FC<AdvancedDashboardProps> = () => {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="obraNombre" angle={-45} textAnchor="end" height={100} />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Costo Total']} />
+                    <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Costo Total']} />
                     <Bar dataKey="costoTotal" fill="#8884d8" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -519,7 +520,7 @@ const AdvancedDashboard: React.FC<AdvancedDashboardProps> = () => {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Costo']} />
+                    <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Costo']} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>

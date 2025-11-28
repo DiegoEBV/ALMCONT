@@ -6,6 +6,7 @@ import { stockService, StockItem, KardexMovimiento } from '../services/stockServ
 import { obrasService } from '../services/obras'
 import { Obra, TableColumn } from '../types'
 import { Button } from '../components/ui'
+import { formatCurrency } from '../utils/currency'
 import { Input } from '../components/ui'
 import { Select } from '../components/ui'
 import { Table} from '../components/ui'
@@ -343,7 +344,7 @@ export default function Stock() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Valor Total</p>
               <p className="text-2xl font-bold text-green-600">
-                {stockSummary.valor_total.toLocaleString()}
+                {formatCurrency(stockSummary.valor_total)}
               </p>
             </div>
           </div>

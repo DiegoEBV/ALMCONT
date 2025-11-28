@@ -180,6 +180,21 @@ export const supabaseUsersService = {
     }
   },
 
+  async ensureUser(email: string, userData: Partial<Usuario>): Promise<Usuario | null> {
+    try {
+      const existing = await this.getByEmail(email)
+      if (existing) return existing
+      const data = await this.create({
+        email,
+        ...userData,
+        activo: userData.activo ?? true,
+      })
+      return data
+    } catch (error) {
+      return null
+    }
+  },
+
   // Actualizar usuario en Supabase
   async update(id: string, userData: Partial<Usuario>): Promise<Usuario | null> {
     try {

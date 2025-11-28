@@ -820,6 +820,7 @@ export interface Approval {
   comentarios?: string;
   datos_solicitud: Record<string, unknown>;
   nivel_aprobacion: number;
+  codigo_validacion?: string;
   created_at: string;
   updated_at: string;
 }

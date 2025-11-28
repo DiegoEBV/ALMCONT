@@ -152,7 +152,7 @@ class LogisticsService {
 
       const { data: proveedores, error: proveedoresError } = await supabase
         .from('proveedores')
-        .select('id, nombre, contacto')
+        .select('id, nombre')
         .limit(5);
 
       if (proveedoresError) throw proveedoresError;

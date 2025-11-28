@@ -228,13 +228,19 @@ export class ReorderService {
       };
 
       // Obtener alertas de reorden
-      let alerts = await this.checkReorderPoints();
+      let alerts: ReorderAlert[] = [];
 
-      // Filtrar por materiales específicos si se especifica
-      if (options?.materiales_especificos) {
-        alerts = alerts.filter(alert => 
-          options.materiales_especificos!.includes(alert.material_id)
-        );
+      // Si se especifican materiales, construir alertas SOLO para esos materiales
+      if (options?.materiales_especificos && options.materiales_especificos.length > 0) {
+        const { data: mats, error: matsError } = await supabase
+          .from('materiales_requieren_reorden')
+          .select('*')
+          .in('id', options.materiales_especificos);
+        if (matsError) throw matsError;
+        const computed = await Promise.all((mats || []).map(m => this.calculateReorderSuggestion(m)));
+        alerts = computed;
+      } else {
+        alerts = await this.checkReorderPoints();
       }
 
       result.alertas_generadas = alerts.length;

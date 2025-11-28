@@ -51,38 +51,41 @@ class WarehouseService {
   // Obtener listas de picking basadas en requerimientos pendientes
   async getPickingLists(workerId: string): Promise<OptimizedPickingList[]> {
     try {
-      const { data: requerimientos, error } = await supabase
+      const { data: reqs, error } = await supabase
         .from('requerimientos')
-        .select(`
-          id,
-          cantidad_solicitada,
-          estado,
-          fecha_requerimiento,
-          materiales (
-            id,
-            nombre,
-            peso_unitario
-          ),
-          obras (
-            id,
-            nombre
-          ),
-          stock_obra_material (
-            ubicacion,
-            cantidad_actual
-          )
-        `)
+        .select('id, cantidad_solicitada, estado, fecha_solicitud, material_id, obra_id, material_nombre')
         .in('estado', ['PENDIENTE', 'EN_PROCESO'])
-        .order('fecha_requerimiento', { ascending: true })
+        .order('fecha_solicitud', { ascending: true })
         .limit(10);
 
       if (error) throw error;
+
+      const materialIds = Array.from(new Set((reqs || []).map(r => r.material_id).filter(Boolean)));
+      const obraIds = Array.from(new Set((reqs || []).map(r => r.obra_id).filter(Boolean)));
+
+      const { data: materiales } = await supabase
+        .from('materiales')
+        .select('id, nombre, peso_unitario')
+        .in('id', materialIds);
+      const materialesMap = new Map((materiales || []).map(m => [m.id, m]));
+
+      const { data: obras } = await supabase
+        .from('obras')
+        .select('id, nombre')
+        .in('id', obraIds);
+      const obrasMap = new Map((obras || []).map(o => [o.id, o]));
+
+      const { data: stocks } = await supabase
+        .from('stock_obra_material')
+        .select('material_id, obra_id, ubicacion, stock_actual');
+      const stockKey = (m: any) => `${m.material_id}:${m.obra_id}`;
+      const stockMap = new Map((stocks || []).map(s => [stockKey(s), s]));
 
       const pickingLists: OptimizedPickingList[] = [];
       let currentList: OptimizedPickingList | null = null;
       let listCounter = 1;
 
-      (requerimientos || []).forEach((req, index) => {
+      (reqs || []).forEach((req, index) => {
         // Crear nueva lista cada 3-5 items
         if (!currentList || currentList.items.length >= (3 + Math.floor(Math.random() * 3))) {
           if (currentList) {
@@ -103,11 +106,10 @@ class WarehouseService {
           listCounter++;
         }
 
-        const stockInfo = req.stock_obra_material?.[0];
-        const location = stockInfo?.ubicacion || `${String.fromCharCode(65 + Math.floor(Math.random() * 3))}-${String(Math.floor(Math.random() * 5) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 10) + 1).padStart(2, '0')}`;
-        
-        const material = Array.isArray(req.materiales) ? req.materiales[0] : req.materiales;
-        const obra = Array.isArray(req.obras) ? req.obras[0] : req.obras;
+        const sInfo = stockMap.get(stockKey({ material_id: req.material_id, obra_id: req.obra_id }));
+        const location = sInfo?.ubicacion || `${String.fromCharCode(65 + Math.floor(Math.random() * 3))}-${String(Math.floor(Math.random() * 5) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 10) + 1).padStart(2, '0')}`;
+        const material = materialesMap.get(req.material_id) || { id: req.material_id, nombre: req.material_nombre };
+        const obra = obrasMap.get(req.obra_id);
         
         const pickingItem: PickingItem = {
           id: req.id,
@@ -120,7 +122,8 @@ class WarehouseService {
         };
 
         currentList.items.push(pickingItem);
-        currentList.totalWeight += (req.cantidad_solicitada || 0) * 1; // Peso simulado
+        const pesoUnit = material?.peso_unitario || 1;
+        currentList.totalWeight += (req.cantidad_solicitada || 0) * pesoUnit;
         currentList.estimatedTime += Math.floor(Math.random() * 15) + 5; // 5-20 minutos por item
         currentList.route.push(location);
       });
@@ -141,30 +144,24 @@ class WarehouseService {
     try {
       const { data: stockItems, error } = await supabase
         .from('stock_obra_material')
-        .select(`
-          id,
-          cantidad_actual,
-          cantidad_minima,
-          ubicacion,
-          materiales (
-            id,
-            nombre
-          ),
-          obras (
-            id,
-            nombre
-          )
-        `)
-        .not('cantidad_actual', 'is', null) // Filtrar valores no nulos
-        .order('cantidad_actual', { ascending: true })
+        .select('id, stock_actual, stock_minimo, ubicacion, material_id, obra_id')
+        .not('stock_actual', 'is', null)
+        .order('stock_actual', { ascending: true })
         .limit(20);
 
       if (error) throw error;
 
+      const matIds = Array.from(new Set((stockItems || []).map(s => s.material_id).filter(Boolean)));
+      const obraIds = Array.from(new Set((stockItems || []).map(s => s.obra_id).filter(Boolean)));
+      const { data: materiales } = await supabase.from('materiales').select('id, nombre').in('id', matIds);
+      const { data: obras } = await supabase.from('obras').select('id, nombre').in('id', obraIds);
+      const matMap = new Map((materiales || []).map(m => [m.id, m]));
+      const obraMap = new Map((obras || []).map(o => [o.id, o]));
+
       const alerts: LocationAlert[] = (stockItems || []).map((item, index) => {
-        const severity = item.cantidad_actual <= (item.cantidad_minima || 0) 
+        const severity = item.stock_actual <= (item.stock_minimo || 0) 
           ? 'critical' 
-          : item.cantidad_actual <= (item.cantidad_minima || 0) * 1.1 
+          : item.stock_actual <= (item.stock_minimo || 0) * 1.1 
           ? 'high' 
           : 'medium';
 
@@ -174,7 +171,7 @@ class WarehouseService {
         let message = '';
         switch (alertType) {
           case 'low_stock':
-            message = `Stock bajo: ${(item.materiales as { nombre?: string })?.nombre || 'Material'} (${item.cantidad_actual}/${item.cantidad_minima || 0})`;
+            message = `Stock bajo: ${matMap.get(item.material_id)?.nombre || 'Material'} (${item.stock_actual}/${item.stock_minimo || 0})`;
             break;
           case 'misplaced_item':
             message = `Posible material mal ubicado en ${item.ubicacion}`;
@@ -235,9 +232,9 @@ class WarehouseService {
       // Por ahora simulamos el rendimiento basado en datos reales cuando sea posible
       const { data: requerimientos, error } = await supabase
         .from('requerimientos')
-        .select('id, estado, fecha_requerimiento')
-        .gte('fecha_requerimiento', startDate)
-        .lte('fecha_requerimiento', endDate);
+        .select('id, estado, fecha_solicitud')
+        .gte('fecha_solicitud', startDate)
+        .lte('fecha_solicitud', endDate);
 
       if (error) throw error;
 
