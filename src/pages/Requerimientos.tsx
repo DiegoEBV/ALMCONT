@@ -49,7 +49,7 @@ export default function Requerimientos() {
   // Estados de filtros
   const [filters, setFilters] = useState({
     busqueda: '',
-    empresa: '',
+    solicitante: '',
     estado: '',
     fecha_desde: '',
     fecha_hasta: ''
@@ -78,6 +78,12 @@ export default function Requerimientos() {
     subtotal: 0
   })
 
+  const formatDate = (value?: string) => {
+    if (!value) return '-'
+    const d = new Date(value)
+    return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('es-PE')
+  }
+
   // Definir columnas de la tabla
   const columns: TableColumn<Requerimiento>[] = [
     {
@@ -89,11 +95,11 @@ export default function Requerimientos() {
       )
     },
     {
-      key: 'empresa',
-      title: 'Empresa',
+      key: 'solicitante',
+      title: 'Solicitante',
       sortable: true,
       render: (value: string, item: Requerimiento) => (
-        <span className="text-sm">{item.empresa || '-'}</span>
+        <span className="text-sm">{item.solicitante || '-'}</span>
       )
     },
     {
@@ -118,22 +124,19 @@ export default function Requerimientos() {
       )
     },
     {
-      key: 'cantidad_atendida',
-      title: 'Cant. Atendida',
+      key: 'fecha_solicitud',
+      title: 'Fecha',
       sortable: true,
-      render: (value: number, item: Requerimiento) => (
-        <div className="text-right">
-          <span className="font-medium">{item.cantidad_atendida || 0}</span>
-          <span className="text-sm text-gray-500 ml-1">{item.unidad}</span>
-        </div>
+      render: (value: string, item: Requerimiento) => (
+        <span className="text-sm">{formatDate(item.fecha_solicitud || item.fecha_atencion)}</span>
       )
     },
     {
-      key: 'proveedor',
-      title: 'Proveedor',
+      key: 'bloque',
+      title: 'Bloque',
       sortable: true,
       render: (value: string, item: Requerimiento) => (
-        <span className="text-sm">{item.proveedor || '-'}</span>
+        <span className="text-sm">{item.bloque || '-'}</span>
       )
     },
     {
@@ -331,7 +334,7 @@ export default function Requerimientos() {
   const clearFilters = () => {
     setFilters({
       busqueda: '',
-      empresa: '',
+      solicitante: '',
       estado: '',
       fecha_desde: '',
       fecha_hasta: ''
@@ -491,10 +494,10 @@ export default function Requerimientos() {
           />
           
           <Input
-            label="Empresa"
-            placeholder="Filtrar por empresa"
-            value={filters.empresa}
-            onChange={(e) => handleFilterChange('empresa', e.target.value)}
+            label="Solicitante"
+            placeholder="Filtrar por solicitante"
+            value={filters.solicitante}
+            onChange={(e) => handleFilterChange('solicitante', e.target.value)}
           />
           
           <Select
@@ -652,7 +655,11 @@ export default function Requerimientos() {
                   {/* Dropdown de materiales */}
                   {showMaterialDropdown && materialSearch && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {filteredMateriales.length > 0 ? (
+                      {materiales.filter(material => 
+                        material.codigo?.toLowerCase().includes(materialSearch.toLowerCase()) ||
+                        material.nombre?.toLowerCase().includes(materialSearch.toLowerCase()) ||
+                        material.descripcion?.toLowerCase().includes(materialSearch.toLowerCase())
+                      ).slice(0, 10).length > 0 ? (
                         filteredMateriales.map((material) => (
                           <div
                             key={material.id}

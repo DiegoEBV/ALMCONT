@@ -70,10 +70,11 @@ const SelectContent = React.forwardRef<
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
+      sideOffset={4}
       className={cn(
-        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
         position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          "",
         className
       )}
       position={position}
@@ -173,6 +174,7 @@ interface SelectProps {
 
 const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
   ({ value, onChange, onValueChange, options, placeholder, className, children, label, required, ...props }, ref) => {
+    const [isOpen, setIsOpen] = React.useState(false)
     const handleValueChange = (newValue: string) => {
       if (onValueChange) {
         onValueChange(newValue)
@@ -183,11 +185,11 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
     }
 
     const selectElement = (
-      <SelectRoot value={value} onValueChange={handleValueChange} required={required}>
+      <SelectRoot value={value} onValueChange={handleValueChange} required={required} onOpenChange={setIsOpen}>
         <SelectTrigger className={className} ref={ref} {...props}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent aria-hidden={isOpen ? undefined : true} {...(isOpen ? {} : { inert: '' })}>
           {options ? (
             options.filter(option => option.value != null && option.value !== '').map((option) => (
               <SelectItem key={option.value} value={option.value}>

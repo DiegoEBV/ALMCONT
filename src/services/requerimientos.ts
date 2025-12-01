@@ -88,6 +88,10 @@ export const requerimientosService = {
         query = query.eq('empresa', filters.empresa)
         console.log('🏢 Filtro por empresa:', filters.empresa)
       }
+      if (filters?.solicitante) {
+        query = query.ilike('solicitante', `%${filters.solicitante}%`)
+        console.log('👤 Filtro por solicitante:', filters.solicitante)
+      }
       if (filters?.bloque) {
         query = query.eq('bloque', filters.bloque)
         console.log('🏗️ Filtro por bloque:', filters.bloque)
@@ -110,14 +114,20 @@ export const requerimientosService = {
 
       // Aplicar filtro de búsqueda del lado del cliente si se especifica
       let filteredData = data || []
-      if (filters?.search) {
-        const searchTerm = filters.search.toLowerCase()
-        filteredData = filteredData.filter(req => 
-          req.numero_requerimiento?.toLowerCase().includes(searchTerm) ||
-          req.descripcion?.toLowerCase().includes(searchTerm) ||
-          req.material?.toLowerCase().includes(searchTerm) ||
-          req.solicitante?.toLowerCase().includes(searchTerm)
-        )
+      if (filters?.busqueda) {
+        const searchTerm = filters.busqueda.toLowerCase()
+        filteredData = filteredData.filter(req => {
+          const nrq = req.numero_requerimiento || req.numero_rq || ''
+          const desc = req.descripcion || req.descripcion_actividad || ''
+          const mat = (req.material_nombre || (req.material && (req.material as any).nombre) || '') as string
+          const solic = req.solicitante || ''
+          return (
+            nrq.toLowerCase().includes(searchTerm) ||
+            desc.toLowerCase().includes(searchTerm) ||
+            mat.toLowerCase().includes(searchTerm) ||
+            solic.toLowerCase().includes(searchTerm)
+          )
+        })
         console.log('🔍 Filtro de búsqueda aplicado:', searchTerm)
         console.log('📊 Resultados después de búsqueda:', filteredData.length)
       }

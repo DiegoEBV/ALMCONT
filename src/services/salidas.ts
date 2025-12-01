@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { Salida, SalidaFormData } from '../types'
+import { supabaseUsersService } from './supabaseUsersService'
 
 export const salidasService = {
   async getById(id: string): Promise<Salida | null> {
@@ -263,28 +264,64 @@ export const salidasService = {
         throw new Error(stockCheck.mensaje)
       }
 
-      // Generar número de salida automático
       const { count } = await supabase
         .from('salidas')
         .select('*', { count: 'exact', head: true })
-      
       const numeroSalida = `SAL-${String((count || 0) + 1).padStart(6, '0')}`
 
-      const payload = {
-        obra_id: salidaData.obra_id,
-        material_id: salidaData.material_id,
-        cantidad_entregada: salidaData.cantidad_entregada,
-        fecha_entrega: salidaData.fecha_entrega,
-        solicitante: salidaData.solicitante,
-        motivo: salidaData.motivo,
-        observaciones: salidaData.observaciones,
-        numero_salida: numeroSalida,
-        documento_referencia: salidaData.documento_referencia
+      let solicitanteId: string | null = null
+      if (salidaData.created_by) {
+        const usuarioExistente = await supabaseUsersService.getByEmail(salidaData.created_by)
+        if (usuarioExistente) {
+          solicitanteId = usuarioExistente.id
+        } else {
+          const nuevoUsuario = await supabaseUsersService.ensureUser(salidaData.created_by, {
+            email: salidaData.created_by,
+            nombre: salidaData.solicitante || salidaData.created_by,
+            apellido: '',
+            rol: 'ALMACENERO',
+            obra_id: salidaData.obra_id,
+            activo: true
+          })
+          solicitanteId = nuevoUsuario?.id || null
+        }
       }
+      if (!solicitanteId) {
+        throw new Error('Usuario solicitante no válido')
+      }
+
+      const payloadSalida = {
+        obra_id: salidaData.obra_id,
+        fecha_salida: salidaData.fecha_salida,
+        numero_salida: numeroSalida,
+        documento_referencia: salidaData.documento_referencia,
+        observaciones: salidaData.observaciones,
+        estado: 'ENTREGADO',
+        solicitado_por: solicitanteId
+      }
+
+      const { data: salidaHeader, error: salidaError } = await supabase
+        .from('salidas')
+        .insert(payloadSalida)
+        .select('id, obra_id, numero_salida, fecha_salida')
+        .single()
+      if (salidaError) throw salidaError
+
+      const payloadItem = {
+        salida_id: salidaHeader.id,
+        material_id: salidaData.material_id,
+        cantidad_solicitada: salidaData.cantidad,
+        cantidad_entregada: salidaData.cantidad_entregada,
+        observaciones: salidaData.observaciones
+      }
+
+      const { error: itemError } = await supabase
+        .from('salida_items')
+        .insert(payloadItem)
+      if (itemError) throw itemError
 
       const { data, error } = await supabase
         .from('salidas')
-        .insert(payload)
         .select(`
           *,
           obra:obras(*),
@@ -296,11 +333,11 @@ export const salidasService = {
             material:materiales(*)
           )
         `)
+        .eq('id', salidaHeader.id)
         .single()
 
       if (error) throw error
 
-      // Actualizar stock
       await this.updateStock(salidaData.obra_id, salidaData.material_id, -salidaData.cantidad_entregada)
 
       return data
@@ -335,11 +372,7 @@ export const salidasService = {
         throw new Error('Salida no encontrada')
       }
 
-      // Si se cambia la cantidad, ajustar el stock
-      if (salidaData.cantidad_entregada && salidaData.cantidad_entregada !== salidaExistente.cantidad_entregada) {
-        const diferencia = salidaData.cantidad_entregada - salidaExistente.cantidad_entregada
-        await this.updateStock(salidaExistente.obra_id, salidaExistente.material_id, -diferencia)
-      }
+      
 
       const { data, error } = await supabase
         .from('salidas')
@@ -374,8 +407,11 @@ export const salidasService = {
         throw new Error('Salida no encontrada')
       }
 
-      // Restaurar stock
-      await this.updateStock(salida.obra_id, salida.material_id, salida.cantidad_entregada)
+      const items = (salida as any)?.salida_items || []
+      for (const item of items) {
+        const cantidad = item.cantidad_entregada || item.cantidad_autorizada || item.cantidad_solicitada || 0
+        await this.updateStock(salida.obra_id, item.material_id, cantidad)
+      }
 
       const { error } = await supabase
         .from('salidas')
@@ -441,18 +477,18 @@ export const salidasService = {
     ultima_salida: string | null
   }> {
     try {
-      const { data: salidas, error } = await supabase
-        .from('salidas')
-        .select('cantidad_entregada, fecha_entrega')
-        .eq('obra_id', obraId)
+      const { data: items, error } = await supabase
+        .from('salida_items')
+        .select('cantidad_entregada, salida:salidas(fecha_salida, obra_id)')
         .eq('material_id', materialId)
-        .order('fecha_entrega', { ascending: false })
+        .eq('salida.obra_id', obraId)
+        .order('updated_at', { ascending: false })
 
       if (error) throw error
 
-      const totalSalidas = salidas?.length || 0
-      const cantidadTotal = salidas?.reduce((sum, salida) => sum + salida.cantidad_entregada, 0) || 0
-      const ultimaSalida = salidas?.[0]?.fecha_entrega || null
+      const totalSalidas = items?.length || 0
+      const cantidadTotal = (items || []).reduce((sum, it: any) => sum + (it.cantidad_entregada || 0), 0)
+      const ultimaSalida = items?.[0]?.salida?.fecha_salida || null
 
       return {
         total_salidas: totalSalidas,

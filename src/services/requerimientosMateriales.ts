@@ -145,13 +145,27 @@ export const requerimientosMaterialesService = {
       // Generar número de requerimiento
       const numeroRequerimiento = await this.generateNumeroRequerimiento()
       
+      // Mapear solicitante a UUID de Supabase si es ID local
+      let solicitanteUUID = solicitanteId
+      try {
+        const maybeUUID = await mapLocalIdToUUID(solicitanteId, 'usuario')
+        if (maybeUUID) solicitanteUUID = maybeUUID
+      } catch {}
+
+      // Mapear obra_id (si es ID local)
+      let obraUUID = formData.obra_id
+      try {
+        const maybeObra = await mapLocalIdToUUID(formData.obra_id, 'obra')
+        if (maybeObra) obraUUID = maybeObra
+      } catch {}
+
       // Crear el requerimiento principal
       const { data: requerimiento, error: reqError } = await supabase
         .from('requerimiento_materiales')
         .insert({
           codigo: numeroRequerimiento,
-          obra_id: formData.obra_id,
-          solicitante_id: solicitanteId,
+          obra_id: obraUUID,
+          solicitante_id: solicitanteUUID,
           fecha_solicitud: new Date().toISOString(),
           fecha_requerida: formData.fecha_necesidad,
           estado: 'PENDIENTE',
@@ -167,13 +181,20 @@ export const requerimientosMaterialesService = {
 
       // Crear los detalles del requerimiento
       if (formData.detalles && formData.detalles.length > 0) {
-        const detalles = formData.detalles.map(detalle => ({
-          requerimiento_id: requerimiento.id,
-          material_id: detalle.material_id,
-          cantidad: detalle.cantidad,
-          comentarios: detalle.comentarios,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+        const detalles = await Promise.all(formData.detalles.map(async (detalle) => {
+          let materialUUID = detalle.material_id
+          try {
+            const maybeMat = await mapLocalIdToUUID(detalle.material_id, 'material')
+            if (maybeMat) materialUUID = maybeMat
+          } catch {}
+          return {
+            requerimiento_id: requerimiento.id,
+            material_id: materialUUID,
+            cantidad: detalle.cantidad,
+            comentarios: detalle.comentarios,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
         }))
 
         const { error: detallesError } = await supabase

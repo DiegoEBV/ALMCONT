@@ -262,7 +262,7 @@ const CreateRequirement: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="obra">Obra *</Label>
-                <div className="relative" style={{ zIndex: 1002 }}>
+                <div className="relative">
                   <Select 
                     value={formData.obra_id} 
                     onValueChange={(value) => {
@@ -273,15 +273,7 @@ const CreateRequirement: React.FC = () => {
                     <SelectTrigger className="w-full" data-testid="obra-select">
                       <SelectValue placeholder="Seleccionar obra" />
                     </SelectTrigger>
-                    <SelectContent 
-                      className="z-[9999] bg-white border shadow-lg"
-                      style={{
-                        position: 'fixed',
-                        zIndex: 9999,
-                        minWidth: '200px'
-                      }}
-                      sideOffset={4}
-                    >
+                    <SelectContent sideOffset={4}>
                       {obras.map((obra) => (
                         <SelectItem key={obra.id} value={obra.id}>
                           {obra.codigo} - {obra.nombre}
@@ -303,7 +295,7 @@ const CreateRequirement: React.FC = () => {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="z-[1001] bg-white border shadow-lg">
+                  <SelectContent>
                     <SelectItem value="BAJA">Baja</SelectItem>
                     <SelectItem value="MEDIA">Media</SelectItem>
                     <SelectItem value="ALTA">Alta</SelectItem>
