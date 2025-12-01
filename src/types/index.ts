@@ -356,6 +356,7 @@ export interface RequerimientoFilters {
   material_id?: string
   numero_rq?: string
   solicitante?: string
+  bloque?: string
   empresa?: string
 }
 

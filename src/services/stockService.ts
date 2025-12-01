@@ -369,8 +369,14 @@ export const stockService = {
           const materialIds = Array.from(new Set(salidaItems.map(s => s.material_id).filter(Boolean)));
           const { data: salidasData } = await supabase
             .from('salidas')
-            .select('id, fecha_salida, numero_salida, obra_id, observaciones, solicitado_por');
+            .select('id, fecha_salida, numero_salida, obra_id, observaciones, solicitado_por, documento_referencia');
           const salidasMap = new Map((salidasData || []).map(s => [s.id, s]));
+          const usuarioIds = Array.from(new Set((salidasData || []).map(s => s.solicitado_por).filter(Boolean)));
+          const { data: usuariosData } = await supabase
+            .from('usuarios')
+            .select('id, nombre, email')
+            .in('id', usuarioIds);
+          const usuariosMap = new Map((usuariosData || []).map(u => [u.id, u]));
           const { data: materialesData } = await supabase
             .from('materiales')
             .select('id, nombre, unidad_medida')
@@ -389,6 +395,12 @@ export const stockService = {
             if (fechaInicio && salida.fecha_salida && salida.fecha_salida < fechaInicio) continue;
             if (fechaFin && salida.fecha_salida && salida.fecha_salida > fechaFin) continue;
             const cantidad = -(item.cantidad_entregada || item.cantidad_autorizada || item.cantidad_solicitada || 0);
+            const usuario = usuariosMap.get(salida.solicitado_por || '');
+            const referencia = salida.documento_referencia || salida.numero_salida || '';
+            const observaciones = [
+              salida.observaciones || item.observaciones || '',
+              usuario ? `Solicitante: ${usuario.nombre}` : ''
+            ].filter(Boolean).join(' | ');
             movimientos.push({
               id: item.id,
               material_id: item.material_id,
@@ -398,8 +410,8 @@ export const stockService = {
               cantidad_anterior: 0,
               cantidad_nueva: 0,
               fecha_movimiento: salida.fecha_salida || '',
-              referencia: salida.numero_salida || '',
-              observaciones: salida.observaciones || item.observaciones || '',
+              referencia,
+              observaciones,
               usuario_id: salida.solicitado_por || '',
               material: materialesMap.get(item.material_id) as any,
               obra: obrasMap.get(salida.obra_id || '') as any

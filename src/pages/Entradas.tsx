@@ -184,11 +184,37 @@ export default function Entradas() {
 
       // Crear los items de entrada
       for (const linea of lineasConCantidad) {
-        // Buscar el material por código para obtener su UUID
-        const material = await materialesService.getByCodigo(linea.codigoMaterial)
-        
+        // Resolver material por código o por UUID
+        let material = null as Awaited<ReturnType<typeof materialesService.getById>> | Awaited<ReturnType<typeof materialesService.getByCodigo>>
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        if (uuidRegex.test(linea.codigoMaterial)) {
+          material = await materialesService.getById(linea.codigoMaterial)
+        } else {
+          material = await materialesService.getByCodigo(linea.codigoMaterial)
+          if (!material && linea.nombreMaterial) {
+            // Fallback: buscar por nombre con patrón
+            const { data: mats } = await supabase
+              .from('materiales')
+              .select('*')
+              .ilike('nombre', `%${linea.nombreMaterial}%`)
+              .limit(1)
+            material = mats?.[0] || null
+          }
+        }
         if (!material) {
-          throw new Error(`No se encontró el material con código: ${linea.codigoMaterial}`)
+          // Crear material mínimo si no existe
+          const codigoGenerado = uuidRegex.test(linea.codigoMaterial)
+            ? `AUTO-${Date.now()}`
+            : (linea.codigoMaterial || `AUTO-${Date.now()}`)
+          material = await materialesService.create({
+            codigo: codigoGenerado,
+            nombre: linea.nombreMaterial || codigoGenerado,
+            descripcion: linea.nombreMaterial || undefined,
+            categoria: 'Otros',
+            unidad: linea.unidad || 'UND',
+            precio_unitario: 0,
+            activo: true
+          })
         }
 
         const entradaItem = {
@@ -196,7 +222,7 @@ export default function Entradas() {
           material_id: material.id, // Usar el UUID del material
           cantidad_recibida: linea.cantidadAtendida,
           cantidad_aceptada: linea.cantidadAtendida,
-          precio_unitario: 0, // Se puede agregar después
+          precio_unitario: 0,
           estado: 'RECIBIDO'
         }
 

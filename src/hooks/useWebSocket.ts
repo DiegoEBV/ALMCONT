@@ -44,9 +44,7 @@ export const useWebSocket = ({
         reconnection: true,
         reconnectionAttempts: maxReconnectAttempts,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        // Configurar límites para evitar memory leaks
-        maxListeners: 10
+        reconnectionDelayMax: 5000
       });
 
       socketRef.current = socket;

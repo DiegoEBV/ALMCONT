@@ -122,7 +122,7 @@ class WarehouseService {
         };
 
         currentList.items.push(pickingItem);
-        const pesoUnit = material?.peso_unitario || 1;
+        const pesoUnit = 1;
         currentList.totalWeight += (req.cantidad_solicitada || 0) * pesoUnit;
         currentList.estimatedTime += Math.floor(Math.random() * 15) + 5; // 5-20 minutos por item
         currentList.route.push(location);

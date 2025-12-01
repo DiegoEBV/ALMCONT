@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, ArrowDownTrayIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../hooks/useAuth'
 import { requerimientosService } from '../services/requerimientos'
-import { obrasService } from '../services/obras'
+// import { obrasService } from '../services/obras'
 import { materialesService } from '../services/materiales'
-import { Requerimiento, Obra, Material, RequerimientoFormData, RequerimientoFilters, TableColumn } from '../types'
+import { Requerimiento, Material, RequerimientoFormData, RequerimientoFilters, TableColumn } from '../types'
 import { Button } from '../components/ui'
 import { Input } from '../components/ui'
 import { Select } from '../components/ui'
@@ -22,18 +22,12 @@ const ESTADOS_REQUERIMIENTO = [
   { value: 'CANCELADO', label: 'Cancelado' }
 ]
 
-const PRIORIDADES: { value: string; label: string }[] = [
-  { value: '', label: 'Todas las prioridades' },
-  { value: 'BAJA', label: 'Baja' },
-  { value: 'MEDIA', label: 'Media' },
-  { value: 'ALTA', label: 'Alta' },
-  { value: 'URGENTE', label: 'Urgente' }
-]
+// PRIORIDADES no se usan aquí
 
 export default function Requerimientos() {
   const { user } = useAuth()
   const [requerimientos, setRequerimientos] = useState<Requerimiento[]>([])
-  const [obras, setObras] = useState<Obra[]>([])
+  // const [obras, setObras] = useState([] as any)
   const [materiales, setMateriales] = useState<Material[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -52,7 +46,8 @@ export default function Requerimientos() {
     solicitante: '',
     estado: '',
     fecha_desde: '',
-    fecha_hasta: ''
+    fecha_hasta: '',
+    empresa: ''
   })
 
   // Estados del formulario
@@ -196,12 +191,7 @@ export default function Requerimientos() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      const [obrasData, materialesData] = await Promise.all([
-        obrasService.getAll(),
-        materialesService.getAllLegacy() // Usar método legacy que retorna Material[]
-      ])
-      
-      setObras(obrasData)
+      const materialesData = await materialesService.getAllLegacy()
       setMateriales(materialesData)
       
       await loadRequerimientos()
@@ -232,6 +222,69 @@ export default function Requerimientos() {
       setFormData(prev => ({ ...prev, subtotal }));
     }
   }, [formData.cantidad, formData.precio_unitario, formData.subtotal]);
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.material-selector')) {
+        setShowMaterialDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Materiales filtrados para el autocomplete
+  const filteredMateriales = materiales
+    .filter(material => 
+      material.codigo?.toLowerCase().includes(materialSearch.toLowerCase()) ||
+      material.nombre?.toLowerCase().includes(materialSearch.toLowerCase()) ||
+      material.descripcion?.toLowerCase().includes(materialSearch.toLowerCase())
+    )
+    .slice(0, 10)
+
+  // Selección de material
+  const handleMaterialSelect = (material: Material) => {
+    setSelectedMaterial(material)
+    setMaterialSearch(`${material.codigo} - ${material.nombre}`)
+    setFormData(prev => ({
+      ...prev,
+      material_nombre: material.nombre || '',
+      descripcion: material.descripcion || '',
+      unidad: material.unidad_medida || ''
+    }))
+    setShowMaterialDropdown(false)
+  }
+
+  // Limpiar selección de material
+  const handleMaterialClear = () => {
+    setSelectedMaterial(null)
+    setMaterialSearch('')
+    setFormData(prev => ({
+      ...prev,
+      material_nombre: '',
+      descripcion: '',
+      unidad: ''
+    }))
+  }
+
+  // Cambios en búsqueda de material
+  const handleMaterialSearchChange = (value: string) => {
+    setMaterialSearch(value)
+    setShowMaterialDropdown(true)
+    if (selectedMaterial && value !== `${selectedMaterial.codigo} - ${selectedMaterial.nombre}`) {
+      setSelectedMaterial(null)
+      setFormData(prev => ({
+        ...prev,
+        material_nombre: value,
+        descripcion: '',
+        unidad: ''
+      }))
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -337,7 +390,8 @@ export default function Requerimientos() {
       solicitante: '',
       estado: '',
       fecha_desde: '',
-      fecha_hasta: ''
+      fecha_hasta: '',
+      empresa: ''
     })
   }
 
@@ -880,71 +934,7 @@ export default function Requerimientos() {
       </Modal>
     </div>
   )
-
-  // Función para filtrar materiales basado en la búsqueda
-  const filteredMateriales = materiales.filter(material => 
-    material.codigo?.toLowerCase().includes(materialSearch.toLowerCase()) ||
-    material.nombre?.toLowerCase().includes(materialSearch.toLowerCase()) ||
-    material.descripcion?.toLowerCase().includes(materialSearch.toLowerCase())
-  ).slice(0, 10) // Limitar a 10 resultados para mejor rendimiento
-
-  // Función para manejar la selección de material
-  const handleMaterialSelect = (material: Material) => {
-    setSelectedMaterial(material)
-    setMaterialSearch(`${material.codigo} - ${material.nombre}`)
-    setFormData(prev => ({
-      ...prev,
-      material_nombre: material.nombre || '',
-      descripcion: material.descripcion || '',
-      unidad: material.unidad_medida || ''
-    }))
-    setShowMaterialDropdown(false)
-  }
-
-  // Función para limpiar la selección de material
-  const handleMaterialClear = () => {
-    setSelectedMaterial(null)
-    setMaterialSearch('')
-    setFormData(prev => ({
-      ...prev,
-      material_nombre: '',
-      descripcion: '',
-      unidad: ''
-    }))
-  }
-
-  // Función para manejar cambios en el campo de búsqueda de material
-  const handleMaterialSearchChange = (value: string) => {
-    setMaterialSearch(value)
-    setShowMaterialDropdown(true)
-    
-    // Si el usuario está escribiendo libremente, limpiar la selección
-    if (selectedMaterial && value !== `${selectedMaterial.codigo} - ${selectedMaterial.nombre}`) {
-      setSelectedMaterial(null)
-      setFormData(prev => ({
-        ...prev,
-        material_nombre: value,
-        descripcion: '',
-        unidad: ''
-      }))
-    }
-  }
-
-  // ...
-  // Agregar useEffect para cerrar dropdown al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element
-      if (!target.closest('.material-selector')) {
-        setShowMaterialDropdown(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
+  
 
   return (
     <div className="space-y-6">

@@ -260,7 +260,7 @@ export class ApprovalService {
       // Obtener información del usuario
       const { data: user, error: userError } = await supabase
         .from('usuarios')
-        .select('rol')
+        .select('rol, email')
         .eq('id', userId)
         .single();
 
@@ -328,7 +328,7 @@ export class ApprovalService {
       // Obtener información del usuario
       const { data: user } = await supabase
         .from('usuarios')
-        .select('rol')
+        .select('rol, email')
         .eq('id', userId)
         .single();
 

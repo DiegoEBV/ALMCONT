@@ -486,9 +486,10 @@ export const salidasService = {
 
       if (error) throw error
 
-      const totalSalidas = items?.length || 0
-      const cantidadTotal = (items || []).reduce((sum, it: any) => sum + (it.cantidad_entregada || 0), 0)
-      const ultimaSalida = items?.[0]?.salida?.fecha_salida || null
+      const list = (items as any[]) || []
+      const totalSalidas = list.length
+      const cantidadTotal = list.reduce((sum, it: any) => sum + (it.cantidad_entregada || 0), 0)
+      const ultimaSalida = list[0]?.salida?.fecha_salida || null
 
       return {
         total_salidas: totalSalidas,
