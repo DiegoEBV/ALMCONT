@@ -90,6 +90,30 @@ const ParticleBackground: React.FC<ParticleBackgroundProps> = ({ count = 1000 })
     let cursorPoint: THREE.Vector3 | null = null
     let interactionMode: 'attract' | 'repel' = 'attract'
 
+    // Parámetros para modo átomo/sistema solar
+    const ringRadii = [12, 24, 36, 52]
+    const totalRingParticles = Math.min(320, count)
+    const ringCounts = [
+      Math.floor(totalRingParticles * 0.15),
+      Math.floor(totalRingParticles * 0.25),
+      Math.floor(totalRingParticles * 0.3),
+      totalRingParticles - (Math.floor(totalRingParticles * 0.15) + Math.floor(totalRingParticles * 0.25) + Math.floor(totalRingParticles * 0.3))
+    ]
+    const orbitAngles = new Float32Array(totalRingParticles)
+    const orbitSpeeds = new Float32Array(totalRingParticles)
+    const orbitRingIndex = new Uint8Array(totalRingParticles)
+    for (let i = 0; i < totalRingParticles; i++) {
+      orbitAngles[i] = Math.random() * Math.PI * 2
+      orbitSpeeds[i] = 0.005 + Math.random() * 0.01
+    }
+    // Asignar partículas a anillos
+    let assigned = 0
+    for (let r = 0; r < ringCounts.length; r++) {
+      for (let j = 0; j < ringCounts[r]; j++) {
+        orbitRingIndex[assigned++] = r
+      }
+    }
+
     const onMouseMove = (e: MouseEvent) => {
       mouseNDC.x = (e.clientX / window.innerWidth) * 2 - 1
       mouseNDC.y = -(e.clientY / window.innerHeight) * 2 + 1
@@ -113,25 +137,32 @@ const ParticleBackground: React.FC<ParticleBackgroundProps> = ({ count = 1000 })
 
       const pos = geometry.getAttribute('position') as THREE.BufferAttribute
       const arr = pos.array as Float32Array
-      for (let i = 0; i < count; i++) {
-        const i3 = i * 3
-        arr[i3] += velocities[i3]
-        arr[i3 + 1] += velocities[i3 + 1]
-        arr[i3 + 2] += velocities[i3 + 2]
-
-        if (arr[i3] > 220 || arr[i3] < -220) velocities[i3] *= -1
-        if (arr[i3 + 1] > 140 || arr[i3 + 1] < -140) velocities[i3 + 1] *= -1
-        if (arr[i3 + 2] > 120 || arr[i3 + 2] < -120) velocities[i3 + 2] *= -1
-
-        if (cursorPoint) {
+      if (cursorPoint) {
+        // Modo átomo: primeras N partículas orbitan en anillos alrededor del cursor
+        for (let i = 0; i < totalRingParticles; i++) {
+          const i3 = i * 3
+          const ring = orbitRingIndex[i]
+          const radius = ringRadii[ring]
+          orbitAngles[i] += orbitSpeeds[i]
+          const tx = cursorPoint.x + Math.cos(orbitAngles[i]) * radius
+          const ty = cursorPoint.y + Math.sin(orbitAngles[i]) * radius
+          const tz = 0
+          // Lerp hacia el objetivo para agrupar suavemente
+          arr[i3] += (tx - arr[i3]) * 0.08
+          arr[i3 + 1] += (ty - arr[i3 + 1]) * 0.08
+          arr[i3 + 2] += (tz - arr[i3 + 2]) * 0.06
+        }
+        // El resto de partículas se atraen o repelen suavemente
+        for (let i = totalRingParticles; i < count; i++) {
+          const i3 = i * 3
           const dx = arr[i3] - cursorPoint.x
           const dy = arr[i3 + 1] - cursorPoint.y
           const dz = arr[i3 + 2]
           const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.0001
-          const radius = 60
+          const radius = 80
           if (dist < radius) {
             const base = (radius - dist) / radius
-            const force = base * 0.0035
+            const force = base * 0.0025
             const dirX = dx / dist
             const dirY = dy / dist
             if (interactionMode === 'repel') {
@@ -142,7 +173,26 @@ const ParticleBackground: React.FC<ParticleBackgroundProps> = ({ count = 1000 })
               velocities[i3 + 1] -= dirY * force
             }
           }
+          arr[i3] += velocities[i3]
+          arr[i3 + 1] += velocities[i3 + 1]
+          arr[i3 + 2] += velocities[i3 + 2]
         }
+      } else {
+        // Comportamiento normal
+        for (let i = 0; i < count; i++) {
+          const i3 = i * 3
+          arr[i3] += velocities[i3]
+          arr[i3 + 1] += velocities[i3 + 1]
+          arr[i3 + 2] += velocities[i3 + 2]
+        }
+      }
+
+      // Rebotes en límites
+      for (let i = 0; i < count; i++) {
+        const i3 = i * 3
+        if (arr[i3] > 220 || arr[i3] < -220) velocities[i3] *= -1
+        if (arr[i3 + 1] > 140 || arr[i3 + 1] < -140) velocities[i3 + 1] *= -1
+        if (arr[i3 + 2] > 120 || arr[i3 + 2] < -120) velocities[i3 + 2] *= -1
       }
       pos.needsUpdate = true
       renderer.render(scene, camera)

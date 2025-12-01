@@ -1,6 +1,7 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { Suspense, lazy } from 'react'
+import LoadingOverlay from './components/ui/LoadingOverlay'
 import { AuthProvider } from './hooks/useAuth'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import Login from './components/auth/Login'
@@ -8,11 +9,7 @@ import Layout from './components/layout/Layout'
 import './App.css'
 
 // Loading component
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-  </div>
-)
+const LoadingSpinner = () => (<LoadingOverlay title="Cargando módulo" />)
 
 // Lazy load pages
 
@@ -40,6 +37,7 @@ const Perfil = lazy(() => import('./pages/Perfil'))
 const AdminObras = lazy(() => import('./pages/AdminObras'))
 const AdminUsuarios = lazy(() => import('./pages/AdminUsuarios'))
 const ProductionDashboard = lazy(() => import('./pages/ProductionDashboard'))
+const ResidentDashboard = lazy(() => import('./pages/ResidentDashboard'))
 const CreateRequirement = lazy(() => import('./pages/CreateRequirement'))
 const RequirementsTracking = lazy(() => import('./pages/RequirementsTracking'))
 const Materiales = lazy(() => import('./pages/Materiales'))
@@ -205,6 +203,17 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['PRODUCCION']}>
                     <RequirementsTracking />
+                  </ProtectedRoute>
+                }
+              />
+              {/* Módulo Residente - Solo RESIDENTE */}
+              <Route
+                path="residente/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['RESIDENTE']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <ResidentDashboard />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />

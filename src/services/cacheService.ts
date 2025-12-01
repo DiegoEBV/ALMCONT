@@ -52,7 +52,7 @@ class CacheService {
     return this.db!
   }
 
-  private generateQueryKey(query: any): string {
+  private generateQueryKey(query: unknown): string {
     return `query_${JSON.stringify(query)}`
   }
 
@@ -102,13 +102,13 @@ class CacheService {
     })
   }
 
-  async cacheQuery(query: any, data: any, ttlMinutes: number = 15): Promise<void> {
+  async cacheQuery(query: unknown, data: unknown, ttlMinutes: number = 15): Promise<void> {
     const db = await this.ensureDB()
     const transaction = db.transaction(['queries'], 'readwrite')
     const store = transaction.objectStore('queries')
 
     const key = this.generateQueryKey(query)
-    const cacheItem: CacheItem<any> = {
+    const cacheItem: CacheItem<unknown> = {
       data,
       timestamp: Date.now(),
       expiry: Date.now() + (ttlMinutes * 60 * 1000)
@@ -121,7 +121,7 @@ class CacheService {
     })
   }
 
-  async getCachedQuery(query: any): Promise<any | null> {
+  async getCachedQuery(query: unknown): Promise<unknown | null> {
     const db = await this.ensureDB()
     const transaction = db.transaction(['queries'], 'readonly')
     const store = transaction.objectStore('queries')

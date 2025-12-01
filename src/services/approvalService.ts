@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { Database } from '../types/database';
-import type { ApprovalRule, ApprovalRequest, Approval } from '../types';
+import type { ApprovalRule, ApprovalRequest, Approval, ApprovalConditions } from '../types';
 
 export interface ApprovalHistory {
   id: string;
@@ -83,7 +82,7 @@ export class ApprovalService {
   ): Promise<boolean> {
     try {
       // Evaluar condiciones básicas
-      const conditions = rule.condiciones as any;
+      const conditions = rule.condiciones as ApprovalConditions;
       
       // Evaluar condiciones de monto
       if (conditions.min_amount && request.monto_total && request.monto_total < conditions.min_amount) {
@@ -278,6 +277,7 @@ export class ApprovalService {
         LOGISTICA: 2,
         ALMACENERO: 1,
         PRODUCCION: 1,
+        RESIDENTE: 1,
       } as any;
       let userLevel = roleMap[String(user.rol).toUpperCase()] ?? 1;
       if (String(user.email).toLowerCase() === 'residente@obra.com') {
@@ -344,10 +344,11 @@ export class ApprovalService {
         LOGISTICA: 2,
         ALMACENERO: 1,
         PRODUCCION: 1,
+        RESIDENTE: 1,
       } as any;
       let userLevel = roleMap[String(user.rol).toUpperCase()] ?? 1;
-      const isResidenteEmail = String(user.email).toLowerCase() === 'residente@obra.com';
-      if (isResidenteEmail) {
+      const isResidente = String(user.rol).toUpperCase() === 'RESIDENTE' || String(user.email).toLowerCase() === 'residente@obra.com';
+      if (isResidente) {
         userLevel = 1;
       }
 
@@ -368,7 +369,7 @@ export class ApprovalService {
 
       let result = approvals || [];
       // Restringir al "Residente" (según email) a ver solo Producción
-      if (isResidenteEmail) {
+      if (isResidente) {
         result = result.filter(a => String((a.datos_solicitud as any)?.departamento_origen || '').toUpperCase() === 'PRODUCCION');
       }
       return result;

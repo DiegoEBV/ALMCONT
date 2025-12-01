@@ -25,30 +25,22 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   className,
   color = 'blue'
 }) => {
-  return (
-    <div className={clsx('animate-spin', sizeClasses[size], colorClasses[color], className)}>
-      <svg
-        className="w-full h-full"
-        fill="none"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        />
-      </svg>
+  const ring = (
+    <div
+      className={clsx(
+        'relative',
+        sizeClasses[size],
+        className
+      )}
+    >
+      <div className="absolute inset-0 rounded-full animate-spin" style={{
+        background:
+          'conic-gradient(from 0deg, rgba(59,130,246,0.9), rgba(59,130,246,0.2) 40%, rgba(59,130,246,0.05) 60%, rgba(59,130,246,0.9) 100%)'
+      }} />
+      <div className={clsx('absolute inset-[3px] rounded-full', colorClasses[color], 'bg-white')} />
     </div>
   )
+  return ring
 }
 
 export default LoadingSpinner

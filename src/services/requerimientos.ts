@@ -213,6 +213,32 @@ export const requerimientosService = {
       }
       
       console.log('✅ Requerimiento creado exitosamente:', data)
+
+      try {
+        const { error: apError } = await supabase
+          .from('aprobaciones')
+          .insert({
+            tipo: 'solicitud_compra',
+            referencia_id: data.id,
+            nivel_aprobacion: 1,
+            solicitante_id: (data as any).created_by || null,
+            estado: 'pendiente',
+            fecha_solicitud: new Date().toISOString(),
+            comentarios: 'Aprobación inicial por Residente',
+            datos_solicitud: {
+              numero_requerimiento: data.numero_requerimiento,
+              prioridad: (data as any).prioridad || 'MEDIA',
+              departamento_origen: 'PRODUCCION',
+              solicitante: data.solicitante || ''
+            }
+          })
+        if (apError) {
+          console.warn('No se pudo crear aprobación inicial:', apError)
+        }
+      } catch (e) {
+        console.warn('Error creando aprobación inicial:', e)
+      }
+
       return data
     } catch (error) {
       console.error('❌ Error en create requerimiento:', error)

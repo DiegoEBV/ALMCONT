@@ -486,10 +486,16 @@ export const salidasService = {
 
       if (error) throw error
 
-      const list = (items as any[]) || []
+      const list = (items as Array<Record<string, unknown>>) || []
       const totalSalidas = list.length
-      const cantidadTotal = list.reduce((sum, it: any) => sum + (it.cantidad_entregada || 0), 0)
-      const ultimaSalida = list[0]?.salida?.fecha_salida || null
+      const cantidadTotal: number = list.reduce((sum: number, it: Record<string, unknown>) => {
+        const obj = it as Record<string, unknown>
+        const val = typeof obj.cantidad_entregada === 'number' ? obj.cantidad_entregada : 0
+        return sum + val
+      }, 0)
+      const first = list[0] as Record<string, unknown> | undefined
+      const salidaObj = first && typeof first.salida === 'object' && first.salida !== null ? (first.salida as Record<string, unknown>) : undefined
+      const ultimaSalida = (salidaObj?.fecha_salida as string) || null
 
       return {
         total_salidas: totalSalidas,

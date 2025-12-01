@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase'
 import type { Material } from '../types'
 import { cacheService } from './cacheService'
+import { localAuth } from './localAuth'
+import { mapLocalIdToUUID } from '../utils/idMapper'
 
 export interface MaterialesQuery {
   page?: number
@@ -38,12 +40,11 @@ class MaterialesService {
   async getAll(query: MaterialesQuery = {}): Promise<MaterialesResponse> {
     const { page = 1, limit = 50, search, categoria, activo } = query
     
-    // Generar clave de cache
-    const cacheKey = `materiales_${JSON.stringify(query)}`
+    // Generar clave de cache (usado internamente por cacheService)
     
     // Intentar obtener desde cache
-    const cachedResult = await cacheService.getCachedQuery(query)
-    if (cachedResult) {
+    const cachedResult = await cacheService.getCachedQuery(query) as MaterialesResponse | null
+    if (cachedResult && Array.isArray(cachedResult.data)) {
       console.log('Datos obtenidos desde cache')
       return cachedResult
     }
@@ -101,6 +102,16 @@ class MaterialesService {
     const cachedData = await cacheService.getCachedMateriales(cacheKey)
     if (cachedData) {
       return cachedData
+    }
+
+    try {
+      const current = localAuth.getCurrentUser()
+      if (current) {
+        const userUUID = await mapLocalIdToUUID(current.id, 'usuario')
+        await supabase.rpc('set_user_context', { user_id: userUUID || (current as unknown as { supabaseId: string }).supabaseId, user_role: current.rol })
+      }
+    } catch (e) {
+      console.warn('No se pudo establecer contexto de usuario para materiales', e)
     }
 
     const { data, error } = await supabase

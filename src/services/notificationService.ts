@@ -2,7 +2,6 @@ import { localDB } from '../lib/localDB';
 import { stockService } from './stock';
 import { requerimientosService } from './requerimientos';
 import { solicitudesCompraService } from './solicitudesCompra';
-import { ordenesCompraService } from './ordenesCompra';
 
 export interface NotificationConfig {
   id: string;
@@ -27,7 +26,7 @@ export interface NotificationAlert {
   type: 'stock_bajo' | 'nuevo_requerimiento' | 'aprobacion_pendiente';
   title: string;
   message: string;
-  data: any;
+  data: unknown;
   userId: string;
   read: boolean;
   priority: 'low' | 'medium' | 'high';
@@ -521,9 +520,9 @@ class NotificationService {
       alert.type === type &&
       new Date(alert.createdAt).getTime() > oneHourAgo &&
       (
-        (alert.data as any)?.materialId === dataId ||
-        (alert.data as any)?.requerimientoId === dataId ||
-        (alert.data as any)?.solicitudId === dataId
+        (alert.data as unknown as { materialId: string })?.materialId === dataId ||
+        (alert.data as unknown as { requerimientoId: string })?.requerimientoId === dataId ||
+        (alert.data as unknown as { solicitudId: string })?.solicitudId === dataId
       )
     );
   }

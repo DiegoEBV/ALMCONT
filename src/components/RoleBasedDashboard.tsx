@@ -24,7 +24,11 @@ const RoleBasedDashboard: React.FC = () => {
   }
 
   // Redirigir según el rol del usuario
-  switch (user.rol) {
+  // Normalizar rol por email especial
+  const isResidenteEmail = String(user.email).toLowerCase() === 'residente@obra.com'
+  const effectiveRole = isResidenteEmail ? 'RESIDENTE' : user.rol
+
+  switch (effectiveRole) {
     case 'COORDINACION':
       return <Navigate to="/oficina/dashboard" replace />
     
@@ -36,6 +40,8 @@ const RoleBasedDashboard: React.FC = () => {
     
     case 'PRODUCCION':
       return <Navigate to="/produccion/dashboard" replace />
+    case 'RESIDENTE':
+      return <Navigate to="/residente/dashboard" replace />
     
     default:
       // Para roles desconocidos o como fallback, mantener el dashboard general

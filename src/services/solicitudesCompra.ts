@@ -4,6 +4,9 @@ import { localAuth } from './localAuth'
 import { mapLocalIdToUUID } from '../utils/idMapper'
 import type { SolicitudCompra, SolicitudCompraFormData, Requerimiento } from '../types'
 
+type MinimalMaterial = { id: string; nombre?: string; codigo?: string; descripcion?: string; unidad?: string; precio_unitario?: number }
+type MinimalObra = { id: string; nombre?: string; codigo?: string }
+
 // Función auxiliar para establecer contexto de usuario con mapeo de UUID
 async function setUserContextWithMapping(): Promise<void> {
   const currentUser = localAuth.getCurrentUser()
@@ -133,7 +136,7 @@ export const solicitudesCompraService = {
         .map(req => req.material_id)
         .filter(id => id)
       
-      let materiales = []
+      let materiales: MinimalMaterial[] = []
       if (materialIds.length > 0) {
         const { data: materialesData, error: matError } = await supabase
           .from('materiales')
@@ -150,7 +153,7 @@ export const solicitudesCompraService = {
         .map(req => req.obra_id)
         .filter(id => id)
       
-      let obras = []
+      let obras: MinimalObra[] = []
       if (obraIds.length > 0) {
         const { data: obrasData, error: obraError } = await supabase
           .from('obras')
@@ -490,7 +493,7 @@ export const RqScService = {
 
       // Enriquecer con materiales
       const matIds = requerimientos.map(r => r.material_id).filter(Boolean)
-      let materiales: any[] = []
+      let materiales: MinimalMaterial[] = []
       if (matIds.length > 0) {
         const { data: mats } = await supabase
           .from('materiales')
@@ -501,7 +504,7 @@ export const RqScService = {
 
       // Enriquecer con obras
       const obraIds = requerimientos.map(r => r.obra_id).filter(Boolean)
-      let obras: any[] = []
+      let obras: MinimalObra[] = []
       if (obraIds.length > 0) {
         const { data: obs } = await supabase
           .from('obras')
@@ -510,10 +513,10 @@ export const RqScService = {
         obras = obs || []
       }
 
-      const enriched = requerimientos.map((r: any) => ({
+      const enriched = requerimientos.map((r) => ({
         ...r,
         material: materiales.find(m => m.id === r.material_id) || null,
-        material_nombre: r.material_nombre || (materiales.find(m => m.id === r.material_id)?.nombre),
+        material_nombre: (r as Record<string, unknown>).material_nombre as string || (materiales.find(m => m.id === r.material_id)?.nombre),
         obra: obras.find(o => o.id === r.obra_id) || null
       })) as unknown as Requerimiento[]
 
@@ -543,7 +546,8 @@ export const RqScService = {
         .eq('rq_id', rqId)
       
       if (error) throw error
-      return (data?.map(item => item.solicitud_compra).filter(Boolean) as unknown) as SolicitudCompra[] || []
+      const list = ((data || []) as unknown) as Array<{ solicitud_compra?: SolicitudCompra }>
+      return list.map(item => item.solicitud_compra!).filter(Boolean)
     } catch (error) {
       console.error('Error al obtener SCs por requerimiento:', error)
       return []

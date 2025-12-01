@@ -352,12 +352,12 @@ export class CyclicInventoryService {
         tareas.push({
           id: conteo.id,
           material_id: conteo.material_id,
-          material_nombre: (conteo.materiales as any)?.nombre || 'Material desconocido',
+          material_nombre: ((conteo as any).materiales?.nombre) || 'Material desconocido',
           ubicaciones_asignadas: ubicacionesInfo,
           fecha_programada: conteo.fecha_programada,
-          estado: conteo.estado as any,
+          estado: (conteo.estado as 'programado' | 'en_proceso' | 'completado' | 'cancelado'),
           asignado_a: conteo.asignado_a,
-          prioridad: conteo.prioridad as any
+          prioridad: (conteo.prioridad as 'alta' | 'media' | 'baja')
         });
       }
 

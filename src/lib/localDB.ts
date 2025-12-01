@@ -152,24 +152,12 @@ class LocalDatabase {
     this.data = {
       usuarios: [
         {
-          id: '4',
-          email: 'produccion@obra.com',
+          id: '1',
+          email: 'coordinador@obra.com',
           password: 'password123',
-          nombre: 'Producción',
+          nombre: 'Coordinador',
           apellido: 'Principal',
-          rol: 'PRODUCCION',
-          activo: true,
-          obra_id: '1',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '5',
-          email: 'residente@obra.com',
-          password: 'password123',
-          nombre: 'Residente',
-          apellido: 'Obra',
-          rol: 'PRODUCCION',
+          rol: 'COORDINACION',
           activo: true,
           obra_id: '1',
           created_at: new Date().toISOString(),
@@ -210,7 +198,19 @@ class LocalDatabase {
           obra_id: '1',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }
+        },
+        {
+          id: '5',
+          email: 'residente@obra.com',
+          password: 'password123',
+          nombre: 'Residente',
+          apellido: 'Obra',
+          rol: 'RESIDENTE',
+          activo: true,
+          obra_id: '1',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
       ],
       obras: [], // Las obras se cargarán desde Supabase
       materiales: [

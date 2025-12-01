@@ -173,13 +173,23 @@ export class LocationService {
     preferencias?: any
   ): Promise<LocationAssignment | null> {
     try {
+      const isUbicacion = (o: unknown): o is { stock_ubicaciones?: { cantidad: number }[]; capacidad_maxima: number; restricciones_tipo?: { tipos_permitidos?: string[]; tipos_prohibidos?: string[] }; id: string; codigo: string; zona?: string; tipo?: string } => {
+        return typeof o === 'object' && o !== null && 'capacidad_maxima' in o && 'id' in o && 'codigo' in o
+      }
+      const isPrefs = (p: unknown): p is { cerca_de_material?: string; zona_preferida?: string; tipo_ubicacion?: string } => typeof p === 'object' && p !== null
+
+      if (!isUbicacion(ubicacion)) {
+        return null
+      }
+      const u = ubicacion
+      const prefs = isPrefs(preferencias) ? preferencias : undefined
       // Calcular capacidad ocupada actual
-      const stockActual = ubicacion.stock_ubicaciones?.reduce(
-        (total: number, stock: any) => total + stock.cantidad,
+      const stockActual = (u.stock_ubicaciones || [])?.reduce(
+        (total: number, stock: any) => total + (stock.cantidad || 0),
         0
       ) || 0;
 
-      const capacidadDisponible = ubicacion.capacidad_maxima - stockActual;
+      const capacidadDisponible = u.capacidad_maxima - stockActual;
 
       // Verificar si hay capacidad suficiente
       if (capacidadDisponible < cantidad) {
@@ -187,8 +197,8 @@ export class LocationService {
       }
 
       // Verificar restricciones de tipo de material
-      if (ubicacion.restricciones_tipo) {
-        const restricciones = ubicacion.restricciones_tipo as any;
+      if (u.restricciones_tipo) {
+        const restricciones = u.restricciones_tipo as any;
         if (restricciones.tipos_permitidos && 
             !restricciones.tipos_permitidos.includes(material.categoria)) {
           return null;
@@ -201,28 +211,28 @@ export class LocationService {
 
       // Calcular distancia estimada (si hay preferencias de proximidad)
       let distanciaEstimada = 0;
-      if (preferencias?.cerca_de_material) {
+      if (prefs?.cerca_de_material) {
         distanciaEstimada = await this.calculateDistanceToMaterial(
-          ubicacion.id,
-          preferencias.cerca_de_material
+          u.id,
+          prefs.cerca_de_material
         );
       }
 
       // Determinar razón de asignación
       let razonAsignacion = 'Ubicación disponible con capacidad suficiente';
       
-      if (preferencias?.zona_preferida && ubicacion.zona === preferencias.zona_preferida) {
-        razonAsignacion = `Ubicación en zona preferida: ${ubicacion.zona}`;
-      } else if (ubicacion.tipo === preferencias?.tipo_ubicacion) {
-        razonAsignacion = `Ubicación del tipo preferido: ${ubicacion.tipo}`;
+      if (prefs?.zona_preferida && u.zona === prefs.zona_preferida) {
+        razonAsignacion = `Ubicación en zona preferida: ${u.zona}`;
+      } else if (u.tipo === prefs?.tipo_ubicacion) {
+        razonAsignacion = `Ubicación del tipo preferido: ${u.tipo}`;
       } else if (capacidadDisponible >= cantidad * 2) {
         razonAsignacion = 'Ubicación con amplia capacidad disponible';
       }
 
       return {
-        ubicacion_id: ubicacion.id,
-        ubicacion_codigo: ubicacion.codigo,
-        zona: ubicacion.zona,
+        ubicacion_id: u.id,
+        ubicacion_codigo: u.codigo,
+        zona: u.zona,
         capacidad_disponible: capacidadDisponible,
         distancia_estimada: distanciaEstimada,
         razon_asignacion: razonAsignacion
@@ -392,7 +402,8 @@ export class LocationService {
     movimiento: StockMovement
   ): Promise<{ success: boolean; message: string }> {
     try {
-      let stockOrigen: any = null;
+      let stockOrigen: unknown = null;
+      const hasCantidad = (s: unknown): s is { cantidad: number } => typeof s === 'object' && s !== null && typeof (s as any).cantidad === 'number'
       
       // Verificar stock origen si es transferencia o salida
       if (movimiento.tipo_movimiento !== 'entrada' && movimiento.ubicacion_origen) {
@@ -405,7 +416,7 @@ export class LocationService {
 
         stockOrigen = stockOrigenData;
         
-        if (!stockOrigen || stockOrigen.cantidad < movimiento.cantidad) {
+        if (!hasCantidad(stockOrigen) || stockOrigen.cantidad < movimiento.cantidad) {
           return {
             success: false,
             message: 'Stock insuficiente en ubicación origen'
@@ -414,7 +425,7 @@ export class LocationService {
       }
 
       // Actualizar stock origen (reducir)
-      if (movimiento.ubicacion_origen && stockOrigen) {
+      if (movimiento.ubicacion_origen && hasCantidad(stockOrigen)) {
         const { error: errorOrigen } = await supabase
           .from('stock_ubicaciones')
           .update({

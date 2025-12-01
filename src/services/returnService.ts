@@ -530,12 +530,25 @@ export class ReturnService {
    * Procesa el movimiento de inventario para una devolución
    */
   private static async processReturnMovement(
-    detalle: any,
+    detalle: unknown,
     tipoDevolucion: string,
     procesadoPor: string,
     devolucionId: string
   ): Promise<void> {
     try {
+      const isDetalle = (d: unknown): d is {
+        material_id: string
+        ubicacion_destino?: string
+        ubicacion_origen?: string
+        cantidad: number
+        precio_unitario?: number
+        subtotal?: number
+        motivo_detalle?: string
+      } => typeof d === 'object' && d !== null && 'material_id' in d && 'cantidad' in d
+
+      if (!isDetalle(detalle)) {
+        throw new Error('Detalle de devolución inválido')
+      }
       // Determinar tipo de movimiento según tipo de devolución
       let tipoMovimiento: string;
       let cantidad: number;
@@ -851,7 +864,7 @@ export class ReturnService {
           const key = detalle.material_id;
           const existing = materialesMap.get(key);
           
-          const precioUnitario = (detalle.materiales as any)?.precio_unitario || 0;
+          const precioUnitario = (detalle.materiales as unknown as { precio_unitario: number })?.precio_unitario || 0;
           
           if (existing) {
             existing.cantidad_total += detalle.cantidad;

@@ -86,7 +86,7 @@ class ExcelService {
     try {
       const excelUrl = new URL('../assets/reqprueb.xlsx', import.meta.url).toString()
       return await this.readExcelFile(excelUrl)
-    } catch (error) {
+    } catch {
       try {
         const jsonUrl = new URL('../assets/reqprueb.json', import.meta.url).toString()
         const response = await fetch(jsonUrl)

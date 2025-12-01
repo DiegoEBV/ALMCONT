@@ -23,6 +23,8 @@ import { materialesService } from '@/services/materiales'
 import { obrasService } from '@/services/obras'
 import { requerimientosMaterialesService } from '@/services/requerimientosMateriales'
 import type { Material, Obra, RequerimientoMaterialFormData } from '@/types'
+import LoadingOverlay from '../components/ui/LoadingOverlay'
+import { attachmentsService } from '@/services/attachmentsService'
 
 interface MaterialSelection {
   material_id: string
@@ -47,6 +49,7 @@ const CreateRequirement: React.FC = () => {
   })
   const [selectedMaterials, setSelectedMaterials] = useState<MaterialSelection[]>([])
   const [showMaterialSelector, setShowMaterialSelector] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
 
   // Obtener categorías únicas
   const categories = Array.from(new Set(materiales.map(m => m.categoria).filter(Boolean)))
@@ -95,7 +98,7 @@ const CreateRequirement: React.FC = () => {
     toast.success(`${material.nombre} agregado al requerimiento`)
   }
 
-  const handleUpdateMaterial = (index: number, field: keyof MaterialSelection, value: any) => {
+  const handleUpdateMaterial = (index: number, field: keyof MaterialSelection, value: unknown) => {
     const updated = [...selectedMaterials]
     updated[index] = { ...updated[index], [field]: value }
     setSelectedMaterials(updated)
@@ -180,7 +183,21 @@ const CreateRequirement: React.FC = () => {
         }))
       }
 
-      await requerimientosMaterialesService.create(requirementData, user.id)
+      const created = await requerimientosMaterialesService.create(requirementData, user.id)
+      if (created?.id && files.length > 0) {
+        const urls = await attachmentsService.uploadRequirementAttachments(created.id, files)
+        if (urls.length > 0) {
+          try {
+            const joined = urls.join('\n')
+            await (await import('@/lib/supabase')).supabase
+              .from('requerimiento_materiales')
+              .update({ comentarios: [formData.comentarios || '', `Adjuntos:\n${joined}`].filter(Boolean).join('\n\n') })
+              .eq('id', created.id)
+          } catch (e) {
+            console.warn('No se pudo actualizar comentarios con adjuntos:', e)
+          }
+        }
+      }
       toast.success('Requerimiento creado exitosamente')
       navigate('/production/requirements')
     } catch (error) {
@@ -224,11 +241,7 @@ const CreateRequirement: React.FC = () => {
   }, [filterMateriales])
 
   if (loading && materiales.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    )
+    return <LoadingOverlay title="Cargando Materiales" message="Conectando con Supabase y preparando catálogos..." />
   }
 
   return (
@@ -314,6 +327,18 @@ const CreateRequirement: React.FC = () => {
                 onChange={(e) => setFormData(prev => ({ ...prev, comentarios: e.target.value }))}
                 rows={3}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Adjuntar Sustento (PDF / Excel)</Label>
+              <input
+                type="file"
+                accept=".pdf,.xls,.xlsx,.csv,.doc,.docx,image/*"
+                multiple
+                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+              />
+              {files.length > 0 && (
+                <p className="text-sm text-gray-600">{files.length} archivo(s) seleccionado(s)</p>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -6,7 +6,7 @@ interface QueueJob {
   type: 'import' | 'export' | 'validation';
   status: 'pending' | 'processing' | 'completed' | 'failed';
   priority: 'low' | 'medium' | 'high';
-  data: any;
+  data: unknown;
   created_at: string;
   started_at?: string;
   completed_at?: string;
@@ -42,7 +42,7 @@ class JobQueueService {
     // Registrar procesador de importación
     this.registerProcessor('import', {
       process: async (job: QueueJob) => {
-        const { importJobId, data, fieldMapping } = job.data;
+        const { importJobId, data, fieldMapping } = job.data as { importJobId: string; data: unknown[]; fieldMapping: Record<string, string> };
         
         // Actualizar estado del trabajo de importación
         await this.updateImportJobStatus(importJobId, 'processing');
@@ -64,11 +64,11 @@ class JobQueueService {
     // Registrar procesador de validación
     this.registerProcessor('validation', {
       process: async (job: QueueJob) => {
-        const { data, targetTable, fieldMapping } = job.data;
+        const { data, targetTable, fieldMapping } = job.data as { data: Record<string, unknown>[]; targetTable: string; fieldMapping: Record<string, string> };
         
         try {
           // Validar datos en lotes para mejor rendimiento
-          const validationResult = await importService.validateData(data, targetTable, fieldMapping);
+          const validationResult = await importService.validateData(data, fieldMapping, undefined);
           
           // Guardar resultados de validación
           await this.saveValidationResults(job.id, validationResult);
@@ -145,7 +145,7 @@ class JobQueueService {
     errorMessage?: string,
     progress?: number
   ): Promise<void> {
-    const updates: any = { status };
+    const updates: Record<string, unknown> = { status };
     
     if (status === 'processing' && !updates.started_at) {
       updates.started_at = new Date().toISOString();
@@ -178,7 +178,7 @@ class JobQueueService {
     status: ImportJob['status'], 
     errorMessage?: string
   ): Promise<void> {
-    const updates: any = { status };
+    const updates: Record<string, unknown> = { status };
     
     if (status === 'processing') {
       updates.started_at = new Date().toISOString();
@@ -204,7 +204,7 @@ class JobQueueService {
 
   private async processImportInBatches(
     importJobId: string, 
-    data: any[], 
+    data: unknown[], 
     fieldMapping: Record<string, string>,
     queueJobId: string
   ): Promise<void> {
@@ -215,13 +215,14 @@ class JobQueueService {
     let failedRecords = 0;
 
     for (let i = 0; i < totalBatches; i++) {
-      const batch = data.slice(i * batchSize, (i + 1) * batchSize);
+      const batchUnknown = data.slice(i * batchSize, (i + 1) * batchSize);
+      const safeBatch: Record<string, unknown>[] = batchUnknown.map(item => (typeof item === 'object' && item !== null ? item as Record<string, unknown> : {}));
       
       try {
         // Procesar lote
-        const result = await importService.processBatch(importJobId, batch, fieldMapping);
+        const result = await importService.processBatch(importJobId, safeBatch as any[], fieldMapping);
         
-        processedRecords += batch.length;
+        processedRecords += safeBatch.length;
         successfulRecords += result.successful;
         failedRecords += result.failed;
         
@@ -241,7 +242,7 @@ class JobQueueService {
           
       } catch (error) {
         console.error(`Error processing batch ${i + 1}:`, error);
-        failedRecords += batch.length;
+        failedRecords += safeBatch.length;
         
         // Continuar con el siguiente lote en caso de error
         await importService.logImportError(importJobId, {
@@ -260,7 +261,7 @@ class JobQueueService {
     }
   }
 
-  private async saveValidationResults(jobId: string, result: any): Promise<void> {
+  private async saveValidationResults(jobId: string, result: unknown): Promise<void> {
     // Guardar resultados de validación en una tabla temporal o cache
     const { error } = await supabase
       .from('validation_results')

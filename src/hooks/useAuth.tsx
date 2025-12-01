@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { localAuth } from '../services/localAuth'
-import { supabaseUsersService } from '../services/supabaseUsers'
+import { supabaseUsersService } from '../services/supabaseUsersService'
 import { supabase } from '../lib/supabase'
 import { obrasService } from '../services/obras'
 import { localDB } from '../lib/localDB'
@@ -104,14 +104,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Buscar usuario local correspondiente
       console.log('🔍 useAuth: Buscando usuario local correspondiente...')
       const usuarios = await localAuth.getUsers()
-      const localUser = usuarios.find(u => u.email === email && u.activo)
+      let localUser = usuarios.find(u => u.email === email && u.activo)
 
       if (!localUser) {
         console.log('❌ useAuth: Usuario local no encontrado o inactivo para:', email)
         console.log('📋 useAuth: Usuarios disponibles:', usuarios.map(u => ({ email: u.email, activo: u.activo })))
-        throw new Error('Usuario no encontrado o inactivo')
+        console.log('🛠️ useAuth: Intentando crear usuario en Supabase y base local...')
+
+        try {
+          const obraUUID = await mapLocalIdToUUID('1', 'obra')
+          const supUser = await supabaseUsersService.ensureUser(email, {
+            email,
+            nombre: email === 'residente@obra.com' ? 'Residente' : email.split('@')[0],
+            apellido: email === 'residente@obra.com' ? 'Obra' : '',
+            rol: email === 'residente@obra.com' ? 'RESIDENTE' : 'PRODUCCION',
+            obra_id: obraUUID || null,
+            activo: true
+          })
+
+          const createdLocal = await localDB.create('usuarios', {
+            id: crypto.randomUUID(),
+            email,
+            password: 'password123',
+            nombre: supUser?.nombre || (email.split('@')[0]),
+            apellido: supUser?.apellido || '',
+            rol: email === 'residente@obra.com' ? 'RESIDENTE' : 'PRODUCCION',
+            activo: true,
+            obra_id: obraUUID || '1',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+
+          localUser = createdLocal
+          console.log('✅ useAuth: Usuario creado y activado localmente:', localUser.email)
+        } catch (seedError) {
+          console.error('❌ useAuth: No se pudo crear usuario automáticamente:', seedError)
+          throw new Error('Usuario no encontrado o inactivo')
+        }
       }
 
+      if (localUser.email.toLowerCase() === 'residente@obra.com' && localUser.rol !== 'RESIDENTE') {
+        await localDB.update('usuarios', localUser.id, { rol: 'RESIDENTE' as any })
+        localUser = { ...localUser, rol: 'RESIDENTE' as any }
+      }
       console.log('✅ useAuth: Usuario local encontrado:', localUser.email, 'Rol:', localUser.rol)
 
       // Cargar información de la obra si está asignada
@@ -312,7 +347,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     error,
     signIn: async (email: string, password: string): Promise<AuthUser> => {
-      const result = await signIn(email, password)
+      await signIn(email, password)
       // Esperar a que el estado se actualice
       await new Promise(resolve => setTimeout(resolve, 100))
       if (!user) throw new Error('No user after sign-in')

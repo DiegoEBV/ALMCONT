@@ -435,7 +435,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
                       <div key={header} className="p-2 bg-gray-50 rounded border">
                         <span className="text-sm font-medium">{header}</span>
                         <p className="text-xs text-gray-500">
-                          Ejemplo: {parsedData.preview[0]?.[header] || 'N/A'}
+                          Ejemplo: {String(parsedData.preview[0]?.[header] ?? 'N/A')}
                         </p>
                       </div>
                     ))}
@@ -497,7 +497,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({
                             .filter(([, target]) => target)
                             .map(([source]) => (
                               <td key={source} className="px-4 py-2 text-sm text-gray-900">
-                                {row[source] || '-'}
+                                {String(row[source] ?? '-')}
                               </td>
                             ))
                           }

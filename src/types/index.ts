@@ -1,5 +1,5 @@
 // Agregar UserRole que falta
-export type UserRole = 'COORDINACION' | 'LOGISTICA' | 'ALMACENERO' | 'PRODUCCION'
+export type UserRole = 'COORDINACION' | 'LOGISTICA' | 'ALMACENERO' | 'PRODUCCION' | 'RESIDENTE'
 
 // Tipos de autenticación
 export interface AuthContextType {
@@ -663,10 +663,18 @@ export interface ScOc {
 // Tipos para funcionalidades avanzadas
 
 // Tipos para sistema de aprobaciones
+export interface ApprovalConditions {
+  min_amount?: number
+  max_amount?: number
+  tipos_documento?: string[]
+  roles_excluidos?: UserRole[]
+  metadata_required?: Record<string, unknown>
+}
+
 export interface ApprovalRule {
   id: string;
   tipo_documento: string;
-  condiciones: Record<string, unknown>;
+  condiciones: ApprovalConditions;
   nivel_requerido: number;
   nivel_aprobacion: number;
   activa: boolean;

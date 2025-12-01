@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { localAuth } from './localAuth';
 import { localDB } from '../lib/localDB';
 
@@ -145,7 +146,7 @@ class HttpService {
   }
 
   // Obtener ubicaciones de entrega para logística
-  async getDeliveryLocations(): Promise<{ success: boolean; data: any[] }> {
+  async getDeliveryLocations(): Promise<{ success: boolean; data: unknown[] }> {
     const mockLocations = [
       { id: '1', name: 'Almacén Central', address: 'Av. Principal 123', lat: -12.0464, lng: -77.0428 },
       { id: '2', name: 'Obra Norte', address: 'Jr. Los Pinos 456', lat: -12.0264, lng: -77.0328 },
@@ -155,7 +156,7 @@ class HttpService {
   }
 
   // Obtener comparaciones de precios de proveedores
-  async getSupplierPrices(): Promise<{ success: boolean; data: any[] }> {
+  async getSupplierPrices(): Promise<{ success: boolean; data: unknown[] }> {
     const mockPrices = [
       { material: 'Cemento Portland', supplier1: 25.50, supplier2: 26.00, supplier3: 24.80, bestPrice: 24.80 },
       { material: 'Acero Corrugado', supplier1: 3.20, supplier2: 3.15, supplier3: 3.25, bestPrice: 3.15 },
@@ -165,7 +166,7 @@ class HttpService {
   }
 
   // Obtener listas de picking para almaceneros
-  async getPickingLists(workerId: string): Promise<{ success: boolean; data: any[] }> {
+  async getPickingLists(workerId: string): Promise<{ success: boolean; data: unknown[] }> {
     const mockPickingLists = [
       {
         id: '1',
@@ -191,7 +192,7 @@ class HttpService {
   }
 
   // Obtener alertas de almacén
-  async getWarehouseAlerts(workerId: string): Promise<{ success: boolean; data: any[] }> {
+  async getWarehouseAlerts(workerId: string): Promise<{ success: boolean; data: unknown[] }> {
     const mockAlerts = [
       {
         id: '1',
@@ -214,7 +215,7 @@ class HttpService {
   }
 
   // Obtener rendimiento de almacenero
-  async getWorkerPerformance(workerId: string, startDate: string, endDate: string): Promise<{ success: boolean; data: any }> {
+  async getWorkerPerformance(workerId: string, startDate: string, endDate: string): Promise<{ success: boolean; data: unknown }> {
     const mockPerformance = {
       tasksCompleted: Math.floor(Math.random() * 50) + 20,
       averageTime: Math.random() * 2 + 1,
@@ -225,7 +226,7 @@ class HttpService {
   }
 
   // Crear contrato de logística
-  async createContract(contractData: any): Promise<{ success: boolean; data: any }> {
+  async createContract(contractData: Record<string, any>): Promise<{ success: boolean; data: any }> {
     const mockContract = {
       id: crypto.randomUUID(),
       ...contractData,
@@ -236,12 +237,12 @@ class HttpService {
   }
 
   // Reconocer alerta
-  async acknowledgeAlert(alertId: string, workerId: string): Promise<{ success: boolean; data: any }> {
+  async acknowledgeAlert(alertId: string, workerId: string): Promise<{ success: boolean; data: unknown }> {
     return this.simulateRequest(`/warehouse/alerts/${alertId}/acknowledge`, { acknowledged: true });
   }
 
   // Resolver alerta
-  async resolveAlert(alertId: string, workerId: string): Promise<{ success: boolean; data: any }> {
+  async resolveAlert(alertId: string, workerId: string): Promise<{ success: boolean; data: unknown }> {
     return this.simulateRequest(`/warehouse/alerts/${alertId}/resolve`, { resolved: true });
   }
 }

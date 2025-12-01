@@ -17,5 +17,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 export const setSupabaseUserContext = async (userId: string) => {
   try {
     await supabase.rpc('set_user_context', { user_id: userId })
-  } catch {}
+  } catch (error) {
+    console.error('Error setting user context:', error)
+  }
 }

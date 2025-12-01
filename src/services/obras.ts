@@ -1,9 +1,20 @@
 import { supabase } from '../lib/supabase'
 import type { Obra } from '../types'
+import { localAuth } from './localAuth'
+import { mapLocalIdToUUID } from '../utils/idMapper'
 
 export const obrasService = {
   async getAll(): Promise<Obra[]> {
     try {
+      try {
+        const current = localAuth.getCurrentUser()
+        if (current) {
+          const userUUID = await mapLocalIdToUUID(current.id, 'usuario')
+          await supabase.rpc('set_user_context', { user_id: userUUID || current.supabaseId, user_role: current.rol })
+        }
+      } catch (e) {
+        console.warn('No se pudo establecer contexto de usuario para obras', e)
+      }
       const { data, error } = await supabase
         .from('obras')
         .select('*')

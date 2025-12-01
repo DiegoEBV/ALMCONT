@@ -62,8 +62,22 @@ export class ReorderService {
   /**
    * Calcula la sugerencia de reorden para un material específico
    */
-  private static async calculateReorderSuggestion(material: any): Promise<ReorderAlert> {
+  private static async calculateReorderSuggestion(material: unknown): Promise<ReorderAlert> {
     try {
+      const isRow = (x: unknown): x is {
+        id: string
+        nombre: string
+        stock_actual: number
+        punto_reorden: number
+        stock_minimo?: number
+        proveedor_preferido?: string
+        cantidad_maxima?: number
+      } => typeof x === 'object' && x !== null && 'id' in x && 'punto_reorden' in x && 'stock_actual' in x && 'nombre' in x
+
+      if (!isRow(material)) {
+        throw new Error('Registro de material inválido')
+      }
+
       // Obtener configuración de reorden para el material
       const { data: config } = await supabase
         .from('configuracion_reorden')
@@ -80,20 +94,20 @@ export class ReorderService {
         cantidadSugerida = config.cantidad_reorden || cantidadSugerida;
 
         // Ajustar por consumo histórico si está configurado
-        if (config.considerar_consumo_historico) {
+        if ((config as Record<string, unknown>)?.considerar_consumo_historico) {
           const consumoPromedio = await this.calculateAverageConsumption(
             material.id,
-            config.dias_consumo_historico || 30
+            Number((config as Record<string, unknown>)?.dias_consumo_historico) || 30
           );
           
           if (consumoPromedio > 0) {
-            const diasCobertura = config.dias_cobertura_deseada || 30;
+            const diasCobertura = Number((config as Record<string, unknown>)?.dias_cobertura_deseada) || 30;
             cantidadSugerida = Math.max(cantidadSugerida, consumoPromedio * diasCobertura);
           }
         }
 
         // Ajustar por estacionalidad si está configurado
-        if (config.ajuste_estacional) {
+        if ((config as Record<string, unknown>)?.ajuste_estacional) {
           const factorEstacional = await this.getSeasonalFactor(material.id);
           cantidadSugerida = Math.round(cantidadSugerida * factorEstacional);
         }
@@ -118,12 +132,13 @@ export class ReorderService {
     } catch (error) {
       console.error('Error calculating reorder suggestion:', error);
       // Retornar sugerencia básica en caso de error
+      const fallback = material as Record<string, unknown>;
       return {
-        material_id: material.id,
-        material_nombre: material.nombre,
-        stock_actual: material.stock_actual,
-        punto_reorden: material.punto_reorden,
-        cantidad_sugerida: material.punto_reorden * 2,
+        material_id: String(fallback.id || ''),
+        material_nombre: String(fallback.nombre || 'Material'),
+        stock_actual: Number(fallback.stock_actual || 0),
+        punto_reorden: Number(fallback.punto_reorden || 0),
+        cantidad_sugerida: Number(fallback.punto_reorden || 0) * 2,
         urgencia: 'media'
       };
     }
@@ -173,9 +188,10 @@ export class ReorderService {
         .eq('material_id', materialId)
         .single();
 
-      if (config?.ajuste_estacional) {
-        const ajustes = config.ajuste_estacional as any;
-        return ajustes[`mes_${mesActual}`] || 1.0;
+      if (config && typeof (config as Record<string, unknown>).ajuste_estacional === 'object') {
+        const ajustes = (config as Record<string, any>).ajuste_estacional as Record<string, number>;
+        const key = `mes_${mesActual}`;
+        return typeof ajustes[key] === 'number' ? ajustes[key] : 1.0;
       }
 
       return 1.0;

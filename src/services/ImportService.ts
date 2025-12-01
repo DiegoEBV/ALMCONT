@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { toast } from 'sonner';
 
 export interface ImportJob {
   id: string;
@@ -17,8 +16,8 @@ export interface ImportJob {
   failed_records: number;
   warning_records?: number;
   field_mapping?: Record<string, string>;
-  validation_rules?: Record<string, any>;
-  error_summary?: Record<string, any>;
+  validation_rules?: Record<string, unknown>;
+  error_summary?: Record<string, unknown>;
   error_message?: string;
   started_at?: string;
   completed_at?: string;
@@ -45,7 +44,7 @@ export interface ImportTemplate {
   description?: string;
   target_table: string;
   field_mapping: Record<string, string>;
-  validation_rules?: Record<string, any>;
+  validation_rules?: Record<string, unknown>;
   is_public: boolean;
   usage_count: number;
   created_at: string;
@@ -54,16 +53,16 @@ export interface ImportTemplate {
 
 export interface ParsedData {
   headers: string[];
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
   totalRows: number;
-  preview: Record<string, any>[];
+  preview: Record<string, unknown>[];
 }
 
 export interface ValidationError {
   row: number;
   field: string;
   message: string;
-  value: any;
+  value: unknown;
   severity: 'error' | 'warning';
 }
 
@@ -71,7 +70,7 @@ export interface ValidationWarning {
   row: number;
   field: string;
   message: string;
-  value: any;
+  value: unknown;
   severity: 'warning';
 }
 
@@ -87,6 +86,14 @@ export interface ValidationResult {
     errorsByField: Record<string, number>;
     warningsByField: Record<string, number>;
   };
+}
+
+// Reglas de validación por campo (top-level)
+export interface FieldRules {
+  required?: boolean;
+  type?: 'number' | 'email' | 'date' | 'string';
+  maxLength?: number;
+  allowedValues?: unknown[];
 }
 
 class ImportService {
@@ -126,7 +133,7 @@ class ImportService {
             return;
           }
 
-          const data = results.data as Record<string, any>[];
+          const data = results.data as Record<string, unknown>[];
           const headers = results.meta.fields || [];
           
           resolve({
@@ -153,7 +160,7 @@ class ImportService {
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][];
           
           if (jsonData.length === 0) {
             reject(new Error('El archivo Excel está vacío'));
@@ -162,7 +169,7 @@ class ImportService {
 
           const headers = jsonData[0] as string[];
           const rows = jsonData.slice(1).map(row => {
-            const obj: Record<string, any> = {};
+            const obj: Record<string, unknown> = {};
             headers.forEach((header, index) => {
               obj[header] = row[index] || '';
             });
@@ -195,7 +202,7 @@ class ImportService {
           const content = e.target?.result as string;
           const jsonData = JSON.parse(content);
           
-          let data: Record<string, any>[];
+          let data: Record<string, unknown>[];
           
           if (Array.isArray(jsonData)) {
             data = jsonData;
@@ -248,13 +255,13 @@ class ImportService {
             return;
           }
 
-          const data: Record<string, any>[] = [];
+          const data: Record<string, unknown>[] = [];
           const headersSet = new Set<string>();
 
           // Extraer datos de cada elemento
           for (let i = 0; i < dataElements.length; i++) {
             const element = dataElements[i];
-            const row: Record<string, any> = {};
+            const row: Record<string, unknown> = {};
             
             // Extraer atributos
             for (let j = 0; j < element.attributes.length; j++) {
@@ -299,9 +306,9 @@ class ImportService {
 
   // Validar datos
   validateData(
-    data: Record<string, any>[],
+    data: Record<string, unknown>[],
     fieldMapping: Record<string, string>,
-    validationRules?: Record<string, any>
+    validationRules?: Record<string, FieldRules>
   ): ValidationResult {
     const errors: ValidationResult['errors'] = [];
     const warnings: ValidationResult['warnings'] = [];
@@ -309,7 +316,7 @@ class ImportService {
     data.forEach((row, index) => {
       Object.entries(fieldMapping).forEach(([sourceField, targetField]) => {
         const value = row[sourceField];
-        const rules = validationRules?.[targetField];
+        const rules = validationRules?.[targetField] as FieldRules | undefined;
 
         if (rules) {
           // Validación de campo requerido
@@ -357,7 +364,7 @@ class ImportService {
           }
 
           // Validación de longitud
-          if (rules.maxLength && String(value).length > rules.maxLength) {
+          if (rules.maxLength && String(value).length > (rules.maxLength || 0)) {
             errors.push({
             row: index + 1,
             field: sourceField,
@@ -395,7 +402,7 @@ class ImportService {
     file: File,
     targetTable: string,
     fieldMapping: Record<string, string>,
-    validationRules?: Record<string, any>
+    validationRules?: Record<string, FieldRules>
   ): Promise<ImportJob> {
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -442,7 +449,7 @@ class ImportService {
   // Procesar importación (ahora usa el sistema de colas)
   async processImport(
     jobId: string,
-    data: Record<string, any>[],
+    data: Record<string, unknown>[],
     fieldMapping: Record<string, string>
   ): Promise<{ successful: number; failed: number; errors: ImportError[] }> {
     // Para importaciones pequeñas (< 100 registros), procesar directamente
@@ -471,7 +478,7 @@ class ImportService {
   // Procesamiento directo para importaciones pequeñas
   async processImportDirect(
     jobId: string,
-    data: Record<string, any>[],
+    data: Record<string, unknown>[],
     fieldMapping: Record<string, string>
   ): Promise<{ successful: number; failed: number; errors: ImportError[] }> {
     const errors: ImportError[] = [];
@@ -483,7 +490,7 @@ class ImportService {
       await this.updateJobStatus(jobId, 'processing', { started_at: new Date().toISOString() });
 
       const mappedData = data.map(row => {
-        const mappedRow: Record<string, any> = {};
+        const mappedRow: Record<string, unknown> = {};
         Object.entries(fieldMapping).forEach(([sourceField, targetField]) => {
           mappedRow[targetField] = row[sourceField];
         });
@@ -553,14 +560,14 @@ class ImportService {
   // Procesar lote de datos (usado por JobQueueService)
   async processBatch(
     jobId: string,
-    batch: Record<string, any>[],
+    batch: Record<string, unknown>[],
     fieldMapping: Record<string, string>
   ): Promise<{ successful: number; failed: number }> {
     let successful = 0;
     let failed = 0;
 
     const mappedData = batch.map(row => {
-      const mappedRow: Record<string, any> = {};
+      const mappedRow: Record<string, unknown> = {};
       Object.entries(fieldMapping).forEach(([sourceField, targetField]) => {
         mappedRow[targetField] = row[sourceField];
       });
