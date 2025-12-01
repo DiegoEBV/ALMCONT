@@ -152,12 +152,24 @@ class LocalDatabase {
     this.data = {
       usuarios: [
         {
-          id: '1',
-          email: 'coordinador@obra.com',
+          id: '4',
+          email: 'produccion@obra.com',
           password: 'password123',
-          nombre: 'Coordinador',
+          nombre: 'Producción',
           apellido: 'Principal',
-          rol: 'COORDINACION',
+          rol: 'PRODUCCION',
+          activo: true,
+          obra_id: '1',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: '5',
+          email: 'residente@obra.com',
+          password: 'password123',
+          nombre: 'Residente',
+          apellido: 'Obra',
+          rol: 'PRODUCCION',
           activo: true,
           obra_id: '1',
           created_at: new Date().toISOString(),
