@@ -1,10 +1,20 @@
-import { supabase } from '../lib/supabase'
+import { supabase, setSupabaseUserContext } from '../lib/supabase'
 import type { Salida, SalidaFormData } from '../types'
 import { supabaseUsersService } from './supabaseUsersService'
+import { localAuth } from './localAuth'
+import { mapLocalIdToUUID } from '../utils/idMapper'
 
 export const salidasService = {
+  async ensureContext() {
+    const { data } = await supabase.auth.getUser()
+    const supUser = data?.user
+    if (supUser?.id) {
+      await setSupabaseUserContext(supUser.id)
+    }
+  },
   async getById(id: string): Promise<Salida | null> {
     try {
+      await this.ensureContext()
       const { data, error } = await supabase
         .from('salidas')
         .select(`
@@ -34,6 +44,7 @@ export const salidasService = {
 
   async getAll(): Promise<Salida[]> {
     try {
+      await this.ensureContext()
       const { data, error } = await supabase
         .from('salidas')
         .select(`
@@ -60,6 +71,7 @@ export const salidasService = {
   // Obtener salidas por solicitante
   async getBySolicitante(solicitante: string, obraId?: string): Promise<Salida[]> {
     try {
+      await this.ensureContext()
       let query = supabase
         .from('salidas')
         .select(`
@@ -93,6 +105,7 @@ export const salidasService = {
   // Obtener salidas por requerimiento
   async getByRequerimiento(requerimientoId: string): Promise<Salida[]> {
     try {
+      await this.ensureContext()
       const { data, error } = await supabase
         .from('salidas')
         .select(`
@@ -120,6 +133,7 @@ export const salidasService = {
   // Buscar salidas por número RQ
   async searchByNumeroRQ(numeroRq: string): Promise<Salida[]> {
     try {
+      await this.ensureContext()
       const { data, error } = await supabase
         .from('salidas')
         .select(`
@@ -148,6 +162,7 @@ export const salidasService = {
   // Obtener salidas por material
   async getByMaterial(materialId: string, obraId?: string): Promise<Salida[]> {
     try {
+      await this.ensureContext()
       let query = supabase
         .from('salidas')
         .select(`
@@ -181,6 +196,7 @@ export const salidasService = {
   // Obtener salidas por rango de fechas
   async getByDateRange(fechaDesde: string, fechaHasta: string, obraId?: string): Promise<Salida[]> {
     try {
+      await this.ensureContext()
       let query = supabase
         .from('salidas')
         .select(`
@@ -219,6 +235,7 @@ export const salidasService = {
     mensaje: string
   }> {
     try {
+      await this.ensureContext()
       const { data: stockItem, error } = await supabase
         .from('stock_obra_material')
         .select('stock_actual')
@@ -253,6 +270,7 @@ export const salidasService = {
   // Crear nueva salida
   async create(salidaData: SalidaFormData): Promise<Salida> {
     try {
+      await this.ensureContext()
       // Verificar stock disponible
       const stockCheck = await this.verificarStockDisponible(
         salidaData.obra_id,
@@ -338,7 +356,7 @@ export const salidasService = {
 
       if (error) throw error
 
-      await this.updateStock(salidaData.obra_id, salidaData.material_id, -salidaData.cantidad_entregada)
+      // La actualización de stock y kardex se realiza en PostgreSQL mediante triggers
 
       return data
     } catch (error) {
@@ -350,6 +368,7 @@ export const salidasService = {
   // Crear múltiples salidas
   async createBatch(salidasData: SalidaFormData[]): Promise<Salida[]> {
     try {
+      await this.ensureContext()
       const salidas: Salida[] = []
       
       for (const salidaData of salidasData) {
@@ -367,6 +386,7 @@ export const salidasService = {
   // Actualizar salida
   async update(id: string, salidaData: Partial<SalidaFormData>): Promise<Salida> {
     try {
+      await this.ensureContext()
       const salidaExistente = await this.getById(id)
       if (!salidaExistente) {
         throw new Error('Salida no encontrada')
@@ -402,6 +422,7 @@ export const salidasService = {
   // Eliminar salida
   async delete(id: string): Promise<void> {
     try {
+      await this.ensureContext()
       const salida = await this.getById(id)
       if (!salida) {
         throw new Error('Salida no encontrada')
@@ -426,49 +447,7 @@ export const salidasService = {
   },
 
   // Actualizar stock en la tabla stock_obra_material
-  async updateStock(obraId: string, materialId: string, cantidadDelta: number): Promise<void> {
-    try {
-      // Verificar si existe registro de stock
-      const { data: stockExistente, error: selectError } = await supabase
-        .from('stock_obra_material')
-        .select('*')
-        .eq('obra_id', obraId)
-        .eq('material_id', materialId)
-        .single()
-
-      if (selectError && selectError.code !== 'PGRST116') {
-        throw selectError
-      }
-
-      if (stockExistente) {
-        // Actualizar stock existente
-        const nuevaCantidad = stockExistente.stock_actual + cantidadDelta
-
-        const { error: updateError } = await supabase
-          .from('stock_obra_material')
-          .update({
-            stock_actual: Math.max(0, nuevaCantidad) // No permitir stock negativo
-          })
-          .eq('id', stockExistente.id)
-
-        if (updateError) throw updateError
-      } else if (cantidadDelta > 0) {
-        // Solo crear nuevo registro si la cantidad es positiva
-        const { error: insertError } = await supabase
-          .from('stock_obra_material')
-          .insert({
-            obra_id: obraId,
-            material_id: materialId,
-            stock_actual: cantidadDelta,
-            stock_minimo: 10
-          })
-
-        if (insertError) throw insertError
-      }
-    } catch (error) {
-      console.error('Error al actualizar stock:', error)
-    }
-  },
+  // updateStock eliminado: responsabilidad trasladada a triggers de BD
 
   // Obtener resumen de salidas por material
   async getResumenPorMaterial(obraId: string, materialId: string): Promise<{
@@ -477,6 +456,7 @@ export const salidasService = {
     ultima_salida: string | null
   }> {
     try {
+      await this.ensureContext()
       const { data: items, error } = await supabase
         .from('salida_items')
         .select('cantidad_entregada, salida:salidas(fecha_salida, obra_id)')

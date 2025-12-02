@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { localAuth } from './localAuth'
 import { isValidUUID } from '../utils/uuidValidator'
 import type { Usuario, UserRole } from '../types'
 
@@ -137,21 +136,10 @@ export const supabaseUsersService = {
 
   // Sincronizar obra asignada del usuario actual
   async syncCurrentUserObraAsignada(obraId: string | null): Promise<boolean> {
-    const user = localAuth.getCurrentUser()
-    if (!user) {
-      return false
-    }
-
-    // Actualizar en Supabase
-    const supabaseSuccess = await this.updateObraAsignada(user.id, obraId)
-    
-    // Actualizar localmente solo si Supabase fue exitoso
-    if (supabaseSuccess) {
-      const localSuccess = await localAuth.updateObraAsignada(obraId)
-      return localSuccess
-    }
-
-    return false
+    const { data } = await supabase.auth.getUser()
+    const supUser = data?.user
+    if (!supUser?.id) return false
+    return await this.updateObraAsignada(supUser.id, obraId)
   },
 
   // Crear usuario en Supabase

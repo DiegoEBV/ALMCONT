@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react'
-import { localAuth } from '../services/localAuth'
+import { localSessionCache } from '../services/localSessionCache'
 import { supabaseUsersService } from '../services/supabaseUsersService'
 import { supabase } from '../lib/supabase'
 import { obrasService } from '../services/obras'
@@ -63,8 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('🔐 useAuth: Iniciando login para:', email)
 
-      // Intentar autenticación con Supabase
-      console.log('🔍 useAuth: Intentando autenticación con Supabase Auth...')
+      // Autenticación exclusiva con Supabase
+      console.log('🔍 useAuth: Autenticación con Supabase Auth...')
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -72,26 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (authError) {
         console.log('❌ useAuth: Error en Supabase Auth:', authError.message)
-        console.log('🔄 useAuth: Intentando autenticación local...')
-        
-        // Si falla Supabase Auth, intentar autenticación local
-        try {
-          const authUser = await localAuth.signIn(email, password)
-          console.log('✅ useAuth: Autenticación local exitosa:', authUser.email)
-          
-          const newSession = {
-            user: authUser,
-            token: 'local_token_' + Date.now(),
-            expiresAt: Date.now() + (24 * 60 * 60 * 1000)
-          }
-
-          setUser(authUser)
-          setSession(newSession)
-          return
-        } catch (localError) {
-          console.error('❌ useAuth: Error en autenticación local:', localError)
-          throw new Error('Invalid login credentials')
-        }
+        throw new Error('Invalid login credentials')
       }
 
       if (!data.user) {
@@ -101,59 +82,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('✅ useAuth: Autenticación Supabase exitosa para:', data.user.email)
 
-      // Buscar usuario local correspondiente
-      console.log('🔍 useAuth: Buscando usuario local correspondiente...')
-      const usuarios = await localAuth.getUsers()
-      let localUser = usuarios.find(u => u.email === email && u.activo)
-
-      if (!localUser) {
-        console.log('❌ useAuth: Usuario local no encontrado o inactivo para:', email)
-        console.log('📋 useAuth: Usuarios disponibles:', usuarios.map(u => ({ email: u.email, activo: u.activo })))
-        console.log('🛠️ useAuth: Intentando crear usuario en Supabase y base local...')
-
-        try {
-          const obraUUID = await mapLocalIdToUUID('1', 'obra')
-          const supUser = await supabaseUsersService.ensureUser(email, {
-            email,
-            nombre: email === 'residente@obra.com' ? 'Residente' : email.split('@')[0],
-            apellido: email === 'residente@obra.com' ? 'Obra' : '',
-            rol: email === 'residente@obra.com' ? 'RESIDENTE' : 'PRODUCCION',
-            obra_id: obraUUID || null,
-            activo: true
-          })
-
-          const createdLocal = await localDB.create('usuarios', {
-            id: crypto.randomUUID(),
-            email,
-            password: 'password123',
-            nombre: supUser?.nombre || (email.split('@')[0]),
-            apellido: supUser?.apellido || '',
-            rol: email === 'residente@obra.com' ? 'RESIDENTE' : 'PRODUCCION',
-            activo: true,
-            obra_id: obraUUID || '1',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-
-          localUser = createdLocal
-          console.log('✅ useAuth: Usuario creado y activado localmente:', localUser.email)
-        } catch (seedError) {
-          console.error('❌ useAuth: No se pudo crear usuario automáticamente:', seedError)
-          throw new Error('Usuario no encontrado o inactivo')
-        }
+      // Resolver usuario de aplicación desde tabla usuarios en Supabase
+      console.log('🔍 useAuth: Resolviendo usuario de aplicación...')
+      let appUser = await supabaseUsersService.getByEmail(email)
+      if (!appUser) {
+        appUser = await supabaseUsersService.ensureUser(email, {
+          email,
+          nombre: email.split('@')[0],
+          apellido: '',
+          rol: 'PRODUCCION',
+          activo: true
+        }) as any
       }
-
-      if (localUser.email.toLowerCase() === 'residente@obra.com' && localUser.rol !== 'RESIDENTE') {
-        await localDB.update('usuarios', localUser.id, { rol: 'RESIDENTE' as any })
-        localUser = { ...localUser, rol: 'RESIDENTE' as any }
-      }
-      console.log('✅ useAuth: Usuario local encontrado:', localUser.email, 'Rol:', localUser.rol)
 
       // Cargar información de la obra si está asignada
       let obra = null
-      if (localUser.obra_id) {
-        console.log('🏗️ useAuth: Cargando información de obra:', localUser.obra_id)
-        obra = await loadObraInfo(localUser.obra_id)
+      if (appUser?.obra_id) {
+        console.log('🏗️ useAuth: Cargando información de obra:', appUser.obra_id)
+        obra = await loadObraInfo(appUser.obra_id)
         if (obra) {
           console.log('✅ useAuth: Obra cargada:', obra.nombre)
         } else {
@@ -162,13 +108,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const authUser: AuthUser = {
-        id: localUser.id,
-        email: localUser.email,
-        nombre: localUser.nombre,
-        apellido: localUser.apellido,
-        rol: localUser.rol,
-        obra_id: localUser.obra_id,
-        activo: localUser.activo,
+        id: appUser?.id || data.user.id,
+        email: email,
+        nombre: appUser?.nombre || email.split('@')[0],
+        apellido: appUser?.apellido || '',
+        rol: (appUser?.rol as any) || 'PRODUCCION',
+        obra_id: appUser?.obra_id || '',
+        activo: appUser?.activo ?? true,
         obra: obra,
         supabaseId: data.user.id
       }
@@ -181,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(authUser)
       setSession(newSession)
-      await localAuth.saveSupabaseSession(newSession)
+      localSessionCache.saveSupabaseSession(newSession)
     } catch (error) {
       console.error('Error signing in:', error)
       throw error
@@ -200,7 +146,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null)
       
       // Limpiar sesión local (esto ya incluye Supabase)
-      await localAuth.signOut()
+      await localSessionCache.signOut()
+      await supabase.auth.signOut()
       
       console.log('✅ useAuth: Logout completado')
     } catch (error) {
@@ -212,34 +159,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshUser = useCallback(async () => {
     try {
-      const currentUser = user
-      if (!currentUser) return null
+      const { data } = await supabase.auth.getUser()
+      const supUser = data?.user
+      if (!supUser?.email) return null
 
-      const refreshedUser = await localAuth.refreshUser()
-      if (refreshedUser) {
-        // Cargar información de la obra si está asignada
-        let obra = null
-        if (refreshedUser.obra_id) {
-          obra = await loadObraInfo(refreshedUser.obra_id)
-        }
+      const appUser = await supabaseUsersService.getByEmail(supUser.email)
+      if (!appUser) return null
 
-        const updatedUser = {
-          ...refreshedUser,
-          obra: obra
-        }
-
-        setUser(updatedUser)
-        if (session) {
-          setSession(prev => prev ? { ...prev, user: updatedUser } : null)
-        }
-        return updatedUser
+      let obra = null
+      if (appUser.obra_id) {
+        obra = await loadObraInfo(appUser.obra_id)
       }
-      return refreshedUser
+
+      const updatedUser: AuthUser = {
+        id: appUser.id,
+        email: appUser.email,
+        nombre: appUser.nombre,
+        apellido: appUser.apellido,
+        rol: appUser.rol as any,
+        obra_id: appUser.obra_id,
+        activo: appUser.activo,
+        obra,
+        supabaseId: supUser.id
+      }
+
+      setUser(updatedUser)
+      if (session) {
+        setSession(prev => prev ? { ...prev, user: updatedUser } : null)
+      }
+      return updatedUser
     } catch (error) {
       console.error('Error refreshing user:', error)
       return null
     }
-  }, [user, session])
+  }, [session])
 
   // Inicialización de autenticación optimizada
   useEffect(() => {
@@ -250,7 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!isMounted) return
         
         // Verificar sesión local primero (más rápido)
-        const localSession = localAuth.getSession()
+        const localSession = localSessionCache.getSession()
         if (localSession && isMounted) {
           // Cargar información de la obra si está asignada
           let obra = null
@@ -277,24 +230,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (supabaseSession?.user && isMounted) {
           // Buscar usuario local correspondiente
-          const usuarios = await localAuth.getUsers()
-          const localUser = usuarios.find(u => u.email === supabaseSession.user.email)
-          
-          if (localUser && isMounted) {
+          const appUser = await supabaseUsersService.getByEmail(supabaseSession.user.email!)
+          if (appUser && isMounted) {
             // Cargar información de la obra si está asignada
             let obra = null
-            if (localUser.obra_id) {
-              obra = await loadObraInfo(localUser.obra_id)
+            if (appUser.obra_id) {
+              obra = await loadObraInfo(appUser.obra_id)
             }
 
             const authUser: AuthUser = {
-              id: localUser.id,
-              email: localUser.email,
-              nombre: localUser.nombre,
-              apellido: localUser.apellido,
-              rol: localUser.rol,
-              obra_id: localUser.obra_id,
-              activo: localUser.activo,
+              id: appUser.id,
+              email: appUser.email,
+              nombre: appUser.nombre,
+              apellido: appUser.apellido,
+              rol: appUser.rol as any,
+              obra_id: appUser.obra_id,
+              activo: appUser.activo,
               obra: obra,
               supabaseId: supabaseSession.user.id
             }
@@ -307,7 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             setUser(authUser)
             setSession(session)
-            await localAuth.saveSupabaseSession(session)
+            localSessionCache.saveSupabaseSession(session)
           }
         }
       } catch (error) {
@@ -328,7 +279,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateObraAsignada = useCallback(async (obraId: string | null): Promise<boolean> => {
     try {
-      const success = await supabaseUsersService.syncCurrentUserObraAsignada(obraId)
+      const { data } = await supabase.auth.getUser()
+      const supUser = data?.user
+      if (!supUser?.id) return false
+      const success = await supabaseUsersService.updateObraAsignada(supUser.id, obraId)
       if (success) {
         // Refrescar datos del usuario para obtener la obra actualizada
         await refreshUser()

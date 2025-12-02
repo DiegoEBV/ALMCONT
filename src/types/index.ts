@@ -89,7 +89,7 @@ export interface Requerimiento {
   codigo_presupuesto?: string
   observaciones?: string
   archivo_adjunto?: string
-  estado?: 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO'
+  estado?: 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO' | 'ATENDER_STOCK_INTERNO'
   aprobado_por?: string
   fecha_aprobacion?: string
   created_at?: string
@@ -136,7 +136,7 @@ export interface RequerimientoFormData {
   area_solicitante?: string
   codigo_presupuesto?: string
   archivo_adjunto?: string
-  estado?: 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO'
+  estado?: 'PENDIENTE' | 'ASIGNADO' | 'EN_PROCESO' | 'ATENDIDO' | 'CANCELADO' | 'ATENDER_STOCK_INTERNO'
   fecha_aprobacion?: string
   actividad_descripcion?: string
   created_by?: string

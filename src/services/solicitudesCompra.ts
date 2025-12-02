@@ -9,27 +9,10 @@ type MinimalObra = { id: string; nombre?: string; codigo?: string }
 
 // Función auxiliar para establecer contexto de usuario con mapeo de UUID
 async function setUserContextWithMapping(): Promise<void> {
-  const currentUser = localAuth.getCurrentUser()
-  if (currentUser) {
-    // Si el usuario tiene supabaseId, usarlo directamente
-    if (currentUser.supabaseId) {
-      console.log('Usando supabaseId directamente:', currentUser.supabaseId)
-      await supabase.rpc('set_user_context', {
-        user_id: currentUser.supabaseId,
-        user_role: currentUser.rol
-      })
-    } else {
-      // Fallback: mapear ID local a UUID de Supabase
-      const userUUID = await mapLocalIdToUUID(currentUser.id, 'usuario')
-      if (userUUID) {
-        await supabase.rpc('set_user_context', {
-          user_id: userUUID,
-          user_role: currentUser.rol
-        })
-      } else {
-        console.warn('No se pudo mapear el usuario local a UUID de Supabase:', currentUser.id)
-      }
-    }
+  const { data } = await supabase.auth.getUser()
+  const supUser = data?.user
+  if (supUser?.id) {
+    await supabase.rpc('set_user_context', { user_id: supUser.id, user_role: (supUser as any)?.role || null })
   }
 }
 
@@ -261,17 +244,20 @@ export const solicitudesCompraService = {
   async create(solicitud: SolicitudCompraFormData): Promise<SolicitudCompra | null> {
     try {
       // Verificar permisos - solo COORDINACION puede crear solicitudes
-    const currentUser = localAuth.getCurrentUser()
-    if (!currentUser || currentUser.rol !== 'COORDINACION') {
+    const { data: authData } = await supabase.auth.getUser()
+    const supUser = authData?.user
+    const appUser = supUser?.email ? await supabase
+      .from('usuarios')
+      .select('rol')
+      .eq('email', supUser.email)
+      .single()
+      .then(r => (r.error ? null : r.data)) : null
+    if (!supUser || appUser?.rol !== 'COORDINACION') {
         throw new Error('No tienes permisos para crear solicitudes de compra')
       }
       
       // Establecer contexto de usuario para RLS
-      const userUUID = await mapLocalIdToUUID(currentUser.id, 'usuario')
-      if (!userUUID) {
-        throw new Error('No se pudo mapear el usuario a UUID de Supabase')
-      }
-      await setSupabaseUserContext(userUUID)
+      await setUserContextWithMapping()
       
       // Generar número automático si no se proporciona
       const scNumero = solicitud.numero_sc || await NumberGeneratorService.generateUniqueNumber('SC')
@@ -280,12 +266,12 @@ export const solicitudesCompraService = {
         ...solicitud,
         numero_sc: scNumero,
         estado: 'PENDIENTE' as const,
-        created_by: userUUID,
+        created_by: supUser.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
       
-      const { data, error } = await supabase
+      const { data: scData, error } = await supabase
         .from('solicitudes_compra')
         .insert(newSolicitud)
         .select(`
@@ -297,7 +283,7 @@ export const solicitudesCompraService = {
         .single()
       
       if (error) throw error
-      return data
+      return scData
     } catch (error) {
       console.error('Error al crear solicitud de compra:', error)
       throw error

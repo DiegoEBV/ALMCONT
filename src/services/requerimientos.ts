@@ -6,15 +6,10 @@ import type { Requerimiento, RequerimientoFormData, RequerimientoFilters } from 
 
 // Función auxiliar para establecer contexto de usuario con mapeo de UUID
 async function setUserContextWithMapping(): Promise<void> {
-  const currentUser = localAuth.getCurrentUser()
-  if (currentUser) {
-    // Mapear ID local a UUID de Supabase
-    const userUUID = await mapLocalIdToUUID(currentUser.id, 'usuario')
-    if (userUUID) {
-      await setSupabaseUserContext(userUUID)
-    } else {
-      console.warn('No se pudo mapear el usuario local a UUID de Supabase:', currentUser.id)
-    }
+  const { data } = await supabase.auth.getUser()
+  const supUser = data?.user
+  if (supUser?.id) {
+    await setSupabaseUserContext(supUser.id)
   }
 }
 
@@ -188,6 +183,20 @@ export const requerimientosService = {
       // Establecer contexto de usuario para RLS
       await setUserContextWithMapping()
       
+      // Validación de stock interno (Obra y Central)
+      let atenderConStockInterno = false
+      let stockDisponibleTotal = 0
+      if (requerimiento.material_id) {
+        const { data: stockObra } = await supabase
+          .from('stock_obra_material')
+          .select('obra_id, material_id, stock_actual')
+          .eq('material_id', requerimiento.material_id)
+        const stocks = stockObra || []
+        stockDisponibleTotal = stocks.reduce((sum, s) => sum + (s.stock_actual || 0), 0)
+        const cantidadReq = requerimiento.cantidad_solicitada || requerimiento.cantidad || 0
+        atenderConStockInterno = stockDisponibleTotal >= cantidadReq
+      }
+
       // Generar número automático si no se proporciona
       const numeroReq = requerimiento.numero_requerimiento || await NumberGeneratorService.generateUniqueNumber('RQ')
       console.log('📝 Número REQ generado:', numeroReq)
@@ -195,7 +204,7 @@ export const requerimientosService = {
       const nuevoRequerimiento = {
         ...requerimiento,
         numero_requerimiento: numeroReq,
-        estado: requerimiento.estado || 'PENDIENTE',
+        estado: atenderConStockInterno ? 'ATENDER_STOCK_INTERNO' : (requerimiento.estado || 'PENDIENTE'),
         fecha_solicitud: requerimiento.fecha_solicitud || new Date().toISOString().split('T')[0]
       }
       
@@ -224,7 +233,7 @@ export const requerimientosService = {
             solicitante_id: (data as any).created_by || null,
             estado: 'pendiente',
             fecha_solicitud: new Date().toISOString(),
-            comentarios: 'Aprobación inicial por Residente',
+            comentarios: 'Aprobación inicial por RESIDENTE',
             datos_solicitud: {
               numero_requerimiento: data.numero_requerimiento,
               prioridad: (data as any).prioridad || 'MEDIA',

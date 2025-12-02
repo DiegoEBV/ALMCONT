@@ -5,7 +5,12 @@ import { LocationUpdateEvent, GeofenceAlertEvent, SpeedAlertEvent } from '../../
 
 export class GPSWebSocketService {
   private io: SocketIOServer;
-  private connectedClients: Map<string, any> = new Map();
+  private connectedClients: Map<string, {
+    socket: any;
+    joinedRooms: Set<string>;
+    lastActivity: Date;
+    reducedUpdates?: boolean;
+  }> = new Map();
 
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {

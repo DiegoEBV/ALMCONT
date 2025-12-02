@@ -290,152 +290,45 @@ export const stockService = {
     tipoMovimiento?: 'ENTRADA' | 'SALIDA'
   ): Promise<KardexMovimiento[]> {
     try {
-      console.log('🔍 getKardexMovimientos - Parámetros:', { materialId, obraId, fechaInicio, fechaFin, tipoMovimiento });
-      
-      // Sanitizar UUIDs
       const sanitizedMaterialId = sanitizeUUID(materialId);
       const sanitizedObraId = sanitizeUUID(obraId);
-      
-      console.log('🔍 UUIDs sanitizados:', { 
-        materialId: { original: materialId, sanitized: sanitizedMaterialId },
-        obraId: { original: obraId, sanitized: sanitizedObraId }
-      });
-      
-      const movimientos: KardexMovimiento[] = [];
-      
-      // Obtener entradas sin joins automáticos
-      if (!tipoMovimiento || tipoMovimiento === 'ENTRADA') {
-        console.log('📥 Consultando entrada_items...');
-        let entradaQuery = supabase
-          .from('entrada_items')
-          .select('id, entrada_id, material_id, cantidad_recibida, cantidad_aceptada, observaciones');
-        if (sanitizedMaterialId) entradaQuery = entradaQuery.eq('material_id', sanitizedMaterialId);
-        const { data: entradaItems, error: entradaError } = await entradaQuery;
-        if (!entradaError && entradaItems && entradaItems.length > 0) {
-          const entradaIds = Array.from(new Set(entradaItems.map(e => e.entrada_id).filter(Boolean)));
-          const materialIds = Array.from(new Set(entradaItems.map(e => e.material_id).filter(Boolean)));
-          const { data: entradasData } = await supabase
-            .from('entradas')
-            .select('id, fecha_entrada, numero_entrada, obra_id, observaciones, recibido_por');
-          const entradasMap = new Map((entradasData || []).map(e => [e.id, e]));
-          const { data: materialesData } = await supabase
-            .from('materiales')
-            .select('id, nombre, unidad_medida')
-            .in('id', materialIds);
-          const materialesMap = new Map((materialesData || []).map(m => [m.id, m]));
-          const obraIds = Array.from(new Set((entradasData || []).map(e => e.obra_id).filter(Boolean)));
-          const { data: obrasData } = await supabase
-            .from('obras')
-            .select('id, nombre, codigo')
-            .in('id', obraIds);
-          const obrasMap = new Map((obrasData || []).map(o => [o.id, o]));
-          for (const item of entradaItems) {
-            const entrada = entradasMap.get(item.entrada_id);
-            if (!entrada) continue;
-            if (sanitizedObraId && entrada.obra_id !== sanitizedObraId) continue;
-            if (fechaInicio && entrada.fecha_entrada && entrada.fecha_entrada < fechaInicio) continue;
-            if (fechaFin && entrada.fecha_entrada && entrada.fecha_entrada > fechaFin) continue;
-            movimientos.push({
-              id: item.id,
-              material_id: item.material_id,
-              obra_id: entrada.obra_id || '',
-              tipo_movimiento: 'ENTRADA',
-              cantidad: item.cantidad_recibida || item.cantidad_aceptada || 0,
-              cantidad_anterior: 0,
-              cantidad_nueva: 0,
-              fecha_movimiento: entrada.fecha_entrada || '',
-              referencia: entrada.numero_entrada || '',
-              observaciones: entrada.observaciones || item.observaciones || '',
-              usuario_id: entrada.recibido_por || '',
-              material: materialesMap.get(item.material_id) as any,
-              obra: obrasMap.get(entrada.obra_id || '') as any
-            });
-          }
-        } else if (entradaError) {
-          console.error('❌ Error consultando entrada_items:', entradaError);
-        }
+
+      let query = supabase
+        .from('kardex_movimiento')
+        .select('*')
+        .order('fecha_movimiento', { ascending: true });
+
+      if (sanitizedMaterialId) query = query.eq('material_id', sanitizedMaterialId);
+      if (sanitizedObraId) query = query.eq('obra_id', sanitizedObraId);
+      if (fechaInicio) query = query.gte('fecha_movimiento', fechaInicio);
+      if (fechaFin) query = query.lte('fecha_movimiento', fechaFin);
+      if (tipoMovimiento) query = query.eq('tipo_movimiento', tipoMovimiento);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const movimientos = (data || []).map(m => ({
+        id: m.id,
+        material_id: m.material_id,
+        obra_id: m.obra_id,
+        tipo_movimiento: m.tipo_movimiento,
+        cantidad: m.cantidad,
+        cantidad_anterior: 0,
+        cantidad_nueva: m.saldo_final,
+        fecha_movimiento: m.fecha_movimiento,
+        referencia: m.documento_referencia,
+        observaciones: m.observaciones,
+        usuario_id: m.usuario_id
+      })) as unknown as KardexMovimiento[];
+
+      // Calcular cantidad_anterior basado en saldo_final
+      let prevSaldo = 0;
+      for (const mov of movimientos) {
+        mov.cantidad_anterior = prevSaldo;
+        prevSaldo = mov.cantidad_nueva;
       }
-      
-      // Obtener salidas si no se especifica tipo o si es 'SALIDA'
-      if (!tipoMovimiento || tipoMovimiento === 'SALIDA') {
-        console.log('📤 Consultando salida_items...');
-        let salidaQuery = supabase
-          .from('salida_items')
-          .select('id, salida_id, material_id, cantidad_solicitada, cantidad_autorizada, cantidad_entregada, observaciones');
-        if (sanitizedMaterialId) salidaQuery = salidaQuery.eq('material_id', sanitizedMaterialId);
-        const { data: salidaItems, error: salidaError } = await salidaQuery;
-        if (!salidaError && salidaItems && salidaItems.length > 0) {
-          const salidaIds = Array.from(new Set(salidaItems.map(s => s.salida_id).filter(Boolean)));
-          const materialIds = Array.from(new Set(salidaItems.map(s => s.material_id).filter(Boolean)));
-          const { data: salidasData } = await supabase
-            .from('salidas')
-            .select('id, fecha_salida, numero_salida, obra_id, observaciones, solicitado_por, documento_referencia');
-          const salidasMap = new Map((salidasData || []).map(s => [s.id, s]));
-          const usuarioIds = Array.from(new Set((salidasData || []).map(s => s.solicitado_por).filter(Boolean)));
-          const { data: usuariosData } = await supabase
-            .from('usuarios')
-            .select('id, nombre, email')
-            .in('id', usuarioIds);
-          const usuariosMap = new Map((usuariosData || []).map(u => [u.id, u]));
-          const { data: materialesData } = await supabase
-            .from('materiales')
-            .select('id, nombre, unidad_medida')
-            .in('id', materialIds);
-          const materialesMap = new Map((materialesData || []).map(m => [m.id, m]));
-          const obraIds = Array.from(new Set((salidasData || []).map(s => s.obra_id).filter(Boolean)));
-          const { data: obrasData } = await supabase
-            .from('obras')
-            .select('id, nombre, codigo')
-            .in('id', obraIds);
-          const obrasMap = new Map((obrasData || []).map(o => [o.id, o]));
-          for (const item of salidaItems) {
-            const salida = salidasMap.get(item.salida_id);
-            if (!salida) continue;
-            if (sanitizedObraId && salida.obra_id !== sanitizedObraId) continue;
-            if (fechaInicio && salida.fecha_salida && salida.fecha_salida < fechaInicio) continue;
-            if (fechaFin && salida.fecha_salida && salida.fecha_salida > fechaFin) continue;
-            const cantidad = -(item.cantidad_entregada || item.cantidad_autorizada || item.cantidad_solicitada || 0);
-            const usuario = usuariosMap.get(salida.solicitado_por || '');
-            const referencia = salida.documento_referencia || salida.numero_salida || '';
-            const observaciones = [
-              salida.observaciones || item.observaciones || '',
-              usuario ? `Solicitante: ${usuario.nombre}` : ''
-            ].filter(Boolean).join(' | ');
-            movimientos.push({
-              id: item.id,
-              material_id: item.material_id,
-              obra_id: salida.obra_id || '',
-              tipo_movimiento: 'SALIDA',
-              cantidad,
-              cantidad_anterior: 0,
-              cantidad_nueva: 0,
-              fecha_movimiento: salida.fecha_salida || '',
-              referencia,
-              observaciones,
-              usuario_id: salida.solicitado_por || '',
-              material: materialesMap.get(item.material_id) as any,
-              obra: obrasMap.get(salida.obra_id || '') as any
-            });
-          }
-        } else if (salidaError) {
-          console.error('❌ Error consultando salida_items:', salidaError);
-        }
-      }
-      
-      // Ordenar por fecha
-      movimientos.sort((a, b) => new Date(a.fecha_movimiento).getTime() - new Date(b.fecha_movimiento).getTime());
-      
-      // Calcular cantidades acumuladas
-      let cantidadAcumulada = 0;
-      for (const movimiento of movimientos) {
-        movimiento.cantidad_anterior = cantidadAcumulada;
-        cantidadAcumulada += movimiento.cantidad;
-        movimiento.cantidad_nueva = cantidadAcumulada;
-      }
-      
-      console.log('✅ Movimientos kardex procesados:', movimientos.length);
+
       return movimientos;
-      
     } catch (error) {
       console.error('❌ Error en getKardexMovimientos:', error);
       throw error;

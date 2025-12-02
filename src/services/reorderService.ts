@@ -1,4 +1,6 @@
-import { supabase } from '../lib/supabase';
+import { supabase, setSupabaseUserContext } from '../lib/supabase';
+import { localAuth } from './localAuth';
+import { mapLocalIdToUUID } from '../utils/idMapper';
 import { Material } from '../types';
 
 export interface ReorderAlert {
@@ -23,11 +25,19 @@ export interface AutoReorderResult {
 }
 
 export class ReorderService {
+  private static async ensureContext(): Promise<void> {
+    const current = localAuth.getCurrentUser()
+    if (current) {
+      const uuid = await mapLocalIdToUUID(current.id, 'usuario')
+      if (uuid) await setSupabaseUserContext(uuid)
+    }
+  }
   /**
    * Verifica todos los materiales que requieren reorden
    */
   static async checkReorderPoints(): Promise<ReorderAlert[]> {
     try {
+      await this.ensureContext()
       // Usar la vista creada en la migración para obtener materiales que requieren reorden
       const { data: materialsToReorder, error } = await supabase
         .from('materiales_requieren_reorden')
@@ -64,6 +74,7 @@ export class ReorderService {
    */
   private static async calculateReorderSuggestion(material: unknown): Promise<ReorderAlert> {
     try {
+      await this.ensureContext()
       const isRow = (x: unknown): x is {
         id: string
         nombre: string
@@ -152,6 +163,7 @@ export class ReorderService {
     days: number
   ): Promise<number> {
     try {
+      await this.ensureContext()
       const fechaInicio = new Date();
       fechaInicio.setDate(fechaInicio.getDate() - days);
 
@@ -179,6 +191,7 @@ export class ReorderService {
    */
   private static async getSeasonalFactor(materialId: string): Promise<number> {
     try {
+      await this.ensureContext()
       const mesActual = new Date().getMonth() + 1;
       
       // Obtener configuración estacional

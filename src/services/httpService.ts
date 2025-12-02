@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { localAuth } from './localAuth';
 import { localDB } from '../lib/localDB';
+import { supabase } from '../lib/supabase';
 
 // Interfaz para métricas del dashboard de coordinación
 export interface DashboardMetrics {
@@ -40,26 +40,17 @@ export interface DashboardMetrics {
 class HttpService {
   private baseURL = '/api';
 
-  // Verificar si el usuario está autenticado
-  private isAuthenticated(): boolean {
-    return localAuth.isAuthenticated();
-  }
-
-  // Obtener headers de autenticación
-  private getAuthHeaders(): Record<string, string> {
-    const session = localAuth.getSession();
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': session ? `Bearer ${session.token}` : ''
-    };
+  // Obtener sesión de Supabase
+  private async hasSession(): Promise<boolean> {
+    const { data } = await supabase.auth.getSession();
+    return !!data.session;
   }
 
   // Simular petición HTTP con datos locales
   private async simulateRequest<T>(endpoint: string, mockData: T): Promise<{ success: boolean; data: T }> {
-    // Verificar autenticación
-    if (!this.isAuthenticated()) {
-      throw new Error('Usuario no autenticado');
-    }
+    // Verificar autenticación con Supabase
+    const ok = await this.hasSession();
+    if (!ok) throw new Error('Usuario no autenticado');
 
     // Simular delay de red
     await new Promise(resolve => setTimeout(resolve, 100));
