@@ -54,10 +54,10 @@ export const useNotifications = (): NotificationState & NotificationActions => {
     const checkSupport = () => {
       const notificationSupported = 'Notification' in window;
       const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
-      
+
       setIsSupported(notificationSupported);
       setIsPushSupported(pushSupported);
-      
+
       if (notificationSupported) {
         setPermission(Notification.permission);
       }
@@ -74,7 +74,7 @@ export const useNotifications = (): NotificationState & NotificationActions => {
       try {
         const registration = await navigator.serviceWorker.ready;
         const existingSubscription = await registration.pushManager.getSubscription();
-        
+
         if (existingSubscription) {
           setSubscription(existingSubscription);
           setSubscriptionInfo(extractSubscriptionInfo(existingSubscription));
@@ -204,10 +204,10 @@ export const useNotifications = (): NotificationState & NotificationActions => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      
+
       const newSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey
+        applicationServerKey: applicationServerKey as unknown as BufferSource
       });
 
       setSubscription(newSubscription);
@@ -232,11 +232,11 @@ export const useNotifications = (): NotificationState & NotificationActions => {
 
     try {
       const success = await subscription.unsubscribe();
-      
+
       if (success) {
         setSubscription(null);
         setSubscriptionInfo(null);
-        
+
         // Notificar al servidor
         await removeSubscriptionFromServer();
       }
@@ -320,7 +320,7 @@ export const useNotifications = (): NotificationState & NotificationActions => {
     isPushSupported,
     subscription,
     subscriptionInfo,
-    
+
     // Acciones
     requestPermission,
     showNotification,

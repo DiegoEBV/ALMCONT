@@ -19,10 +19,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadObraInfo = async (obraId: string) => {
     try {
       console.log('🏗️ useAuth: Cargando obra con ID:', obraId)
-      
+
       // Verificar si el obra_id ya es un UUID válido
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-      
+
       if (uuidRegex.test(obraId)) {
         // Es un UUID, usar directamente
         console.log('🏗️ useAuth: obra_id es UUID válido, consultando directamente')
@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return obra
         }
       }
-      
+
       console.warn(`⚠️ useAuth: Obra con ID ${obraId} no encontrada`)
       return null
     } catch (error) {
@@ -77,8 +77,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Resolver usuario de aplicación desde tabla usuarios en Supabase
       console.log('🔍 useAuth: Resolviendo usuario de aplicación...')
-      let appUser: Usuario | null = await supabaseUsersService.getByEmail(email)
+
+      // 1. Intentar obtener por ID (lo más seguro y correcto)
+      let appUser: Usuario | null = await supabaseUsersService.getById(data.user.id)
+
+      console.log('🔍 DEBUG signIn - User from getById:', appUser)
+      if (appUser) {
+        console.log('🔍 DEBUG signIn - User Rol:', appUser.rol)
+      }
+
+      // 2. Si no existe por ID, intentar por email (fallback para usuarios legacy o desincronizados)
       if (!appUser) {
+        console.log('⚠️ useAuth: Usuario no encontrado por ID, intentando por email...')
+        appUser = await supabaseUsersService.getByEmail(email)
+      }
+
+      // 3. Si aún no existe, crear o asegurar el usuario
+      if (!appUser) {
+        console.log('⚠️ useAuth: Usuario no encontrado, creando/asegurando nuevo usuario...')
         const meta = data.user.user_metadata as SupabaseUserMetadata | null
         const withAppMeta = data.user as unknown as { app_metadata?: SupabaseAppMetadata }
         const appMeta = withAppMeta.app_metadata || null
@@ -86,11 +102,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Supabase app_metadata', appMeta)
         const metaRol = meta?.rol || meta?.role || appMeta?.rol || appMeta?.role
         console.log('Extracted role from metadata', metaRol)
+
         appUser = await supabaseUsersService.ensureUser(email, {
           email,
           nombre: email.split('@')[0],
           apellido: '',
-          rol: (metaRol || 'PENDIENTE'),
+          rol: (metaRol || 'COORDINACION'),
           activo: true,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -118,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: email,
         nombre: appUser?.nombre || email.split('@')[0],
         apellido: appUser?.apellido || '',
-        rol: appUser?.rol || metaRol ,
+        rol: appUser?.rol || metaRol || 'COORDINACION',
         obra_id: appUser?.obra_id || '',
         activo: appUser?.activo ?? true,
         obra: obra,
@@ -146,15 +163,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true)
       console.log('🔄 useAuth: Iniciando logout')
-      
+
       // Limpiar estado inmediatamente para evitar bucles
       setUser(null)
       setSession(null)
-      
+
       // Limpiar sesión local (esto ya incluye Supabase)
       await localSessionCache.signOut()
       await supabase.auth.signOut()
-      
+
       console.log('✅ useAuth: Logout completado')
     } catch (error) {
       console.error('❌ Error en logout:', error)
@@ -207,7 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
       try {
         if (!isMounted) return
-        
+
         // Verificar sesión local primero (más rápido)
         const localSession = localSessionCache.getSession()
         if (localSession && isMounted) {
@@ -233,7 +250,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Verificar Supabase y sincronizar información aunque exista sesión local
         const { data: { session: supabaseSession } } = await supabase.auth.getSession()
-        
+
         if (supabaseSession?.user && isMounted) {
           // Buscar usuario local correspondiente
           const appUser = await supabaseUsersService.getByEmail(supabaseSession.user.email!)
@@ -255,13 +272,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               obra: obra,
               supabaseId: supabaseSession.user.id
             }
-            
+
             const session = {
               user: authUser,
               token: supabaseSession.access_token,
               expiresAt: Date.now() + (24 * 60 * 60 * 1000)
             }
-            
+
             setUser(authUser)
             setSession(session)
             localSessionCache.saveSupabaseSession(session)

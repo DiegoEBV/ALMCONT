@@ -1,3 +1,5 @@
+import { Obra } from './index'
+
 export type UserRole = 'ADMIN' | 'COORDINACION' | 'LOGISTICA' | 'ALMACENERO' | 'PRODUCCION' | 'RESIDENTE' | 'PENDIENTE'
 
 export interface SupabaseUserMetadata {
@@ -12,12 +14,6 @@ export interface SupabaseAppMetadata {
   role?: UserRole
 }
 
-export interface ObraLite {
-  id?: string
-  nombre?: string
-  codigo?: string
-}
-
 export interface AuthUser {
   id: string
   email: string
@@ -26,7 +22,7 @@ export interface AuthUser {
   rol: UserRole
   obra_id: string
   activo: boolean
-  obra?: ObraLite | null
+  obra?: Obra | null
   supabaseId?: string
 }
 

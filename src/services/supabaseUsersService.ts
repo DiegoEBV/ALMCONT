@@ -3,11 +3,42 @@ import { isValidUUID } from '../utils/uuidValidator'
 import type { Usuario, UserRole } from '../types'
 
 export const supabaseUsersService = {
+  // Helper para mapear usuario de DB (role) a App (rol)
+  _mapDbUser(dbUser: any): Usuario | null {
+    if (!dbUser) return null
+
+    console.log('🔍 DEBUG _mapDbUser - Raw DB User:', dbUser)
+    console.log('🔍 DEBUG _mapDbUser - Keys:', Object.keys(dbUser))
+
+    // Si ya tiene rol y no role, asumimos que está bien o es legacy
+    // Si tiene role, lo mapeamos a rol
+    const mapped = {
+      ...dbUser,
+      rol: dbUser.role || dbUser.rol || 'PENDIENTE'
+    }
+
+    console.log('🔍 DEBUG _mapDbUser - Mapped User Rol:', mapped.rol)
+
+    // Limpiar propiedad role para evitar confusión en el app (opcional, pero limpio)
+    // delete mapped.role 
+    return mapped as Usuario
+  },
+
+  // Helper para mapear usuario de App (rol) a DB (rol)
+  _mapAppUserToDb(userData: Partial<Usuario>): any {
+    const payload: any = { ...userData }
+
+    // La base de datos usa 'rol', así que nos aseguramos de que se envíe así.
+    // NO mapeamos a 'role' porque la columna no existe.
+
+    return payload
+  },
+
   // Obtener todos los usuarios desde Supabase
   async getAll(): Promise<Usuario[]> {
     try {
       console.log('🔍 DEBUG - Consultando usuarios desde Supabase...')
-      
+
       const { data, error } = await supabase
         .from('usuarios')
         .select('*')
@@ -19,9 +50,8 @@ export const supabaseUsersService = {
       }
 
       console.log('🔍 DEBUG - Usuarios obtenidos desde Supabase:', data?.length || 0)
-      console.log('🔍 DEBUG - Primeros 3 usuarios:', data?.slice(0, 3))
-      
-      return data || []
+
+      return (data || []).map(u => this._mapDbUser(u)!)
     } catch (error) {
       console.error('❌ Error en getAll usuarios desde Supabase:', error)
       return []
@@ -47,7 +77,7 @@ export const supabaseUsersService = {
         return null
       }
 
-      return data
+      return this._mapDbUser(data)
     } catch (error) {
       console.error('Error fetching user from Supabase:', error)
       return null
@@ -57,6 +87,7 @@ export const supabaseUsersService = {
   // Obtener usuarios por rol desde Supabase
   async getByRol(rol: UserRole): Promise<Usuario[]> {
     try {
+      // Consultamos por la columna 'rol' que es la correcta en la DB
       const { data, error } = await supabase
         .from('usuarios')
         .select('*')
@@ -64,11 +95,13 @@ export const supabaseUsersService = {
         .order('created_at', { ascending: false })
 
       if (error) {
-        console.error('Error fetching users by rol from Supabase:', error)
+        console.error('Error fetching users by role from Supabase:', error)
         throw error
       }
 
-      return data || []
+      return (data || []).map(u => this._mapDbUser(u)!)
+
+      return (data || []).map(u => this._mapDbUser(u)!)
     } catch (error) {
       console.error('Error fetching users by rol from Supabase:', error)
       return []
@@ -89,7 +122,7 @@ export const supabaseUsersService = {
         return null
       }
 
-      return data
+      return this._mapDbUser(data)
     } catch (error) {
       console.error('Error fetching user by email from Supabase:', error)
       return null
@@ -115,7 +148,7 @@ export const supabaseUsersService = {
 
       const { error } = await supabase
         .from('usuarios')
-        .update({ 
+        .update({
           obra_id: obraId,
           updated_at: new Date().toISOString()
         })
@@ -145,14 +178,16 @@ export const supabaseUsersService = {
   // Crear usuario en Supabase
   async create(userData: Partial<Usuario>): Promise<Usuario | null> {
     try {
+      const dbPayload = this._mapAppUserToDb({
+        ...userData,
+        id: userData.id || crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+
       const { data, error } = await supabase
         .from('usuarios')
-        .insert([{
-          ...userData,
-          id: userData.id || crypto.randomUUID(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
+        .insert([dbPayload])
         .select()
         .single()
 
@@ -161,7 +196,7 @@ export const supabaseUsersService = {
         throw error
       }
 
-      return data
+      return this._mapDbUser(data)
     } catch (error) {
       console.error('Error creating user in Supabase:', error)
       return null
@@ -192,12 +227,14 @@ export const supabaseUsersService = {
         return null
       }
 
+      const dbPayload = this._mapAppUserToDb({
+        ...userData,
+        updated_at: new Date().toISOString()
+      })
+
       const { data, error } = await supabase
         .from('usuarios')
-        .update({
-          ...userData,
-          updated_at: new Date().toISOString()
-        })
+        .update(dbPayload)
         .eq('id', id)
         .select()
         .single()
@@ -207,7 +244,7 @@ export const supabaseUsersService = {
         throw error
       }
 
-      return data
+      return this._mapDbUser(data)
     } catch (error) {
       console.error('Error updating user in Supabase:', error)
       return null
