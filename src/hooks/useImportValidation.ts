@@ -188,7 +188,7 @@ const useImportValidation = ({ data, fieldMapping, targetTable }: UseImportValid
 
     // Validar teléfonos
     if (rules.phone.includes(field)) {
-      const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+      const phoneRegex = /^[\d\s\-+()]+$/;
       if (!phoneRegex.test(stringValue) || stringValue.length < 7) {
         errors.push({
           row: rowIndex + 1,

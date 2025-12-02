@@ -1,5 +1,4 @@
 import { Usuario, Obra, Material, Requerimiento, SolicitudCompra, RqSc, Entrada, Salida, StockObraMaterial, OrdenCompra, ScOc } from '../types'
-import { supabase } from './supabase'
 // import database from '../data/database.json' // ELIMINADO: No incluir datos de prueba en producción
 
 interface LocalDBConfig {
@@ -51,7 +50,6 @@ class LocalDatabase {
   private async initializeAsync(): Promise<void> {
     if (this.initialized) return
     await this.loadData()
-    await this.loadObrasFromSupabase()
     this.initialized = true
   }
 
@@ -76,14 +74,7 @@ class LocalDatabase {
   }
 
   private async loadFromDatabaseFile(): Promise<void> {
-    try {
-      // No cargar datos de prueba en producción
-      console.log('⚠️ Datos de prueba no cargados en producción')
-      this.initializeData()
-    } catch (error) {
-      console.error('Error inicializando datos:', error)
-      this.initializeData()
-    }
+    this.initializeData()
   }
 
   private saveData(): void {
@@ -94,151 +85,18 @@ class LocalDatabase {
     }
   }
 
-  // Función para cargar obras desde Supabase
+  // Eliminado: no cargar obras desde Supabase. Mantener almacenamiento local vacío.
   private async loadObrasFromSupabase(): Promise<void> {
-    try {
-      console.log('🔄 LocalDB: Cargando obras desde Supabase...')
-      
-      const { data: obras, error } = await supabase
-        .from('obras')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('❌ LocalDB: Error cargando obras desde Supabase:', error)
-        console.warn('⚠️ LocalDB: Continuando con obras vacías como fallback')
-        // Mantener el array vacío como fallback
-        if (!this.data.obras) {
-          this.data.obras = []
-        }
-        return
-      }
-
-      if (obras && obras.length > 0) {
-        console.log('✅ LocalDB: Obras cargadas desde Supabase:', obras.length)
-        console.log('📋 LocalDB: Obras encontradas:', obras.map(o => ({ id: o.id, nombre: o.nombre, codigo: o.codigo })))
-        
-        // Mapear obras de Supabase al formato local manteniendo compatibilidad de IDs
-        const obrasLocales: Obra[] = obras.map((obra, index) => ({
-          ...obra,
-          // Mantener mapeo de ID local para compatibilidad
-          localId: (index + 1).toString(),
-          // Asegurar que responsable esté presente (puede venir como responsable_id)
-          responsable: obra.responsable || obra.responsable_id || 'Sin asignar'
-        }))
-        
-        this.data.obras = obrasLocales
-        console.log('✅ LocalDB: Obras sincronizadas exitosamente')
-      } else {
-        console.log('⚠️ LocalDB: No se encontraron obras en Supabase')
-        this.data.obras = []
-      }
-      
-      // Guardar datos actualizados
-      this.saveData()
-      
-    } catch (error) {
-      console.error('❌ LocalDB: Error crítico cargando obras desde Supabase:', error)
-      console.warn('⚠️ LocalDB: Continuando con obras vacías como fallback')
-      
-      // Asegurar que el array de obras existe aunque esté vacío
-      if (!this.data.obras) {
-        this.data.obras = []
-      }
+    if (!this.data.obras) {
+      this.data.obras = []
     }
   }
 
   private initializeData(): void {
     this.data = {
-      usuarios: [
-        {
-          id: '1',
-          email: 'coordinador@obra.com',
-          password: 'password123',
-          nombre: 'Coordinador',
-          apellido: 'Principal',
-          rol: 'COORDINACION',
-          activo: true,
-          obra_id: '1',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          email: 'logistica@obra.com',
-          password: 'password123',
-          nombre: 'Logística',
-          apellido: 'Principal',
-          rol: 'LOGISTICA',
-          activo: true,
-          obra_id: '1',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '3',
-          email: 'almacenero@obra.com',
-          password: 'password123',
-          nombre: 'Almacenero',
-          apellido: 'Principal',
-          rol: 'ALMACENERO',
-          activo: true,
-          obra_id: '1',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '4',
-          email: 'produccion@obra.com',
-          password: 'password123',
-          nombre: 'Producción',
-          apellido: 'Principal',
-          rol: 'PRODUCCION',
-          activo: true,
-          obra_id: '1',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '5',
-          email: 'residente@obra.com',
-          password: 'password123',
-          nombre: 'Residente',
-          apellido: 'Obra',
-          rol: 'RESIDENTE',
-          activo: true,
-          obra_id: '1',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-      ],
-      obras: [], // Las obras se cargarán desde Supabase
-      materiales: [
-        {
-          id: '1',
-          codigo: 'MAT-001',
-          nombre: 'Cemento Portland',
-          descripcion: 'Cemento Portland tipo I',
-          unidad: 'BOLSA',
-          categoria: 'CONSTRUCCION',
-          precio_unitario: 25.50,
-           activo: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          codigo: 'MAT-002',
-          nombre: 'Fierro 1/2"',
-          descripcion: 'Fierro corrugado de 1/2 pulgada',
-          unidad: 'VARILLA',
-          categoria: 'CONSTRUCCION',
-          precio_unitario: 35.00,
-          activo: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ],
+      usuarios: [],
+      obras: [],
+      materiales: [],
       requerimientos: [],
       salidas: [],
       entradas: [],

@@ -3,9 +3,9 @@ import { localSessionCache } from '../services/localSessionCache'
 import { supabaseUsersService } from '../services/supabaseUsersService'
 import { supabase } from '../lib/supabase'
 import { obrasService } from '../services/obras'
-import { localDB } from '../lib/localDB'
 import { mapLocalIdToUUID } from '../utils/idMapper'
-import type { AuthUser, AuthContextType, AuthSession } from '../types'
+import type { AuthUser, AuthContextType, AuthSession, SupabaseUserMetadata, SupabaseAppMetadata } from '../types/auth'
+import type { Usuario } from '../types'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -36,14 +36,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('🏗️ useAuth: UUID mapeado:', obraUUID)
           const obra = await obrasService.getById(obraUUID)
           return obra
-        } else {
-          // Fallback: intentar obtener de la base de datos local
-          console.warn(`No se pudo mapear obra_id ${obraId} a UUID, intentando obtener localmente`)
-          const obraLocal = await localDB.getById('obras', obraId)
-          if (obraLocal) {
-            console.log('✅ useAuth: Obra obtenida de BD local:', obraLocal.nombre)
-            return obraLocal
-          }
         }
       }
       
@@ -81,18 +73,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       console.log('✅ useAuth: Autenticación Supabase exitosa para:', data.user.email)
+      console.log('--- Supabase Raw User Data ---', data.user)
 
       // Resolver usuario de aplicación desde tabla usuarios en Supabase
       console.log('🔍 useAuth: Resolviendo usuario de aplicación...')
-      let appUser = await supabaseUsersService.getByEmail(email)
+      let appUser: Usuario | null = await supabaseUsersService.getByEmail(email)
       if (!appUser) {
+        const meta = data.user.user_metadata as SupabaseUserMetadata | null
+        const withAppMeta = data.user as unknown as { app_metadata?: SupabaseAppMetadata }
+        const appMeta = withAppMeta.app_metadata || null
+        console.log('Supabase user_metadata', meta)
+        console.log('Supabase app_metadata', appMeta)
+        const metaRol = meta?.rol || meta?.role || appMeta?.rol || appMeta?.role
+        console.log('Extracted role from metadata', metaRol)
         appUser = await supabaseUsersService.ensureUser(email, {
           email,
           nombre: email.split('@')[0],
           apellido: '',
-          rol: 'PRODUCCION',
-          activo: true
-        }) as any
+          rol: (metaRol || 'PENDIENTE'),
+          activo: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, data.user.id) as unknown as Usuario
       }
 
       // Cargar información de la obra si está asignada
@@ -107,12 +109,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      const meta = data.user.user_metadata as SupabaseUserMetadata | null
+      const withAppMeta = data.user as unknown as { app_metadata?: SupabaseAppMetadata }
+      const appMeta = withAppMeta.app_metadata || null
+      const metaRol = meta?.rol || meta?.role || appMeta?.rol || appMeta?.role
       const authUser: AuthUser = {
         id: appUser?.id || data.user.id,
         email: email,
         nombre: appUser?.nombre || email.split('@')[0],
         apellido: appUser?.apellido || '',
-        rol: (appUser?.rol as any) || 'PRODUCCION',
+        rol: appUser?.rol || metaRol ,
         obra_id: appUser?.obra_id || '',
         activo: appUser?.activo ?? true,
         obra: obra,
@@ -176,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: appUser.email,
         nombre: appUser.nombre,
         apellido: appUser.apellido,
-        rol: appUser.rol as any,
+        rol: appUser.rol as import('../types/auth').UserRole,
         obra_id: appUser.obra_id,
         activo: appUser.activo,
         obra,
@@ -221,11 +227,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...localSession,
             user: userWithObra
           })
+          // No retornar: continuar y validar contra Supabase para sincronizar rol actualizado
           setLoading(false)
-          return
         }
 
-        // Solo verificar Supabase si no hay sesión local
+        // Verificar Supabase y sincronizar información aunque exista sesión local
         const { data: { session: supabaseSession } } = await supabase.auth.getSession()
         
         if (supabaseSession?.user && isMounted) {
@@ -243,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: appUser.email,
               nombre: appUser.nombre,
               apellido: appUser.apellido,
-              rol: appUser.rol as any,
+              rol: appUser.rol as import('../types/auth').UserRole,
               obra_id: appUser.obra_id,
               activo: appUser.activo,
               obra: obra,

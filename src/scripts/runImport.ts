@@ -1,7 +1,7 @@
 import { importReqData } from './importReqData';
 
 console.log('🚀 Starting requirement data import...');
-console.log('This will import data from src/assets/reqprueb.json into Supabase');
+console.log('This will import data from a configured source into Supabase');
 console.log('---');
 
 importReqData()

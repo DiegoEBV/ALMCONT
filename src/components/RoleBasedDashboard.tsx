@@ -29,6 +29,18 @@ const RoleBasedDashboard: React.FC = () => {
   const effectiveRole = isResidenteEmail ? 'RESIDENTE' : user.rol
 
   switch (effectiveRole) {
+    case 'PENDIENTE':
+      return (
+        <React.Suspense fallback={
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+          </div>
+        }>
+          {React.createElement(React.lazy(() => import('../pages/Dashboard')))}
+        </React.Suspense>
+      )
+    case 'ADMIN':
+      return <Navigate to="/oficina/dashboard" replace />
     case 'COORDINACION':
       return <Navigate to="/oficina/dashboard" replace />
     

@@ -1,5 +1,4 @@
 import { supabase } from './supabaseNode';
-import reqData from '../assets/reqprueb.json';
 
 interface ReqDataItem {
   BLOQUE: string;
@@ -61,7 +60,11 @@ function parseNumeric(value: any): number | null {
 export async function importReqDataNew(): Promise<void> {
   try {
     console.log('Starting import of requirement data to new table structure...');
-    console.log(`Found ${reqData.length} items to import`);
+    const reqData: ReqDataItem[] = [];
+    if (reqData.length === 0) {
+      console.log('No items to import.');
+      return;
+    }
     
     let successCount = 0;
     let errorCount = 0;

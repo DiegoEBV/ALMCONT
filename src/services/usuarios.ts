@@ -1,4 +1,3 @@
-import { localDB } from '../lib/localDB'
 import { supabaseUsersService } from './supabaseUsersService'
 import type { Usuario, UserRole } from '../types'
 
@@ -13,16 +12,11 @@ export const usuariosService = {
         return supabaseUsers
       }
       
-      console.log('⚠️ usuariosService.getAll: No se encontraron usuarios en Supabase, usando localDB como fallback')
-      return localDB.get('usuarios')
+      console.log('⚠️ usuariosService.getAll: No se encontraron usuarios en Supabase')
+      return []
     } catch (error) {
-      console.error('❌ usuariosService.getAll: Error con Supabase, usando localDB como fallback:', error)
-      try {
-        return localDB.get('usuarios')
-      } catch (localError) {
-        console.error('❌ usuariosService.getAll: Error también en localDB:', localError)
-        throw new Error('Error al obtener usuarios')
-      }
+      console.error('❌ usuariosService.getAll: Error con Supabase:', error)
+      throw new Error('Error al obtener usuarios')
     }
   },
 
@@ -36,16 +30,11 @@ export const usuariosService = {
         return supabaseUser
       }
       
-      console.log('⚠️ usuariosService.getById: Usuario no encontrado en Supabase, buscando en localDB')
-      return localDB.getById('usuarios', id)
+      console.log('⚠️ usuariosService.getById: Usuario no encontrado en Supabase')
+      return null
     } catch (error) {
-      console.error('❌ usuariosService.getById: Error con Supabase, usando localDB como fallback:', error)
-      try {
-        return localDB.getById('usuarios', id)
-      } catch (localError) {
-        console.error('❌ usuariosService.getById: Error también en localDB:', localError)
-        return null
-      }
+      console.error('❌ usuariosService.getById: Error con Supabase:', error)
+      return null
     }
   },
 
@@ -62,36 +51,13 @@ export const usuariosService = {
       
       if (supabaseUser) {
         console.log('✅ usuariosService.create: Usuario creado en Supabase:', supabaseUser.id)
-        // También crear en localDB para sincronización
-        try {
-          await localDB.create('usuarios', supabaseUser)
-          console.log('✅ usuariosService.create: Usuario sincronizado en localDB')
-        } catch (localError) {
-          console.warn('⚠️ usuariosService.create: Error sincronizando en localDB:', localError)
-        }
         return supabaseUser
       }
       
-      console.log('⚠️ usuariosService.create: Creando usuario en localDB como fallback')
-      return localDB.create('usuarios', {
-        ...data,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      throw new Error('No se pudo crear usuario en Supabase')
     } catch (error) {
-      console.error('❌ usuariosService.create: Error con Supabase, usando localDB como fallback:', error)
-      try {
-        return localDB.create('usuarios', {
-          ...data,
-          id: crypto.randomUUID(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-      } catch (localError) {
-        console.error('❌ usuariosService.create: Error también en localDB:', localError)
-        throw new Error('Error al crear usuario')
-      }
+      console.error('❌ usuariosService.create: Error con Supabase:', error)
+      throw new Error('Error al crear usuario')
     }
   },
 
@@ -106,32 +72,13 @@ export const usuariosService = {
       
       if (supabaseUser) {
         console.log('✅ usuariosService.update: Usuario actualizado en Supabase')
-        // También actualizar en localDB para sincronización
-        try {
-          await localDB.update('usuarios', id, supabaseUser)
-          console.log('✅ usuariosService.update: Usuario sincronizado en localDB')
-        } catch (localError) {
-          console.warn('⚠️ usuariosService.update: Error sincronizando en localDB:', localError)
-        }
         return supabaseUser
       }
       
-      console.log('⚠️ usuariosService.update: Actualizando usuario en localDB como fallback')
-      return localDB.update('usuarios', id, {
-        ...data,
-        updated_at: new Date().toISOString()
-      })
+      throw new Error('No se pudo actualizar usuario en Supabase')
     } catch (error) {
-      console.error('❌ usuariosService.update: Error con Supabase, usando localDB como fallback:', error)
-      try {
-        return localDB.update('usuarios', id, {
-          ...data,
-          updated_at: new Date().toISOString()
-        })
-      } catch (localError) {
-        console.error('❌ usuariosService.update: Error también en localDB:', localError)
-        throw new Error('Error al actualizar usuario')
-      }
+      console.error('❌ usuariosService.update: Error con Supabase:', error)
+      throw new Error('Error al actualizar usuario')
     }
   },
 
@@ -142,9 +89,7 @@ export const usuariosService = {
       await supabaseUsersService.delete(id)
       console.log('✅ usuariosService.delete: Usuario eliminado de Supabase')
       
-      // También eliminar de localDB si existe
-      await localDB.delete('usuarios', id)
-      console.log('✅ usuariosService.delete: Usuario eliminado de localDB')
+      // No mantener almacenamiento local
     } catch (error) {
       console.error('❌ usuariosService.delete: Error eliminando usuario:', error)
       throw new Error('Error al eliminar usuario')
@@ -166,33 +111,11 @@ export const usuariosService = {
         return supabaseUser
       }
       
-      console.log('⚠️ usuariosService.getByEmail: Usuario no encontrado en Supabase, buscando en localDB')
-      const usuarios = await localDB.getWhere('usuarios', (item: Usuario) => item.email === email)
-      const localUser = usuarios[0] || null
-      if (localUser) {
-        console.log('✅ usuariosService.getByEmail: Usuario encontrado en localDB:', {
-          id: localUser.id,
-          email: localUser.email,
-          activo: localUser.activo,
-          rol: localUser.rol
-        })
-      } else {
-        console.log('❌ usuariosService.getByEmail: Usuario no encontrado en ninguna fuente:', email)
-      }
-      return localUser
+      console.log('⚠️ usuariosService.getByEmail: Usuario no encontrado en Supabase')
+      return null
     } catch (error) {
-      console.error('❌ usuariosService.getByEmail: Error con Supabase, usando localDB como fallback:', error)
-      try {
-        const usuarios = await localDB.getWhere('usuarios', (item: Usuario) => item.email === email)
-        const localUser = usuarios[0] || null
-        if (localUser) {
-          console.log('✅ usuariosService.getByEmail: Usuario encontrado en localDB (fallback):', localUser.email)
-        }
-        return localUser
-      } catch (localError) {
-        console.error('❌ usuariosService.getByEmail: Error también en localDB:', localError)
-        return null
-      }
+      console.error('❌ usuariosService.getByEmail: Error con Supabase:', error)
+      return null
     }
   },
 
@@ -207,16 +130,11 @@ export const usuariosService = {
         return filteredUsers
       }
       
-      console.log('⚠️ usuariosService.getByRol: No se encontraron usuarios en Supabase, usando localDB como fallback')
-      return localDB.getWhere('usuarios', (item: Usuario) => item.rol === rol)
+      console.log('⚠️ usuariosService.getByRol: No se encontraron usuarios en Supabase')
+      return []
     } catch (error) {
-      console.error('❌ usuariosService.getByRol: Error con Supabase, usando localDB como fallback:', error)
-      try {
-        return localDB.getWhere('usuarios', (item: Usuario) => item.rol === rol)
-      } catch (localError) {
-        console.error('❌ usuariosService.getByRol: Error también en localDB:', localError)
-        throw new Error('Error al obtener usuarios por rol')
-      }
+      console.error('❌ usuariosService.getByRol: Error con Supabase:', error)
+      throw new Error('Error al obtener usuarios por rol')
     }
   }
 }

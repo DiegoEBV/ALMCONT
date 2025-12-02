@@ -1,5 +1,4 @@
 import { supabase } from './supabaseNode';
-import reqData from '../assets/reqprueb.json';
 
 interface ReqDataItem {
   BLOQUE: string;
@@ -158,7 +157,11 @@ async function getOrCreateMaterial(material: string, descripcion: string, unidad
 export async function importReqData(): Promise<void> {
   try {
     console.log('Starting import of requirement data...');
-    console.log(`Found ${reqData.length} items to import`);
+    const reqData: ReqDataItem[] = [];
+    if (reqData.length === 0) {
+      console.log('No items to import.');
+      return;
+    }
     
     // Get a default user ID for created_by field
     const { data: defaultUser } = await supabase

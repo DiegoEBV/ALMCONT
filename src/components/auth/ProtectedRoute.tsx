@@ -43,7 +43,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Si hay roles permitidos y el usuario no tiene el rol adecuado
-  if (allowedRoles.length > 0 && user && !allowedRoles.includes(user.rol)) {
+  if (allowedRoles.length > 0 && user && user.rol !== 'ADMIN' && !allowedRoles.includes(user.rol)) {
     console.log('🚫 ProtectedRoute: Acceso denegado', {
       userRole: user.rol,
       allowedRoles,

@@ -53,7 +53,7 @@ router.post('/seed-residente', async (req: Request, res: Response) => {
         email,
         nombre: 'Residente',
         apellido: 'Obra',
-        rol: 'COORDINADOR',
+        rol: 'RESIDENTE',
         activo: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

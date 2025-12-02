@@ -1,7 +1,7 @@
 import { importReqDataNew } from './importReqDataNew';
 
 console.log('🚀 Starting requirement data import with new table structure...');
-console.log('This will import data from src/assets/reqprueb.json into the new requerimientos table');
+console.log('This will import data into the new requerimientos table');
 console.log('---');
 
 importReqDataNew()

@@ -44,10 +44,9 @@ BEGIN
 END;
 $$;
 
-SELECT assign_user_role('admin@obra.com','Admin','Obra','ADMIN',NULL);
-SELECT assign_user_role('coordinador@obra.com','Coordinador','Obra','COORDINACION',NULL);
-SELECT assign_user_role('logistica@obra.com','Logistica','Obra','LOGISTICA',NULL);
-SELECT assign_user_role('almacenero@obra.com','Almacenero','Obra','ALMACENERO',NULL);
-SELECT assign_user_role('produccion@obra.com','Produccion','Obra','PRODUCCION',NULL);
-SELECT assign_user_role('residente@obra.com','Residente','Obra','RESIDENTE',NULL);
-
+SELECT assign_user_role('admin@obra.com','Admin','Obra','ADMIN'::user_role,NULL::uuid);
+SELECT assign_user_role('coordinador@obra.com','Coordinador','Obra','COORDINACION'::user_role,NULL::uuid);
+SELECT assign_user_role('logistica@obra.com','Logistica','Obra','LOGISTICA'::user_role,NULL::uuid);
+SELECT assign_user_role('almacenero@obra.com','Almacenero','Obra','ALMACENERO'::user_role,NULL::uuid);
+SELECT assign_user_role('produccion@obra.com','Produccion','Obra','PRODUCCION'::user_role,NULL::uuid);
+SELECT assign_user_role('residente@obra.com','Residente','Obra','RESIDENTE'::user_role,NULL::uuid);

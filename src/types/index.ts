@@ -1,5 +1,5 @@
 // Agregar UserRole que falta
-export type UserRole = 'COORDINACION' | 'LOGISTICA' | 'ALMACENERO' | 'PRODUCCION' | 'RESIDENTE'
+export type UserRole = 'ADMIN' | 'COORDINACION' | 'LOGISTICA' | 'ALMACENERO' | 'PRODUCCION' | 'RESIDENTE' | 'PENDIENTE'
 
 // Tipos de autenticación
 export interface AuthContextType {

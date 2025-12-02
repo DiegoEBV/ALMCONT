@@ -149,7 +149,7 @@ export const supabaseUsersService = {
         .from('usuarios')
         .insert([{
           ...userData,
-          id: crypto.randomUUID(),
+          id: userData.id || crypto.randomUUID(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -168,17 +168,18 @@ export const supabaseUsersService = {
     }
   },
 
-  async ensureUser(email: string, userData: Partial<Usuario>): Promise<Usuario | null> {
+  async ensureUser(email: string, userData: Partial<Usuario>, supabaseUserId?: string): Promise<Usuario | null> {
     try {
       const existing = await this.getByEmail(email)
       if (existing) return existing
       const data = await this.create({
+        id: supabaseUserId,
         email,
         ...userData,
         activo: userData.activo ?? true,
       })
       return data
-    } catch (error) {
+    } catch {
       return null
     }
   },
