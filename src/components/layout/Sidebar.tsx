@@ -52,7 +52,7 @@ const navigation: NavItem[] = [
   },
   {
     name: 'Gestión de Materiales',
-    href: '/materiales',
+    href: '/oficina/materiales',
     icon: CubeIcon,
     roles: ['COORDINACION', 'ALMACEN_CENTRAL']
   },

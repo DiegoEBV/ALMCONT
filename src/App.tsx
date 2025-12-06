@@ -92,7 +92,7 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['COORDINACION']}>
                     <Suspense fallback={<LoadingSpinner />}>
-                      <Materiales />
+                      <CoordinationDashboard />
                     </Suspense>
                   </ProtectedRoute>
                 }
@@ -105,6 +105,17 @@ function App() {
                   <ProtectedRoute allowedRoles={['COORDINACION', 'LOGISTICA']}>
                     <Suspense fallback={<LoadingSpinner />}>
                       <SolicitudesCompra />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              {/*gestion materiales*/}
+              <Route
+                path="oficina/materiales"
+                element={
+                  <ProtectedRoute allowedRoles={['COORDINACION', 'ALMACEN_CENTRAL']}>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <Materiales />
                     </Suspense>
                   </ProtectedRoute>
                 }
