@@ -39,13 +39,7 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   {
-    name: 'Dashboard',
-    href: '/',
-    icon: HomeIcon,
-    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO', 'PRODUCCION']
-  },
-  {
-    name: 'Panel Ejecutivo',
+    name: 'Panel Coordinador',
     href: '/oficina/dashboard',
     icon: PresentationChartBarIcon,
     roles: ['COORDINACION']
@@ -123,16 +117,22 @@ const navigation: NavItem[] = [
     roles: ['PRODUCCION']
   },
   {
+    name: 'Panel Residente',
+    href: '/residente/dashboard',
+    icon: BuildingOfficeIcon,
+    roles: ['RESIDENTE']
+  },
+  {
     name: 'Stock/Kardex',
     href: '/stock/kardex',
     icon: CubeIcon,
-    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO']
+    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO', 'RESIDENTE']
   },
   {
     name: 'Flujo de Aprobaciones',
     href: '/advanced/approvals',
     icon: CheckCircleIcon,
-    roles: ['COORDINACION', 'LOGISTICA']
+    roles: ['COORDINACION', 'LOGISTICA', 'RESIDENTE']
   },
   {
     name: 'Configuración de Reorden',
@@ -168,25 +168,25 @@ const navigation: NavItem[] = [
     name: 'Reportes',
     href: '/reportes',
     icon: ChartBarIcon,
-    roles: ['COORDINACION', 'LOGISTICA']
+    roles: ['COORDINACION', 'LOGISTICA', 'RESIDENTE']
   },
   {
     name: 'Analytics Avanzado',
     href: '/analytics',
     icon: ChartPieIcon,
-    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO']
+    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO', 'RESIDENTE']
   },
   {
     name: 'Templates',
     href: '/templates',
     icon: DocumentDuplicateIcon,
-    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO']
+    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO', 'RESIDENTE']
   },
   {
     name: 'Perfil',
     href: '/perfil',
     icon: UserIcon,
-    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO']
+    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO', 'PRODUCCION', 'RESIDENTE']
   },
   {
     name: 'Administración de Obras',
@@ -208,7 +208,7 @@ const Sidebar: React.FC = () => {
 
   if (!user) return null
 
-  const filteredNavigation = navigation.filter(item => 
+  const filteredNavigation = navigation.filter(item =>
     item.roles.includes(user.rol)
   )
 
@@ -247,27 +247,25 @@ const Sidebar: React.FC = () => {
       <nav className="flex-1 p-4 space-y-1">
         {filteredNavigation.map((item) => {
           const isActive = location.pathname === item.href
-          
+
           return (
             <NavLink
               key={item.name}
               to={item.href}
               className={`
                 group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
-                ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                ${isActive
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                 }
               `}
             >
               <item.icon
                 className={`
                   mr-3 h-5 w-5 flex-shrink-0
-                  ${
-                    isActive
-                      ? 'text-blue-500'
-                      : 'text-gray-400 group-hover:text-gray-500'
+                  ${isActive
+                    ? 'text-blue-500'
+                    : 'text-gray-400 group-hover:text-gray-500'
                   }
                 `}
                 aria-hidden="true"

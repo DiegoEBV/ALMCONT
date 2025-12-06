@@ -43,7 +43,7 @@ function generateNumeroSC() {
 async function crearTablaRqSc() {
   try {
     log('🔧 Creando tabla rq_sc para relaciones...');
-    
+
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS public.rq_sc (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,18 +67,18 @@ async function crearTablaRqSc() {
       CREATE POLICY IF NOT EXISTS "Usuarios autenticados pueden gestionar relaciones rq_sc" ON public.rq_sc
         FOR ALL WITH CHECK (auth.role() = 'authenticated');
     `;
-    
+
     const { error } = await supabase.rpc('exec_sql', { sql: createTableQuery });
-    
+
     if (error) {
       // Si falla el RPC, intentamos crear directamente
       log('⚠️  Advertencia: No se pudo usar RPC, intentando crear tabla directamente...');
-      
+
       const { error: createError } = await supabase
         .from('rq_sc')
         .select('id')
         .limit(1);
-        
+
       if (createError && createError.code === '42P01') {
         log('❌ Error: La tabla rq_sc no existe y no se puede crear automáticamente.');
         log('💡 Solución: Ejecuta manualmente el siguiente SQL en tu base de datos:');
@@ -86,7 +86,7 @@ async function crearTablaRqSc() {
         return false;
       }
     }
-    
+
     log('✅ Tabla rq_sc verificada/creada correctamente');
     return true;
   } catch (error) {
@@ -98,18 +98,18 @@ async function crearTablaRqSc() {
 async function obtenerRequerimientosConSC() {
   try {
     log('🔍 Buscando requerimientos con solicitudes de compra...');
-    
+
     const { data: requerimientos, error } = await supabase
       .from('requerimientos')
       .select('*')
       .not('numero_solicitud_compra', 'is', null)
       .neq('numero_solicitud_compra', '')
       .order('numero_solicitud_compra');
-    
+
     if (error) {
       throw new Error(`Error consultando requerimientos: ${error.message}`);
     }
-    
+
     log(`📊 Encontrados ${requerimientos.length} requerimientos con solicitudes de compra`);
     return requerimientos;
   } catch (error) {
@@ -120,12 +120,12 @@ async function obtenerRequerimientosConSC() {
 
 function agruparPorSolicitudCompra(requerimientos) {
   log('📋 Agrupando requerimientos por número de solicitud de compra...');
-  
+
   const grupos = {};
-  
+
   requerimientos.forEach(req => {
     const numeroSC = req.numero_solicitud_compra.trim();
-    
+
     if (!grupos[numeroSC]) {
       grupos[numeroSC] = {
         numero_solicitud_compra: numeroSC,
@@ -136,23 +136,23 @@ function agruparPorSolicitudCompra(requerimientos) {
         obra_id: null // Se determinará más adelante
       };
     }
-    
+
     grupos[numeroSC].requerimientos.push(req);
-    
+
     // Sumar subtotales
     if (req.subtotal && !isNaN(req.subtotal)) {
       grupos[numeroSC].total_estimado += parseFloat(req.subtotal);
     }
-    
+
     // Usar el proveedor si no está definido
     if (!grupos[numeroSC].proveedor && req.proveedor) {
       grupos[numeroSC].proveedor = req.proveedor;
     }
   });
-  
+
   const solicitudesUnicas = Object.values(grupos);
   log(`📈 Identificadas ${solicitudesUnicas.length} solicitudes de compra únicas`);
-  
+
   return solicitudesUnicas;
 }
 
@@ -163,12 +163,12 @@ async function obtenerObraDefault() {
       .select('id, nombre, codigo, estado')
       .eq('estado', 'ACTIVA')
       .limit(1);
-    
+
     if (error || !obras || obras.length === 0) {
       log('⚠️  No se encontró obra activa, se requerirá crear una obra por defecto');
       return null;
     }
-    
+
     log(`🏗️  Usando obra por defecto: ${obras[0].nombre} (${obras[0].codigo})`);
     return obras[0].id;
   } catch (error) {
@@ -184,17 +184,17 @@ async function obtenerUsuarioDefault() {
       .select('id, nombre, apellido')
       .eq('activo', true)
       .limit(1);
-    
+
     if (usuarioError) {
       console.error('❌ Error obteniendo usuario por defecto:', usuarioError);
       return null;
     }
-    
+
     if (!usuarios || usuarios.length === 0) {
       log('⚠️  No se encontró usuario activo para asignar como creador');
       return null;
     }
-    
+
     log(`👤 Usando usuario por defecto: ${usuarios[0].nombre} (${usuarios[0].email})`);
     return usuarios[0].id;
   } catch (error) {
@@ -210,30 +210,30 @@ async function verificarSolicitudExiste(numeroSC) {
       .select('id, numero_sc')
       .eq('numero_sc', numeroSC)
       .limit(1);
-    
+
     if (error) {
       throw new Error(`Error verificando solicitud existente: ${error.message}`);
     }
-    
+
     return data && data.length > 0 ? data[0] : null;
   } catch (error) {
-    log(`❌ Error verificando solicitud existente: ${error.message}`);
+    log(`Error verificando solicitud existente: ${error.message}`);
     return null;
   }
 }
 
 async function insertarSolicitudesCompra(solicitudesUnicas, obraDefaultId, usuarioDefaultId) {
-  log('💾 Insertando solicitudes de compra...');
-  
+  log('Insertando solicitudes de compra...');
+
   const solicitudesCreadas = [];
   const solicitudesExistentes = [];
   const errores = [];
-  
+
   for (const solicitud of solicitudesUnicas) {
     try {
       // Verificar si ya existe
       const existente = await verificarSolicitudExiste(solicitud.numero_solicitud_compra);
-      
+
       if (existente) {
         log(`⚠️  Solicitud ${solicitud.numero_solicitud_compra} ya existe, omitiendo...`);
         solicitudesExistentes.push({
@@ -243,10 +243,10 @@ async function insertarSolicitudesCompra(solicitudesUnicas, obraDefaultId, usuar
         });
         continue;
       }
-      
+
       // Generar nuevo número SC si es necesario
       const numeroSC = generateNumeroSC();
-      
+
       const nuevaSolicitud = {
         numero_sc: numeroSC,
         obra_id: obraDefaultId,
@@ -259,27 +259,27 @@ async function insertarSolicitudesCompra(solicitudesUnicas, obraDefaultId, usuar
         observaciones: `Migración automática - ${solicitud.requerimientos.length} requerimientos asociados`,
         created_by: usuarioDefaultId
       };
-      
+
       const { data: scCreada, error } = await supabase
         .from('solicitudes_compra')
         .insert([nuevaSolicitud])
         .select()
         .single();
-      
+
       if (error) {
         throw new Error(`Error insertando solicitud: ${error.message}`);
       }
-      
+
       log(`✅ Solicitud creada: ${numeroSC} (Original: ${solicitud.numero_solicitud_compra})`);
-      
+
       solicitudesCreadas.push({
         ...scCreada,
         numero_original: solicitud.numero_solicitud_compra,
         requerimientos: solicitud.requerimientos
       });
-      
+
     } catch (error) {
-      log(`❌ Error procesando solicitud ${solicitud.numero_solicitud_compra}: ${error.message}`);
+      log(`Error procesando solicitud ${solicitud.numero_solicitud_compra}: ${error.message}`);
       errores.push({
         numero_solicitud_compra: solicitud.numero_solicitud_compra,
         error: error.message,
@@ -287,37 +287,37 @@ async function insertarSolicitudesCompra(solicitudesUnicas, obraDefaultId, usuar
       });
     }
   }
-  
+
   return { solicitudesCreadas, solicitudesExistentes, errores };
 }
 
 async function crearRelacionesRqSc(solicitudesCreadas) {
-  log('🔗 Creando relaciones entre requerimientos y solicitudes de compra...');
-  
+  log('Creando relaciones entre requerimientos y solicitudes de compra...');
+
   const relacionesCreadas = [];
   const erroresRelaciones = [];
-  
+
   for (const solicitud of solicitudesCreadas) {
     try {
       const relaciones = solicitud.requerimientos.map(req => ({
         rq_id: req.id,
         sc_id: solicitud.id
       }));
-      
+
       const { data, error } = await supabase
         .from('rq_sc')
         .insert(relaciones)
         .select();
-      
+
       if (error) {
         throw new Error(`Error creando relaciones: ${error.message}`);
       }
-      
+
       log(`✅ Creadas ${relaciones.length} relaciones para SC: ${solicitud.numero_sc}`);
       relacionesCreadas.push(...(data || []));
-      
+
     } catch (error) {
-      log(`❌ Error creando relaciones para SC ${solicitud.numero_sc}: ${error.message}`);
+      log(`Error creando relaciones para SC ${solicitud.numero_sc}: ${error.message}`);
       erroresRelaciones.push({
         solicitud_id: solicitud.id,
         numero_sc: solicitud.numero_sc,
@@ -326,7 +326,7 @@ async function crearRelacionesRqSc(solicitudesCreadas) {
       });
     }
   }
-  
+
   return { relacionesCreadas, erroresRelaciones };
 }
 
@@ -355,26 +355,26 @@ function generarReporte(stats) {
       errores_relaciones: stats.erroresRelaciones
     }
   };
-  
+
   // Guardar reporte en archivo JSON
   fs.writeFileSync(reportFile, JSON.stringify(reporte, null, 2));
-  
+
   // Mostrar resumen en consola
   console.log('\n' + '='.repeat(60));
-  console.log('📊 REPORTE DE MIGRACIÓN');
+  console.log('REPORTE DE MIGRACIÓN');
   console.log('='.repeat(60));
-  console.log(`📋 Requerimientos procesados: ${reporte.resumen.requerimientos_procesados}`);
-  console.log(`🆔 Solicitudes únicas identificadas: ${reporte.resumen.solicitudes_unicas_identificadas}`);
-  console.log(`✅ Solicitudes creadas: ${reporte.resumen.solicitudes_creadas}`);
-  console.log(`⚠️  Solicitudes ya existentes: ${reporte.resumen.solicitudes_existentes}`);
-  console.log(`🔗 Relaciones creadas: ${reporte.resumen.relaciones_creadas}`);
-  console.log(`❌ Errores en solicitudes: ${reporte.resumen.errores_solicitudes}`);
-  console.log(`❌ Errores en relaciones: ${reporte.resumen.errores_relaciones}`);
+  console.log(`Requerimientos procesados: ${reporte.resumen.requerimientos_procesados}`);
+  console.log(`Solicitudes únicas identificadas: ${reporte.resumen.solicitudes_unicas_identificadas}`);
+  console.log(`Solicitudes creadas: ${reporte.resumen.solicitudes_creadas}`);
+  console.log(`Solicitudes ya existentes: ${reporte.resumen.solicitudes_existentes}`);
+  console.log(`Relaciones creadas: ${reporte.resumen.relaciones_creadas}`);
+  console.log(`Errores en solicitudes: ${reporte.resumen.errores_solicitudes}`);
+  console.log(`Errores en relaciones: ${reporte.resumen.errores_relaciones}`);
   console.log('='.repeat(60));
-  console.log(`📄 Reporte detallado guardado en: ${reportFile}`);
-  console.log(`📝 Log completo guardado en: ${logFile}`);
+  console.log(`Reporte detallado guardado en: ${reportFile}`);
+  console.log(`Log completo guardado en: ${logFile}`);
   console.log('='.repeat(60) + '\n');
-  
+
   return reporte;
 }
 
@@ -384,45 +384,45 @@ async function ejecutarMigracion() {
     if (fs.existsSync(logFile)) {
       fs.unlinkSync(logFile);
     }
-    
-    log('🚀 Iniciando migración de requerimientos a solicitudes de compra...');
-    log('=' .repeat(60));
-    
+
+    log('Iniciando migración de requerimientos a solicitudes de compra...');
+    log('='.repeat(60));
+
     // Paso 1: Crear tabla rq_sc si no existe
     const tablaCreada = await crearTablaRqSc();
     if (!tablaCreada) {
-      log('❌ No se pudo crear/verificar la tabla rq_sc. Abortando migración.');
+      log('No se pudo crear/verificar la tabla rq_sc. Abortando migración.');
       return;
     }
-    
+
     // Paso 2: Obtener requerimientos con solicitudes de compra
     const requerimientos = await obtenerRequerimientosConSC();
-    
+
     if (requerimientos.length === 0) {
-      log('ℹ️  No se encontraron requerimientos con solicitudes de compra para migrar.');
+      log('No se encontraron requerimientos con solicitudes de compra para migrar.');
       return;
     }
-    
+
     // Paso 3: Agrupar por solicitud de compra
     const solicitudesUnicas = agruparPorSolicitudCompra(requerimientos);
-    
+
     // Paso 4: Obtener obra y usuario por defecto
     const obraDefaultId = await obtenerObraDefault();
     const usuarioDefaultId = await obtenerUsuarioDefault();
-    
+
     if (!obraDefaultId || !usuarioDefaultId) {
-      log('❌ No se pudieron obtener obra y usuario por defecto. Abortando migración.');
-      log('💡 Asegúrate de tener al menos una obra y un usuario activos en la base de datos.');
+      log('No se pudieron obtener obra y usuario por defecto. Abortando migración.');
+      log('Asegúrate de tener al menos una obra y un usuario activos en la base de datos.');
       return;
     }
-    
+
     // Paso 5: Insertar solicitudes de compra
-    const { solicitudesCreadas, solicitudesExistentes, errores: erroresSolicitudes } = 
+    const { solicitudesCreadas, solicitudesExistentes, errores: erroresSolicitudes } =
       await insertarSolicitudesCompra(solicitudesUnicas, obraDefaultId, usuarioDefaultId);
-    
+
     // Paso 6: Crear relaciones rq_sc
     const { relacionesCreadas, erroresRelaciones } = await crearRelacionesRqSc(solicitudesCreadas);
-    
+
     // Paso 7: Generar reporte
     const stats = {
       requerimientosTotal: requerimientos.length,
@@ -433,17 +433,17 @@ async function ejecutarMigracion() {
       relacionesCreadas,
       erroresRelaciones
     };
-    
+
     const reporte = generarReporte(stats);
-    
-    log('🎉 Migración completada exitosamente!');
-    
+
+    log('Migración completada exitosamente!');
+
     if (erroresSolicitudes.length > 0 || erroresRelaciones.length > 0) {
-      log('⚠️  Se encontraron algunos errores durante la migración. Revisa el reporte detallado.');
+      log('Se encontraron algunos errores durante la migración. Revisa el reporte detallado.');
     }
-    
+
   } catch (error) {
-    log(`💥 Error fatal durante la migración: ${error.message}`);
+    log(`Error fatal durante la migración: ${error.message}`);
     console.error('Stack trace:', error.stack);
   }
 }
@@ -451,11 +451,11 @@ async function ejecutarMigracion() {
 // Ejecutar migración automáticamente
 ejecutarMigracion()
   .then(() => {
-    log('🏁 Proceso de migración finalizado.');
+    log('Proceso de migración finalizado.');
     process.exit(0);
   })
   .catch((error) => {
-    log(`💥 Error ejecutando migración: ${error.message}`);
+    log(`Error ejecutando migración: ${error.message}`);
     process.exit(1);
   });
 

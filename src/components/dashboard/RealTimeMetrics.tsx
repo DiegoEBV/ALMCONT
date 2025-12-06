@@ -66,11 +66,11 @@ interface MetricaInstantanea {
   color: string;
 }
 
-const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({ 
-  refreshInterval = 10000, 
-  filtros, 
-  rangoFecha, 
-  autoRefresh = true 
+const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
+  refreshInterval = 10000,
+  filtros,
+  rangoFecha,
+  autoRefresh = true
 }) => {
   const [consumoRealTime, setConsumoRealTime] = useState<ConsumoRealTime[]>([]);
   const [metricasInstantaneas, setMetricasInstantaneas] = useState<MetricaInstantanea[]>([]);
@@ -85,7 +85,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
   useEffect(() => {
     console.log('[RealTimeMetrics] Component mounting');
     isMountedRef.current = true;
-    
+
     return () => {
       console.log('[RealTimeMetrics] Component unmounting - cleaning up');
       isMountedRef.current = false;
@@ -125,40 +125,40 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
 
   const loadRealTimeData = useCallback(async () => {
     if (!isMountedRef.current) return;
-    
+
     console.log('[RealTimeMetrics] Starting data load');
     setLoading(true);
-    
+
     // Implementar timeout para prevenir bloqueos
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Data load timeout')), 8000); // 8 segundos timeout
     });
-    
+
     try {
       // Simular carga de datos con delay y timeout
       await Promise.race([
         new Promise(resolve => setTimeout(resolve, 1000)),
         timeoutPromise
       ]);
-      
+
       if (!isMountedRef.current) {
         console.log('[RealTimeMetrics] Component unmounted during data load');
         return;
       }
-      
+
       // Simular datos en tiempo real
       await generateRealTimeData();
-      
+
       if (!isMountedRef.current) return;
-      
+
       // Cargar métricas instantáneas
       const metricas = await advancedAnalyticsService.getDashboardMetricas();
-      
+
       setMetricasInstantaneas([
         {
           nombre: 'Consumo Actual',
           valor: metricas.consumoHoy,
-          unidad: '$',
+          unidad: 'S/',
           cambio: Math.random() * 10 - 5,
           tendencia: Math.random() > 0.5 ? 'up' : 'down',
           color: 'text-green-500'
@@ -188,18 +188,18 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
           color: 'text-orange-500'
         }
       ]);
-      
+
       // Cargar alertas activas
       const alertas = await advancedAnalyticsService.getAlertasStockBajo();
       setAlertasActivas(alertas.slice(0, 3));
-      
+
       if (isMountedRef.current) {
         setLastUpdate(new Date());
         setLoading(false);
       }
-      
+
       console.log('[RealTimeMetrics] Data load completed successfully');
-      
+
     } catch (error) {
       console.error('[RealTimeMetrics] Error loading real-time data:', error);
       if (isMountedRef.current && error.message !== 'Data load timeout') {
@@ -216,14 +216,14 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
   // Función para iniciar actualizaciones en tiempo real
   const startRealTimeUpdates = useCallback(() => {
     console.log('[RealTimeMetrics] Starting real-time updates');
-    
+
     // Limpiar cualquier intervalo existente
     if (intervalRef.current) {
       console.log('[RealTimeMetrics] Clearing existing interval before starting new one');
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    
+
     // Solo crear nuevo intervalo si el componente está montado
     if (isMountedRef.current) {
       intervalRef.current = setInterval(() => {
@@ -263,7 +263,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
           startRealTimeUpdates();
         }
       }, 100);
-      
+
       return () => {
         clearTimeout(timeoutId);
         stopRealTimeUpdates();
@@ -275,11 +275,11 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
 
   const generateRealTimeData = useCallback(async () => {
     if (!isMountedRef.current) return;
-    
+
     // Generar datos simulados de consumo en tiempo real
     const now = new Date();
     const newData: ConsumoRealTime[] = [];
-    
+
     for (let i = 0; i < 20; i++) {
       const timestamp = new Date(now.getTime() - (19 - i) * 60000); // Cada minuto
       newData.push({
@@ -289,7 +289,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
         material: ['Cemento', 'Acero', 'Madera', 'Pintura'][Math.floor(Math.random() * 4)]
       });
     }
-    
+
     if (isMountedRef.current) {
       setConsumoRealTime(newData);
     }
@@ -325,7 +325,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
   const memoizedConsumoData = useMemo(() => consumoRealTime, [consumoRealTime]);
   const memoizedMetricas = useMemo(() => metricasInstantaneas, [metricasInstantaneas]);
   const memoizedAlertas = useMemo(() => alertasActivas, [alertasActivas]);
-  
+
   const recentConsumoData = useMemo(() => {
     return memoizedConsumoData.slice(-10);
   }, [memoizedConsumoData]);
@@ -340,19 +340,17 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
             Última actualización: {lastUpdate.toLocaleTimeString('es-ES')}
           </p>
         </div>
-        
+
         <div className="flex items-center space-x-2">
-          <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${
-            isRealTimeActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${
-              isRealTimeActive ? 'bg-green-500 animate-pulse' : 'bg-gray-500'
-            }`} />
+          <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${isRealTimeActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+            }`}>
+            <div className={`w-2 h-2 rounded-full ${isRealTimeActive ? 'bg-green-500 animate-pulse' : 'bg-gray-500'
+              }`} />
             <span className="text-sm font-medium">
               {isRealTimeActive ? 'En vivo' : 'Pausado'}
             </span>
           </div>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -360,7 +358,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
           >
             {isRealTimeActive ? 'Pausar' : 'Reanudar'}
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -381,15 +379,14 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
                 <div>
                   <p className="text-sm text-muted-foreground">{metrica.nombre}</p>
                   <p className="text-2xl font-bold">
-                    {metrica.unidad === '$' ? '$' : ''}
+                    {metrica.unidad === 'S/' ? 'S/' : ''}
                     {metrica.valor.toLocaleString()}
-                    {metrica.unidad !== '$' ? metrica.unidad : ''}
+                    {metrica.unidad !== 'S/' ? metrica.unidad : ''}
                   </p>
                   <div className="flex items-center space-x-1 mt-1">
                     {getTrendIcon(metrica.tendencia)}
-                    <span className={`text-sm ${
-                      metrica.cambio >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                    <span className={`text-sm ${metrica.cambio >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
                       {formatCambio(metrica.cambio)}
                     </span>
                   </div>
@@ -402,11 +399,10 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
                 </div>
               </div>
             </CardContent>
-            
+
             {/* Indicador de actualización */}
-            <div className={`absolute bottom-0 left-0 right-0 h-1 ${
-              isRealTimeActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
-            }`} />
+            <div className={`absolute bottom-0 left-0 right-0 h-1 ${isRealTimeActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+              }`} />
           </Card>
         ))}
       </div>
@@ -427,18 +423,18 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="timestamp" />
                 <YAxis />
-                <Tooltip 
+                <Tooltip
                   formatter={(value, name) => [
-                    name === 'costo' ? `$${value.toLocaleString()}` : value,
+                    name === 'costo' ? `S/${value.toLocaleString()}` : value,
                     name === 'costo' ? 'Costo' : 'Cantidad'
                   ]}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="costo" 
-                  stackId="1" 
-                  stroke="#8884d8" 
-                  fill="#8884d8" 
+                <Area
+                  type="monotone"
+                  dataKey="costo"
+                  stackId="1"
+                  stroke="#8884d8"
+                  fill="#8884d8"
                   fillOpacity={0.6}
                 />
               </AreaChart>

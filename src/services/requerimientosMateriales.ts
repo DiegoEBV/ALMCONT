@@ -22,10 +22,10 @@ export const requerimientosMaterialesService = {
   async getAll(): Promise<RequerimientoMaterial[]> {
     try {
       console.log('🔄 Iniciando carga de requerimientos de materiales')
-      
+
       // Establecer contexto de usuario para RLS
       await setUserContextWithMapping()
-      
+
       const { data, error } = await supabase
         .from('requerimiento_materiales')
         .select(`
@@ -44,7 +44,7 @@ export const requerimientosMaterialesService = {
         console.error('❌ Error de Supabase al obtener requerimientos:', error)
         throw error
       }
-      
+
       console.log('📋 Requerimientos obtenidos:', data?.length || 0)
       return data || []
     } catch (error) {
@@ -70,7 +70,7 @@ export const requerimientosMaterialesService = {
         `)
         .eq('solicitante_id', usuarioId)
         .order('created_at', { ascending: false })
-      
+
       if (error) throw error
       return data || []
     } catch (error) {
@@ -84,7 +84,7 @@ export const requerimientosMaterialesService = {
     try {
       // Establecer contexto de usuario para RLS
       await setUserContextWithMapping()
-      
+
       const { data, error } = await supabase
         .from('requerimiento_materiales')
         .select(`
@@ -99,7 +99,7 @@ export const requerimientosMaterialesService = {
         `)
         .eq('id', id)
         .single()
-      
+
       if (error) {
         if (error.code === 'PGRST116') return null
         throw error
@@ -116,17 +116,17 @@ export const requerimientosMaterialesService = {
     try {
       // Establecer contexto de usuario para RLS
       await setUserContextWithMapping()
-      
+
       // Verificar alertas de stock máximo antes de crear el requerimiento
       if (formData.detalles && formData.detalles.length > 0) {
         const { stockAlertsService } = await import('./stockAlerts')
-        
+
         for (const detalle of formData.detalles) {
           const stockCheck = await stockAlertsService.wouldExceedMaxStock(
-            detalle.material_id, 
+            detalle.material_id,
             detalle.cantidad
           )
-          
+
           if (stockCheck.wouldExceed) {
             // Obtener información del material para el error
             const { data: material } = await supabase
@@ -134,30 +134,30 @@ export const requerimientosMaterialesService = {
               .select('nombre, codigo')
               .eq('id', detalle.material_id)
               .single()
-            
+
             throw new Error(
               `El material "${material?.nombre || 'desconocido'}" (${material?.codigo || ''}) excedería su stock máximo: ${stockCheck.newUsage}/${stockCheck.maxStock} (${stockCheck.usagePercentage.toFixed(1)}%)`
             )
           }
         }
       }
-      
+
       // Generar número de requerimiento
       const numeroRequerimiento = await this.generateNumeroRequerimiento()
-      
+
       // Mapear solicitante a UUID de Supabase si es ID local
       let solicitanteUUID = solicitanteId
       try {
         const maybeUUID = await mapLocalIdToUUID(solicitanteId, 'usuario')
         if (maybeUUID) solicitanteUUID = maybeUUID
-      } catch {}
+      } catch { }
 
       // Mapear obra_id (si es ID local)
       let obraUUID = formData.obra_id
       try {
         const maybeObra = await mapLocalIdToUUID(formData.obra_id, 'obra')
         if (maybeObra) obraUUID = maybeObra
-      } catch {}
+      } catch { }
 
       // Crear el requerimiento principal
       const { data: requerimiento, error: reqError } = await supabase
@@ -176,7 +176,7 @@ export const requerimientosMaterialesService = {
         })
         .select()
         .single()
-      
+
       if (reqError) throw reqError
 
       // Crear los detalles del requerimiento
@@ -186,7 +186,7 @@ export const requerimientosMaterialesService = {
           try {
             const maybeMat = await mapLocalIdToUUID(detalle.material_id, 'material')
             if (maybeMat) materialUUID = maybeMat
-          } catch {}
+          } catch { }
           return {
             requerimiento_id: requerimiento.id,
             material_id: materialUUID,
@@ -200,7 +200,7 @@ export const requerimientosMaterialesService = {
         const { error: detallesError } = await supabase
           .from('detalle_requerimiento')
           .insert(detalles)
-        
+
         if (detallesError) throw detallesError
       }
 
@@ -224,12 +224,33 @@ export const requerimientosMaterialesService = {
         .eq('id', id)
         .select()
         .single()
-      
+
       if (error) throw error
       return data
     } catch (error) {
       console.error('Error updating requerimiento estado:', error)
       throw new Error('Error al actualizar estado del requerimiento')
+    }
+  },
+
+  // Actualizar detalle de requerimiento (comentarios)
+  async updateDetalle(id: string, updates: Partial<DetalleRequerimiento>): Promise<DetalleRequerimiento> {
+    try {
+      const { data, error } = await supabase
+        .from('detalle_requerimiento')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error updating detalle requerimiento:', error)
+      throw new Error('Error al actualizar detalle del requerimiento')
     }
   },
 
@@ -239,9 +260,9 @@ export const requerimientosMaterialesService = {
       const { count, error } = await supabase
         .from('requerimiento_materiales')
         .select('*', { count: 'exact', head: true })
-      
+
       if (error) throw error
-      
+
       const nextNumber = (count || 0) + 1
       const year = new Date().getFullYear()
       return `RM-${year}-${nextNumber.toString().padStart(4, '0')}`
@@ -264,13 +285,13 @@ export const requerimientosMaterialesService = {
       let query = supabase
         .from('requerimiento_materiales')
         .select('estado')
-      
+
       if (usuarioId) {
         query = query.eq('solicitante_id', usuarioId)
       }
 
       const { data, error } = await query
-      
+
       if (error) throw error
 
       const stats = {

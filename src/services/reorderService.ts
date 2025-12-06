@@ -110,7 +110,7 @@ export class ReorderService {
             material.id,
             Number((config as Record<string, unknown>)?.dias_consumo_historico) || 30
           );
-          
+
           if (consumoPromedio > 0) {
             const diasCobertura = Number((config as Record<string, unknown>)?.dias_cobertura_deseada) || 30;
             cantidadSugerida = Math.max(cantidadSugerida, consumoPromedio * diasCobertura);
@@ -193,7 +193,7 @@ export class ReorderService {
     try {
       await this.ensureContext()
       const mesActual = new Date().getMonth() + 1;
-      
+
       // Obtener configuración estacional
       const { data: config } = await supabase
         .from('configuracion_reorden')
@@ -261,13 +261,55 @@ export class ReorderService {
 
       // Si se especifican materiales, construir alertas SOLO para esos materiales
       if (options?.materiales_especificos && options.materiales_especificos.length > 0) {
-        const { data: mats, error: matsError } = await supabase
-          .from('materiales_requieren_reorden')
-          .select('*')
-          .in('id', options.materiales_especificos);
-        if (matsError) throw matsError;
-        const computed = await Promise.all((mats || []).map(m => this.calculateReorderSuggestion(m)));
-        alerts = computed;
+        // Query stock_obra_material which has punto_reorden data (as stock_minimo)
+        const { data: stockData, error: stockError } = await supabase
+          .from('stock_obra_material')
+          .select(`
+            material_id,
+            stock_actual,
+            stock_minimo,
+            stock_maximo,
+            materiales (
+              id,
+              codigo,
+              nombre,
+              precio_referencial,
+              unidad_medida,
+              categoria
+            )
+          `)
+          .in('material_id', options.materiales_especificos);
+
+        if (stockError) {
+          console.error('Error fetching stock data:', stockError);
+          result.errores.push(`Error al obtener datos de stock: ${stockError.message}`);
+          return result;
+        }
+
+        if (!stockData || stockData.length === 0) {
+          result.errores.push('No se encontraron datos de stock para los materiales especificados');
+          return result;
+        }
+
+        // Build alerts from stock data
+        alerts = stockData
+          .filter((stock: any) => stock.stock_actual <= (stock.stock_minimo || 0))
+          .map((stock: any) => ({
+            material_id: stock.material_id,
+            material_nombre: stock.materiales?.nombre || 'Material sin nombre',
+            stock_actual: stock.stock_actual || 0,
+            punto_reorden: stock.stock_minimo || 0,
+            cantidad_sugerida: Math.max(
+              (stock.stock_maximo || stock.stock_minimo * 3) - stock.stock_actual,
+              stock.stock_minimo || 10
+            ),
+            proveedor_sugerido: undefined,
+            urgencia: this.determineUrgency(
+              stock.stock_actual || 0,
+              stock.stock_minimo || 0,
+              stock.stock_minimo || 0
+            )
+          }));
       } else {
         alerts = await this.checkReorderPoints();
       }
@@ -285,7 +327,7 @@ export class ReorderService {
         try {
           // Verificar si ya existe una solicitud pendiente para este material
           const existingSolicitud = await this.checkExistingPurchaseRequest(alert.material_id);
-          
+
           if (existingSolicitud) {
             result.errores.push(
               `Material ${alert.material_nombre}: Ya existe solicitud pendiente`
@@ -295,7 +337,7 @@ export class ReorderService {
 
           // Crear solicitud de compra automática
           const solicitudId = await this.createAutoPurchaseRequest(alert, userId, options);
-          
+
           if (solicitudId) {
             result.solicitudes_creadas++;
             result.detalles.solicitudes.push(
@@ -363,7 +405,7 @@ export class ReorderService {
       // Obtener información del material
       const { data: material, error: materialError } = await supabase
         .from('materiales')
-        .select('precio_unitario, unidad_medida, categoria')
+        .select('precio_referencial, unidad_medida, categoria')
         .eq('id', alert.material_id)
         .single();
 
@@ -372,11 +414,11 @@ export class ReorderService {
       }
 
       // Calcular costo total estimado
-      const costoTotal = (material.precio_unitario || 0) * alert.cantidad_sugerida;
+      const costoTotal = (material.precio_referencial || 0) * alert.cantidad_sugerida;
 
       // Generar número de solicitud de compra
       const numeroSC = `SC-${Date.now()}`;
-      
+
       // Obtener obra_id del usuario
       const { data: userData, error: userError } = await supabase
         .from('usuarios')
@@ -387,7 +429,7 @@ export class ReorderService {
       if (userError || !userData?.obra_id) {
         throw new Error('No se pudo obtener la obra asignada del usuario');
       }
-      
+
       // Crear solicitud de compra
       const { data: solicitud, error } = await supabase
         .from('solicitudes_compra')
@@ -417,7 +459,7 @@ export class ReorderService {
           solicitud_compra_id: solicitud.id,
           material_id: alert.material_id,
           cantidad: alert.cantidad_sugerida,
-          precio_unitario: material.precio_unitario,
+          precio_unitario: material.precio_referencial,
           precio_total: costoTotal,
           especificaciones: `Reorden automático - Urgencia: ${alert.urgencia}`
         });

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/Button';
-import { 
-  Package, 
-  Search, 
-  Plus, 
-  Eye, 
-  Check, 
-  X, 
+import {
+  Package,
+  Search,
+  Plus,
+  Eye,
+  Check,
+  X,
   AlertTriangle,
   FileText,
   DollarSign,
@@ -85,7 +85,7 @@ const LoanManagement: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const filters: any = {};
       if (loanTypeFilter !== 'all') {
         filters.tipo_prestamo = loanTypeFilter;
@@ -223,8 +223,8 @@ const LoanManagement: React.FC = () => {
   const LoansView: React.FC = () => {
     const filteredLoans = loans.filter(loan => {
       const matchesSearch = loan.numero_prestamo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           loan.motivo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (loan.terceros as any)?.razon_social?.toLowerCase().includes(searchTerm.toLowerCase());
+        loan.motivo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (loan.terceros as any)?.razon_social?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch;
     });
 
@@ -244,7 +244,7 @@ const LoanManagement: React.FC = () => {
               />
             </div>
           </div>
-          
+
           <select
             value={loanTypeFilter}
             onChange={(e) => setLoanTypeFilter(e.target.value)}
@@ -287,7 +287,7 @@ const LoanManagement: React.FC = () => {
                 <Handshake className="w-8 h-8 text-blue-600" />
               </div>
             </div>
-            
+
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -297,19 +297,19 @@ const LoanManagement: React.FC = () => {
                 <Clock className="w-8 h-8 text-red-600" />
               </div>
             </div>
-            
+
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Valor Total</p>
                   <p className="text-2xl font-bold text-green-600">
-                    ${loanSummary.valor_total_prestado.toLocaleString()}
+                    S/{loanSummary.valor_total_prestado.toLocaleString()}
                   </p>
                 </div>
                 <DollarSign className="w-8 h-8 text-green-600" />
               </div>
             </div>
-            
+
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -367,24 +367,22 @@ const LoanManagement: React.FC = () => {
                         <div className="text-sm text-gray-900">{(loan.terceros as any)?.razon_social || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          loan.tipo_prestamo === 'prestamo_saliente' ? 'bg-red-100 text-red-800' :
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${loan.tipo_prestamo === 'prestamo_saliente' ? 'bg-red-100 text-red-800' :
                           loan.tipo_prestamo === 'prestamo_entrante' ? 'bg-green-100 text-green-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
+                            'bg-blue-100 text-blue-800'
+                          }`}>
                           {loan.tipo_prestamo === 'prestamo_saliente' ? 'Saliente' :
-                           loan.tipo_prestamo === 'prestamo_entrante' ? 'Entrante' : 'Intercambio'}
+                            loan.tipo_prestamo === 'prestamo_entrante' ? 'Entrante' : 'Intercambio'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          loan.estado === 'solicitado' ? 'bg-yellow-100 text-yellow-800' :
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${loan.estado === 'solicitado' ? 'bg-yellow-100 text-yellow-800' :
                           loan.estado === 'aprobado' ? 'bg-blue-100 text-blue-800' :
-                          loan.estado === 'entregado' ? 'bg-green-100 text-green-800' :
-                          loan.estado === 'vencido' ? 'bg-red-100 text-red-800' :
-                          loan.estado === 'devuelto_completo' ? 'bg-gray-100 text-gray-800' :
-                          'bg-orange-100 text-orange-800'
-                        }`}>
+                            loan.estado === 'entregado' ? 'bg-green-100 text-green-800' :
+                              loan.estado === 'vencido' ? 'bg-red-100 text-red-800' :
+                                loan.estado === 'devuelto_completo' ? 'bg-gray-100 text-gray-800' :
+                                  'bg-orange-100 text-orange-800'
+                          }`}>
                           {loan.estado.charAt(0).toUpperCase() + loan.estado.slice(1).replace('_', ' ')}
                         </span>
                       </td>
@@ -419,8 +417,8 @@ const LoanManagement: React.FC = () => {
   const ThirdPartiesView: React.FC = () => {
     const filteredThirdParties = thirdParties.filter(thirdParty => {
       const matchesSearch = thirdParty.razon_social.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           thirdParty.ruc.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           thirdParty.contacto_principal.toLowerCase().includes(searchTerm.toLowerCase());
+        thirdParty.ruc.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        thirdParty.contacto_principal.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch;
     });
 
@@ -440,7 +438,7 @@ const LoanManagement: React.FC = () => {
               />
             </div>
           </div>
-          
+
           <Button onClick={() => setShowCreateThirdPartyModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Tercero
@@ -483,12 +481,11 @@ const LoanManagement: React.FC = () => {
                       {thirdParty.ruc}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        thirdParty.tipo_tercero === 'contratista' ? 'bg-blue-100 text-blue-800' :
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${thirdParty.tipo_tercero === 'contratista' ? 'bg-blue-100 text-blue-800' :
                         thirdParty.tipo_tercero === 'subcontratista' ? 'bg-green-100 text-green-800' :
-                        thirdParty.tipo_tercero === 'proveedor' ? 'bg-purple-100 text-purple-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                          thirdParty.tipo_tercero === 'proveedor' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                        }`}>
                         {thirdParty.tipo_tercero.charAt(0).toUpperCase() + thirdParty.tipo_tercero.slice(1)}
                       </span>
                     </td>
@@ -497,11 +494,10 @@ const LoanManagement: React.FC = () => {
                       <div className="text-sm text-gray-500">{thirdParty.telefono}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        thirdParty.estado === 'activo' ? 'bg-green-100 text-green-800' :
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${thirdParty.estado === 'activo' ? 'bg-green-100 text-green-800' :
                         thirdParty.estado === 'inactivo' ? 'bg-gray-100 text-gray-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
+                          'bg-red-100 text-red-800'
+                        }`}>
                         {thirdParty.estado.charAt(0).toUpperCase() + thirdParty.estado.slice(1)}
                       </span>
                     </td>
@@ -539,7 +535,7 @@ const LoanManagement: React.FC = () => {
               <Handshake className="w-8 h-8 text-blue-600" />
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -549,7 +545,7 @@ const LoanManagement: React.FC = () => {
               <AlertTriangle className="w-8 h-8 text-red-600" />
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -559,20 +555,20 @@ const LoanManagement: React.FC = () => {
               <Users className="w-8 h-8 text-green-600" />
             </div>
           </div>
-          
+
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Valor Total</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  ${(loanSummary?.valor_total_prestado || 0).toLocaleString()}
+                  S/{(loanSummary?.valor_total_prestado || 0).toLocaleString()}
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-purple-600" />
             </div>
           </div>
         </div>
-        
+
         {/* Terceros más activos */}
         {loanSummary?.terceros_mas_activos && loanSummary.terceros_mas_activos.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -602,7 +598,7 @@ const LoanManagement: React.FC = () => {
                         {tercero.total_prestamos}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${tercero.valor_total.toLocaleString()}
+                        S/{tercero.valor_total.toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -648,11 +644,10 @@ const LoanManagement: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
@@ -694,13 +689,12 @@ const LoanManagement: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-gray-600">Estado:</span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${
-                    selectedLoan.estado === 'solicitado' ? 'bg-yellow-100 text-yellow-800' :
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${selectedLoan.estado === 'solicitado' ? 'bg-yellow-100 text-yellow-800' :
                     selectedLoan.estado === 'aprobado' ? 'bg-blue-100 text-blue-800' :
-                    selectedLoan.estado === 'entregado' ? 'bg-green-100 text-green-800' :
-                    selectedLoan.estado === 'vencido' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                      selectedLoan.estado === 'entregado' ? 'bg-green-100 text-green-800' :
+                        selectedLoan.estado === 'vencido' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                    }`}>
                     {selectedLoan.estado.charAt(0).toUpperCase() + selectedLoan.estado.slice(1).replace('_', ' ')}
                   </span>
                 </div>
@@ -708,13 +702,13 @@ const LoanManagement: React.FC = () => {
                   <span className="text-gray-600">Tipo:</span>
                   <div className="font-medium">
                     {selectedLoan.tipo_prestamo === 'prestamo_saliente' ? 'Préstamo Saliente' :
-                     selectedLoan.tipo_prestamo === 'prestamo_entrante' ? 'Préstamo Entrante' : 'Intercambio'}
+                      selectedLoan.tipo_prestamo === 'prestamo_entrante' ? 'Préstamo Entrante' : 'Intercambio'}
                   </div>
                 </div>
                 <div>
                   <span className="text-gray-600">Valor Estimado:</span>
                   <div className="font-medium">
-                    ${(selectedLoan.valor_total_estimado || 0).toLocaleString()}
+                    S/{(selectedLoan.valor_total_estimado || 0).toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -784,10 +778,9 @@ const LoanManagement: React.FC = () => {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Estado</label>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      selectedThirdParty.estado === 'activo' ? 'bg-green-100 text-green-800' :
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedThirdParty.estado === 'activo' ? 'bg-green-100 text-green-800' :
                       'bg-gray-100 text-gray-800'
-                    }`}>
+                      }`}>
                       {selectedThirdParty.estado}
                     </span>
                   </div>

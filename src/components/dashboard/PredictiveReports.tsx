@@ -84,10 +84,10 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
     try {
       // Generar datos de tendencias de consumo
       await generateTendenciasData();
-      
+
       // Cargar predicciones de demanda
       const predicciones = await advancedAnalyticsService.getPrediccionesDemanda();
-      
+
       // Transformar predicciones a formato de material
       const prediccionesMat: PrediccionMaterial[] = predicciones.map(pred => ({
         material: pred.materialNombre,
@@ -104,12 +104,12 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
           recomendacion: ''
         })
       }));
-      
+
       setPrediccionesMateriales(prediccionesMat);
-      
+
       // Generar alertas preventivas
       await generateAlertasPreventivas();
-      
+
     } catch (error) {
       console.error('Error cargando datos predictivos:', error);
       toast.error('Error al cargar reportes predictivos');
@@ -123,14 +123,14 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
   const generateTendenciasData = async () => {
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const data: TendenciaConsumo[] = [];
-    
+
     for (let i = 0; i < 12; i++) {
       const baseConsumo = 50000 + Math.sin(i * 0.5) * 10000;
       const ruido = (Math.random() - 0.5) * 5000;
       const consumoReal = baseConsumo + ruido;
       const tendencia = baseConsumo + Math.sin(i * 0.5) * 8000;
       const prediccion = tendencia + Math.sin((i + 1) * 0.5) * 8000;
-      
+
       data.push({
         periodo: meses[i],
         consumoReal: Math.round(consumoReal),
@@ -139,7 +139,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
         confianza: Math.round(85 + Math.random() * 10)
       });
     }
-    
+
     setTendenciasConsumo(data);
   };
 
@@ -179,7 +179,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
         accionRecomendada: 'Evaluar reasignación a otros proyectos'
       }
     ];
-    
+
     setAlertasPreventivas(alertas);
   };
 
@@ -216,7 +216,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
           </h2>
           <p className="text-muted-foreground">Análisis de tendencias y predicciones de demanda</p>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Select value={periodoSeleccionado} onValueChange={setPeriodoSeleccionado}>
             <SelectTrigger className="w-32">
@@ -229,7 +229,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
               <SelectItem value="1ano">1 Año</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Select value={tipoAnalisis} onValueChange={setTipoAnalisis}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -240,7 +240,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
               <SelectItem value="alertas">Alertas</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Button variant="outline" onClick={exportReport}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
@@ -264,26 +264,26 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="periodo" />
                   <YAxis />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value, name) => [
-                      `$${value.toLocaleString()}`,
+                      `S/${value.toLocaleString()}`,
                       name === 'consumoReal' ? 'Consumo Real' :
-                      name === 'tendencia' ? 'Tendencia' : 'Predicción'
+                        name === 'tendencia' ? 'Tendencia' : 'Predicción'
                     ]}
                   />
                   <Legend />
                   <Bar dataKey="consumoReal" fill="#8884d8" name="Consumo Real" />
-                  <Line 
-                    type="monotone" 
-                    dataKey="tendencia" 
-                    stroke="#82ca9d" 
+                  <Line
+                    type="monotone"
+                    dataKey="tendencia"
+                    stroke="#82ca9d"
                     strokeWidth={3}
                     name="Tendencia"
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="prediccion" 
-                    stroke="#ff7300" 
+                  <Line
+                    type="monotone"
+                    dataKey="prediccion"
+                    stroke="#ff7300"
                     strokeDasharray="5 5"
                     strokeWidth={2}
                     name="Predicción"
@@ -310,7 +310,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
                       <span className="text-sm text-muted-foreground">Demanda Actual</span>
                       <span className="font-semibold">{pred.demandaActual.toLocaleString()}</span>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Predicción Próxima</span>
                       <div className="flex items-center space-x-2">
@@ -318,12 +318,12 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
                         {getTendenciaIcon(pred.tendencia)}
                       </div>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Confianza</span>
                       <Badge variant="outline">{pred.confianza}%</Badge>
                     </div>
-                    
+
                     <div className="pt-2 border-t">
                       <p className="text-sm font-medium text-muted-foreground mb-1">Recomendación:</p>
                       <p className="text-sm">{pred.recomendacion}</p>
@@ -361,7 +361,7 @@ const PredictiveReports: React.FC<PredictiveReportsProps> = ({ className }) => {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     <Button variant="outline" size="sm">
                       Ver Detalles

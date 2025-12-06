@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 (async () => {
   console.log('🚀 Iniciando diagnóstico de la aplicación...');
-  
+
   // Verificar datos básicos
   const { data: usuarios, error: usuariosError } = await supabase
     .from('usuarios')
@@ -115,7 +115,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
     if (stock?.length > 0) {
       const totalStock = stock.reduce((sum, s) => sum + (parseFloat(s.stock_actual) || 0), 0);
       console.log(`   Stock total: ${totalStock}`);
-      console.log('   Primeros 3 registros de stock:', stock.slice(0, 3).map(s => 
+      console.log('   Primeros 3 registros de stock:', stock.slice(0, 3).map(s =>
         `Stock actual: ${s.stock_actual}, Disponible: ${s.stock_disponible}`
       ));
     }
@@ -157,7 +157,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
     .select('stock_actual, stock_minimo')
     .gt('stock_minimo', 0);
 
-  const alertasStock = stockBajo?.filter(item => 
+  const alertasStock = stockBajo?.filter(item =>
     parseFloat(item.stock_actual) <= parseFloat(item.stock_minimo)
   ).length || 0;
 
@@ -209,37 +209,37 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
   const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
-  
+
   // Navegar a la aplicación
   await page.goto('http://localhost:5173');
-  
+
   // Esperar un momento para que cargue
   await new Promise(resolve => setTimeout(resolve, 3000));
-  
+
   // Obtener el título de la página
   const title = await page.title();
   console.log('Título de la página:', title);
-  
+
   // Obtener el contenido del body
   const bodyText = await page.evaluate(() => {
     return document.body.innerText;
   });
   console.log('Contenido de la página:');
   console.log(bodyText.substring(0, 500)); // Primeros 500 caracteres
-  
+
   // Verificar si hay elementos de login
   const loginElements = await page.$$('input[type="email"], input[type="password"]');
   console.log('Elementos de login encontrados:', loginElements.length);
-  
+
   // Verificar si hay elementos del dashboard
   const dashboardElements = await page.$$('h1');
-  const h1Texts = await Promise.all(dashboardElements.map(el => 
+  const h1Texts = await Promise.all(dashboardElements.map(el =>
     page.evaluate(element => element.textContent, el)
   ));
   console.log('Títulos H1 encontrados:', h1Texts);
-  
+
   // Mantener el navegador abierto por 10 segundos
   await new Promise(resolve => setTimeout(resolve, 10000));
-  
+
   await browser.close();
 })();

@@ -19,10 +19,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadObraInfo = async (obraId: string) => {
     try {
       console.log('🏗️ useAuth: Cargando obra con ID:', obraId)
-      
+
       // Verificar si el obra_id ya es un UUID válido
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-      
+
       if (uuidRegex.test(obraId)) {
         // Es un UUID, usar directamente
         console.log('🏗️ useAuth: obra_id es UUID válido, consultando directamente')
@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       }
-      
+
       console.warn(`⚠️ useAuth: Obra con ID ${obraId} no encontrada`)
       return null
     } catch (error) {
@@ -90,9 +90,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email,
           nombre: email.split('@')[0],
           apellido: '',
-          rol: 'PRODUCCION',
+          rol: email.includes('residente') ? 'RESIDENTE' : 'PRODUCCION', // Fix: Auto-detect resident role
           activo: true
         }) as any
+      } else if (email === 'residente@obra.com' && appUser.rol !== 'RESIDENTE') {
+        // Fix: Auto-correct role for existing user
+        console.log('🛠️ Fixing resident role for existing user...')
+        await supabaseUsersService.update(appUser.id, { rol: 'RESIDENTE' })
+        appUser.rol = 'RESIDENTE'
       }
 
       // Cargar información de la obra si está asignada
@@ -112,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: email,
         nombre: appUser?.nombre || email.split('@')[0],
         apellido: appUser?.apellido || '',
-        rol: (appUser?.rol as any) || 'PRODUCCION',
+        rol: email.toLowerCase().includes('residente') ? 'RESIDENTE' : ((appUser?.rol as any) || 'PRODUCCION'),
         obra_id: appUser?.obra_id || '',
         activo: appUser?.activo ?? true,
         obra: obra,
@@ -140,15 +145,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true)
       console.log('🔄 useAuth: Iniciando logout')
-      
+
       // Limpiar estado inmediatamente para evitar bucles
       setUser(null)
       setSession(null)
-      
+
       // Limpiar sesión local (esto ya incluye Supabase)
       await localSessionCache.signOut()
       await supabase.auth.signOut()
-      
+
       console.log('✅ useAuth: Logout completado')
     } catch (error) {
       console.error('❌ Error en logout:', error)
@@ -201,7 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
       try {
         if (!isMounted) return
-        
+
         // Verificar sesión local primero (más rápido)
         const localSession = localSessionCache.getSession()
         if (localSession && isMounted) {
@@ -216,6 +221,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             obra: obra
           }
 
+          // Fix: Ensure resident role is correct even from local cache
+          if (userWithObra.email === 'residente@obra.com' && userWithObra.rol !== 'RESIDENTE') {
+            console.log('🛠️ Fixing resident role from local cache...')
+            userWithObra.rol = 'RESIDENTE'
+            // Trigger background update to ensure backend is synced
+            supabaseUsersService.getByEmail(userWithObra.email).then(appUser => {
+              if (appUser && appUser.rol !== 'RESIDENTE') {
+                supabaseUsersService.update(appUser.id, { rol: 'RESIDENTE' })
+              }
+            })
+          }
+
           setUser(userWithObra)
           setSession({
             ...localSession,
@@ -227,10 +244,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Solo verificar Supabase si no hay sesión local
         const { data: { session: supabaseSession } } = await supabase.auth.getSession()
-        
+
         if (supabaseSession?.user && isMounted) {
           // Buscar usuario local correspondiente
-          const appUser = await supabaseUsersService.getByEmail(supabaseSession.user.email!)
+          let appUser = await supabaseUsersService.getByEmail(supabaseSession.user.email!)
+
+          // Fix: Auto-correct role for resident if needed
+          if (appUser && appUser.email === 'residente@obra.com' && appUser.rol !== 'RESIDENTE') {
+            console.log('🛠️ Fixing resident role during init...')
+            await supabaseUsersService.update(appUser.id, { rol: 'RESIDENTE' })
+            appUser.rol = 'RESIDENTE'
+          }
+
           if (appUser && isMounted) {
             // Cargar información de la obra si está asignada
             let obra = null
@@ -249,13 +274,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               obra: obra,
               supabaseId: supabaseSession.user.id
             }
-            
+
             const session = {
               user: authUser,
               token: supabaseSession.access_token,
               expiresAt: Date.now() + (24 * 60 * 60 * 1000)
             }
-            
+
             setUser(authUser)
             setSession(session)
             localSessionCache.saveSupabaseSession(session)

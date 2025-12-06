@@ -1,4 +1,4 @@
-import { localDB } from '../lib/localDB'
+import { supabase } from '../lib/supabase'
 import type { FiltrosReporte } from '../types'
 
 // Re-exportar tipos para uso en componentes
@@ -56,37 +56,41 @@ class ReportesService {
   async getReporteRequerimientos(filtros: FiltrosReporte = {}): Promise<ReporteRequerimientos[]> {
     try {
       console.log('🔍 [ReportesService] Iniciando getReporteRequerimientos con filtros:', filtros)
-      
-      let requerimientos = await localDB.getWithRelations('requerimientos', undefined, {
-        obra: { table: 'obras', key: 'obra_id' }
-      })
 
-      console.log('📋 [ReportesService] Requerimientos obtenidos de BD:', requerimientos.length)
+      let query = supabase
+        .from('requerimientos')
+        .select(`
+          *,
+          obra:obras (
+            id,
+            nombre
+          )
+        `)
 
       // Aplicar filtros
       if (filtros.fecha_desde) {
-        const fechaDesde = new Date(filtros.fecha_desde)
-        requerimientos = requerimientos.filter(req => 
-          new Date(req.created_at) >= fechaDesde
-        )
-        console.log('📅 [ReportesService] Después de filtro fecha_desde:', requerimientos.length)
+        query = query.gte('created_at', filtros.fecha_desde)
       }
       if (filtros.fecha_hasta) {
+        // Ajustar fecha hasta para incluir todo el día
         const fechaHasta = new Date(filtros.fecha_hasta)
-        requerimientos = requerimientos.filter(req => 
-          new Date(req.created_at) <= fechaHasta
-        )
-        console.log('📅 [ReportesService] Después de filtro fecha_hasta:', requerimientos.length)
+        fechaHasta.setHours(23, 59, 59, 999)
+        query = query.lte('created_at', fechaHasta.toISOString())
       }
       if (filtros.obra_id) {
-        requerimientos = requerimientos.filter(req => req.obra_id === filtros.obra_id)
-        console.log('🏗️ [ReportesService] Después de filtro obra_id:', requerimientos.length)
+        query = query.eq('obra_id', filtros.obra_id)
       }
+
+      const { data: requerimientos, error } = await query
+
+      if (error) throw error
+
+      console.log('📋 [ReportesService] Requerimientos obtenidos de BD:', requerimientos?.length)
 
       // Agrupar por obra y calcular estadísticas
       const reporteMap = new Map<string, ReporteRequerimientos>()
 
-      requerimientos.forEach(req => {
+      requerimientos?.forEach(req => {
         const obraId = req.obra_id
         const obraNombre = req.obra?.nombre || 'Sin obra'
 
@@ -134,37 +138,54 @@ class ReportesService {
   async getReporteStock(filtros: FiltrosReporte = {}): Promise<ReporteStock[]> {
     try {
       console.log('🔍 [ReportesService] Iniciando getReporteStock con filtros:', filtros)
-      
-      let stock = await localDB.getWithRelations('stock_obra_material', undefined, {
-        material: { table: 'materiales', key: 'material_id' }
-      })
 
-      console.log('📦 [ReportesService] Stock obtenido de BD:', stock.length)
+      let query = supabase
+        .from('stock_obra_material')
+        .select(`
+          *,
+          material:materiales (
+            id,
+            nombre,
+            codigo,
+            categoria,
+            precio_referencial,
+            unidad_medida
+          )
+        `)
 
       // Aplicar filtros
       if (filtros.obra_id) {
-        stock = stock.filter(item => item.obra_id === filtros.obra_id)
-        console.log('🏗️ [ReportesService] Después de filtro obra_id:', stock.length)
+        query = query.eq('obra_id', filtros.obra_id)
       }
+      // Nota: El filtro de categoría se debe aplicar en memoria porque está en la tabla relacionada
+
+      const { data: stock, error } = await query
+
+      if (error) throw error
+
+      console.log('📦 [ReportesService] Stock obtenido de BD:', stock?.length)
+
+      let stockFiltrado = stock || []
+
       if (filtros.categoria) {
-        stock = stock.filter(item => item.material?.categoria === filtros.categoria)
-        console.log('📂 [ReportesService] Después de filtro categoria:', stock.length)
+        stockFiltrado = stockFiltrado.filter(item => item.material?.categoria === filtros.categoria)
+        console.log('📂 [ReportesService] Después de filtro categoria:', stockFiltrado.length)
       }
 
-      const resultado = stock.map(item => {
+      const resultado = stockFiltrado.map(item => {
         const material = item.material || {
           nombre: 'Material desconocido',
           codigo: '',
           categoria: '',
-          precio_unitario: 0,
-          unidad: ''
+          precio_referencial: 0,
+          unidad_medida: ''
         }
-        const valorTotal = item.cantidad_actual * (material.precio_unitario || 0)
-        
+        const valorTotal = item.stock_actual * (material.precio_referencial || 0)
+
         let estado: 'NORMAL' | 'BAJO' | 'AGOTADO' = 'NORMAL'
-        if (item.cantidad_actual === 0) {
+        if (item.stock_actual === 0) {
           estado = 'AGOTADO'
-        } else if (item.cantidad_actual <= (item.cantidad_minima || 0)) {
+        } else if (item.stock_actual <= (item.stock_minimo || 0)) {
           estado = 'BAJO'
         }
 
@@ -173,9 +194,9 @@ class ReportesService {
           material_nombre: material.nombre,
           material_codigo: material.codigo,
           categoria: material.categoria,
-          stock_total: item.cantidad_actual,
-          stock_minimo: item.cantidad_minima || 0,
-          valor_unitario: material.precio_unitario || 0,
+          stock_total: item.stock_actual,
+          stock_minimo: item.stock_minimo || 0,
+          valor_unitario: material.precio_referencial || 0,
           valor_total: valorTotal,
           estado
         }
@@ -193,56 +214,90 @@ class ReportesService {
   async getReporteMovimientos(filtros: FiltrosReporte = {}): Promise<ReporteMovimientos[]> {
     try {
       // Obtener entradas y salidas para simular kardex
-      const [entradas, salidas] = await Promise.all([
-        localDB.getWithRelations('entradas', undefined, {
-          material: { table: 'materiales', key: 'material_id' }
-        }),
-        localDB.getWithRelations('salidas', undefined, {
-          material: { table: 'materiales', key: 'material_id' }
-        })
+      let queryEntradas = supabase
+        .from('entradas')
+        .select(`
+          *,
+          material:materiales (
+            id,
+            precio_referencial
+          )
+        `)
+
+      let querySalidas = supabase
+        .from('salidas')
+        .select(`
+          *,
+          material:materiales (
+            id,
+            precio_referencial
+          )
+        `)
+
+      // Aplicar filtros a entradas
+      if (filtros.fecha_desde) {
+        queryEntradas = queryEntradas.gte('fecha_recepcion', filtros.fecha_desde)
+      }
+      if (filtros.fecha_hasta) {
+        const fechaHasta = new Date(filtros.fecha_hasta)
+        fechaHasta.setHours(23, 59, 59, 999)
+        queryEntradas = queryEntradas.lte('fecha_recepcion', fechaHasta.toISOString())
+      }
+      if (filtros.obra_id) {
+        queryEntradas = queryEntradas.eq('obra_id', filtros.obra_id)
+      }
+
+      // Aplicar filtros a salidas
+      if (filtros.fecha_desde) {
+        querySalidas = querySalidas.gte('fecha_salida', filtros.fecha_desde)
+      }
+      if (filtros.fecha_hasta) {
+        const fechaHasta = new Date(filtros.fecha_hasta)
+        fechaHasta.setHours(23, 59, 59, 999)
+        querySalidas = querySalidas.lte('fecha_salida', fechaHasta.toISOString())
+      }
+      if (filtros.obra_id) {
+        querySalidas = querySalidas.eq('obra_id', filtros.obra_id)
+      }
+
+      const [resEntradas, resSalidas] = await Promise.all([
+        queryEntradas,
+        querySalidas
       ])
+
+      if (resEntradas.error) throw resEntradas.error
+      if (resSalidas.error) throw resSalidas.error
+
+      const entradas = resEntradas.data || []
+      const salidas = resSalidas.data || []
 
       // Convertir a formato kardex
       const movimientos = [
         ...entradas.map(entrada => ({
-          fecha_movimiento: entrada.fecha_entrada,
+          fecha_movimiento: entrada.fecha_recepcion,
           tipo_movimiento: 'ENTRADA' as const,
-          cantidad: entrada.cantidad_atendida,
+          cantidad: entrada.cantidad_recibida,
           obra_id: entrada.obra_id,
           material: entrada.material
         })),
         ...salidas.map(salida => ({
-          fecha_movimiento: salida.fecha_entrega,
+          fecha_movimiento: salida.fecha_salida,
           tipo_movimiento: 'SALIDA' as const,
-          cantidad: salida.cantidad_entregada,
+          cantidad: salida.cantidad,
           obra_id: salida.obra_id,
           material: salida.material
         }))
       ]
 
-      // Aplicar filtros
-      let movimientosFiltrados = movimientos
-      if (filtros.fecha_desde) {
-        movimientosFiltrados = movimientosFiltrados.filter(mov => 
-          new Date(mov.fecha_movimiento) >= new Date(filtros.fecha_desde!)
-        )
-      }
-      if (filtros.fecha_hasta) {
-        movimientosFiltrados = movimientosFiltrados.filter(mov => 
-          new Date(mov.fecha_movimiento) <= new Date(filtros.fecha_hasta!)
-        )
-      }
-      if (filtros.obra_id) {
-        movimientosFiltrados = movimientosFiltrados.filter(mov => mov.obra_id === filtros.obra_id)
-      }
-
       // Agrupar por fecha
       const reporteMap = new Map<string, ReporteMovimientos>()
 
-      movimientosFiltrados.forEach(mov => {
+      movimientos.forEach(mov => {
+        if (!mov.fecha_movimiento) return
+
         const fecha = mov.fecha_movimiento.split('T')[0] // Solo la fecha
-        const material = mov.material || { precio_unitario: 0 }
-        const valor = mov.cantidad * (material.precio_unitario || 0)
+        const material = mov.material || { precio_referencial: 0 }
+        const valor = mov.cantidad * (material.precio_referencial || 0)
 
         if (!reporteMap.has(fecha)) {
           reporteMap.set(fecha, {
@@ -270,7 +325,8 @@ class ReportesService {
         }
       })
 
-      return Array.from(reporteMap.values())
+      const resultado = Array.from(reporteMap.values()).sort((a, b) => b.fecha.localeCompare(a.fecha))
+      return resultado
     } catch (error) {
       console.error('Error al generar reporte de movimientos:', error)
       throw error
@@ -281,37 +337,54 @@ class ReportesService {
   async getReporteConsumo(filtros: FiltrosReporte = {}): Promise<ReporteConsumo[]> {
     try {
       // Obtener salidas con relaciones
-      let salidas = await localDB.getWithRelations('salidas', null, {
-        material: { table: 'materiales', key: 'material_id' },
-        obra: { table: 'obras', key: 'obra_id' }
-      })
+      let query = supabase
+        .from('salidas')
+        .select(`
+          *,
+          material:materiales (
+            id,
+            nombre,
+            codigo,
+            categoria,
+            precio_referencial
+          ),
+          obra:obras (
+            id,
+            nombre
+          )
+        `)
 
       // Aplicar filtros
       if (filtros.fecha_desde) {
-        salidas = salidas.filter(salida => 
-          new Date(salida.fecha_entrega) >= new Date(filtros.fecha_desde!)
-        )
+        query = query.gte('fecha_salida', filtros.fecha_desde)
       }
       if (filtros.fecha_hasta) {
-        salidas = salidas.filter(salida => 
-          new Date(salida.fecha_entrega) <= new Date(filtros.fecha_hasta!)
-        )
+        const fechaHasta = new Date(filtros.fecha_hasta)
+        fechaHasta.setHours(23, 59, 59, 999)
+        query = query.lte('fecha_salida', fechaHasta.toISOString())
       }
       if (filtros.obra_id) {
-        salidas = salidas.filter(salida => salida.obra_id === filtros.obra_id)
+        query = query.eq('obra_id', filtros.obra_id)
       }
+
+      const { data: salidas, error } = await query
+
+      if (error) throw error
+
+      let salidasFiltradas = salidas || []
+
       if (filtros.categoria) {
-        salidas = salidas.filter(salida => salida.material?.categoria === filtros.categoria)
+        salidasFiltradas = salidasFiltradas.filter(salida => salida.material?.categoria === filtros.categoria)
       }
 
       // Agrupar por material y obra
       const reporteMap = new Map<string, ReporteConsumo>()
 
-      salidas.forEach(salida => {
+      salidasFiltradas.forEach(salida => {
         const key = `${salida.material_id}-${salida.obra_id}`
-        const material = salida.material || { nombre: 'Material desconocido', codigo: '', precio_unitario: 0 }
+        const material = salida.material || { nombre: 'Material desconocido', codigo: '', precio_referencial: 0 }
         const obra = salida.obra || { nombre: 'Obra desconocida' }
-        const valor = salida.cantidad_entregada * (material.precio_unitario || 0)
+        const valor = salida.cantidad * (material.precio_referencial || 0)
 
         if (!reporteMap.has(key)) {
           reporteMap.set(key, {
@@ -327,7 +400,7 @@ class ReportesService {
         }
 
         const reporte = reporteMap.get(key)!
-        reporte.cantidad_consumida += salida.cantidad_entregada
+        reporte.cantidad_consumida += salida.cantidad
         reporte.valor_consumido += valor
       })
 
@@ -347,10 +420,10 @@ class ReportesService {
 
       // Obtener las columnas del primer objeto
       const columnas = Object.keys(datos[0])
-      
+
       // Crear el contenido CSV
       let csvContent = columnas.join(',') + '\n'
-      
+
       datos.forEach(fila => {
         const valores = columnas.map(col => {
           const valor = fila[col]
@@ -383,7 +456,7 @@ class ReportesService {
   async getEstadisticasGenerales(filtros: FiltrosReporte = {}) {
     try {
       console.log('🔍 [ReportesService] Iniciando getEstadisticasGenerales con filtros:', filtros)
-      
+
       const [requerimientos, stock, movimientos] = await Promise.all([
         this.getReporteRequerimientos(filtros),
         this.getReporteStock(filtros),

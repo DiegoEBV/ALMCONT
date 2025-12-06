@@ -110,15 +110,15 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const loadData = async () => {
       if (isMounted) {
         await loadCostAnalysisData();
       }
     };
-    
+
     loadData();
-    
+
     return () => {
       isMounted = false;
     };
@@ -146,21 +146,21 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
       // Usar fechas por defecto (últimos 30 días)
       const fechaInicio = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const fechaFin = new Date().toISOString().split('T')[0];
-      
+
       const analisisCostos = await advancedAnalyticsService.getAnalisisCostos(fechaInicio, fechaFin);
-      
+
       // Generar datos de costos por obra
       await generateCostosPorObra();
-      
+
       // Generar datos de costos por material
       await generateCostosPorMaterial();
-      
+
       // Generar datos de costos por período
       await generateCostosPorPeriodo();
-      
+
       // Generar comparativa de costos
       await generateComparativaCostos();
-      
+
       setLoading(false);
     } catch (error) {
       console.error('Error cargando análisis de costos:', error);
@@ -173,13 +173,13 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
     const obras = [
       'Edificio Central', 'Torre Norte', 'Complejo Sur', 'Proyecto Alpha', 'Obra Beta'
     ];
-    
+
     const data: CostoPorObra[] = obras.map(obra => {
       const costoTotal = Math.floor(Math.random() * 500000) + 100000;
       const costoMateriales = costoTotal * (0.6 + Math.random() * 0.2);
       const costoManoObra = costoTotal - costoMateriales;
       const porcentajePresupuesto = Math.floor(Math.random() * 40) + 70;
-      
+
       return {
         obra,
         costoTotal,
@@ -189,7 +189,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
         estado: porcentajePresupuesto > 95 ? 'alto' : porcentajePresupuesto < 80 ? 'bajo' : 'normal'
       };
     });
-    
+
     setCostosPorObra(data);
   };
 
@@ -202,13 +202,13 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
       { nombre: 'Tubería PVC', categoria: 'Instalaciones' },
       { nombre: 'Cable Eléctrico', categoria: 'Instalaciones' }
     ];
-    
+
     const data: CostoPorMaterial[] = materiales.map(mat => {
       const cantidad = Math.floor(Math.random() * 1000) + 100;
       const costoUnitario = Math.floor(Math.random() * 100) + 10;
       const costoTotal = cantidad * costoUnitario;
       const variacion = (Math.random() - 0.5) * 20;
-      
+
       return {
         material: mat.nombre,
         categoria: mat.categoria,
@@ -219,20 +219,20 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
         tendencia: variacion > 5 ? 'up' : variacion < -5 ? 'down' : 'stable'
       };
     });
-    
+
     setCostosPorMaterial(data);
   };
 
   const generateCostosPorPeriodo = async () => {
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    
+
     const data: CostoPorPeriodo[] = meses.map((mes, index) => {
       const costoTotal = Math.floor(Math.random() * 100000) + 50000;
       const materiales = costoTotal * (0.5 + Math.random() * 0.2);
       const logistica = costoTotal * 0.15;
       const almacenamiento = costoTotal - materiales - logistica;
       const variacionMensual = index > 0 ? (Math.random() - 0.5) * 10 : 0;
-      
+
       return {
         periodo: mes,
         costoTotal,
@@ -242,19 +242,19 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
         variacionMensual
       };
     });
-    
+
     setCostosPorPeriodo(data);
   };
 
   const generateComparativaCostos = async () => {
     const categorias = ['Materiales', 'Logística', 'Almacenamiento', 'Mano de Obra', 'Equipos'];
-    
+
     const data: ComparativaCostos[] = categorias.map(categoria => {
       const presupuestado = Math.floor(Math.random() * 50000) + 20000;
       const actual = presupuestado * (0.8 + Math.random() * 0.4);
       const anterior = presupuestado * (0.85 + Math.random() * 0.3);
       const variacion = ((actual - anterior) / anterior) * 100;
-      
+
       return {
         categoria,
         actual: Math.round(actual),
@@ -263,7 +263,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
         variacion
       };
     });
-    
+
     setComparativaCostos(data);
   };
 
@@ -306,7 +306,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
           </h2>
           <p className="text-muted-foreground">Análisis detallado de costos por obra, material y período</p>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Select value={periodoSeleccionado} onValueChange={setPeriodoSeleccionado}>
             <SelectTrigger className="w-32">
@@ -319,7 +319,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
               <SelectItem value="anual">Anual</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Select value={obraSeleccionada} onValueChange={setObraSeleccionada}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -331,7 +331,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
               <SelectItem value="complejo">Complejo Sur</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Button variant="outline" onClick={exportCostReport}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
@@ -352,7 +352,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -364,7 +364,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -376,7 +376,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -411,14 +411,14 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
                   <BarChart data={costosPorObra}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="obra" angle={-45} textAnchor="end" height={80} />
-                    <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
+                    <YAxis tickFormatter={(value) => `S/${(value / 1000).toFixed(0)}K`} />
                     <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                     <Bar dataKey="costoTotal" fill="#8884d8" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Distribución de Costos</CardTitle>
@@ -446,7 +446,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
               </CardContent>
             </Card>
           </div>
-          
+
           {/* Tabla detallada de obras */}
           <Card>
             <CardHeader>
@@ -515,9 +515,8 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
                     </div>
                     <div className="flex justify-between items-center pt-2 border-t">
                       <span className="text-sm text-muted-foreground">Variación</span>
-                      <span className={`font-semibold ${
-                        material.variacion >= 0 ? 'text-red-600' : 'text-green-600'
-                      }`}>
+                      <span className={`font-semibold ${material.variacion >= 0 ? 'text-red-600' : 'text-green-600'
+                        }`}>
                         {material.variacion >= 0 ? '+' : ''}{material.variacion.toFixed(1)}%
                       </span>
                     </div>
@@ -539,7 +538,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
                 <ComposedChart data={costosPorPeriodo}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="periodo" />
-                  <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
+                  <YAxis tickFormatter={(value) => `S/${(value / 1000).toFixed(0)}K`} />
                   <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Legend />
                   <Bar dataKey="materiales" stackId="a" fill="#8884d8" name="Materiales" />
@@ -563,7 +562,7 @@ const CostAnalysis: React.FC<CostAnalysisProps> = ({ className }) => {
                 <BarChart data={comparativaCostos}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="categoria" />
-                  <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`} />
+                  <YAxis tickFormatter={(value) => `S/${(value / 1000).toFixed(0)}K`} />
                   <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Legend />
                   <Bar dataKey="presupuestado" fill="#8884d8" name="Presupuestado" />

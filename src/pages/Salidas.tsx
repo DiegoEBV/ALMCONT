@@ -5,7 +5,7 @@ import { stockService } from '../services/stock';
 import { salidasService } from '../services/salidas';
 import { requerimientosService } from '../services/requerimientos';
 import { solicitudesCompraService } from '../services/solicitudesCompra';
-import type { SalidaFormData, Stock} from '../types';
+import type { SalidaFormData, Stock } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { Camera } from '../components/Camera';
 import { PhotoGallery, type GalleryPhoto } from '../components/PhotoGallery';
@@ -41,7 +41,7 @@ const Salidas: React.FC = () => {
   const [showCamera, setShowCamera] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<StockWithMaterial | null>(null);
   const [showPhotos, setShowPhotos] = useState<string | null>(null);
-  
+
   // Hook para manejo de fotos
   const movementId = `salida-${Date.now()}`;
   const { photos, capturePhoto, deletePhoto, downloadPhoto } = usePhotoCapture();
@@ -57,7 +57,7 @@ const Salidas: React.FC = () => {
         stockService.getAll(),
         requerimientosService.getAll()
       ]);
-      
+
       // Transformar los datos de stock para incluir las propiedades necesarias
       const stockTransformado: StockWithMaterial[] = stock.map((item: Stock) => ({
         ...item,
@@ -67,11 +67,11 @@ const Salidas: React.FC = () => {
         stockActual: (item as any).stock_actual || 0,
         materialId: item.material_id
       }));
-      
+
       setStockDisponible(stockTransformado);
       setMaterialesDisponibles(stockTransformado);
       setRequerimientosTodos(requerimientos);
-      
+
       // Extraer solicitantes únicos
       const solicitantesUnicos = [...new Set(requerimientos.map(r => r.solicitante).filter(Boolean))] as string[]
       setSolicitantes(solicitantesUnicos);
@@ -126,13 +126,23 @@ const Salidas: React.FC = () => {
 
     // Búsqueda por material (texto)
     if (filtros.material) {
-      materialesFiltrados = materialesFiltrados.filter(m => 
+      materialesFiltrados = materialesFiltrados.filter(m =>
         m.descripcion.toLowerCase().includes(filtros.material.toLowerCase()) ||
         m.codigo.toLowerCase().includes(filtros.material.toLowerCase())
       );
     }
 
     setMaterialesDisponibles(materialesFiltrados);
+  };
+
+  const quitarFiltros = () => {
+    setFiltros({
+      solicitante: '',
+      numeroRequerimiento: '',
+      numeroSolicitudCompra: '',
+      material: '',
+    });
+    aplicarFiltros();
   };
 
   useEffect(() => {
@@ -198,7 +208,7 @@ const Salidas: React.FC = () => {
 
     try {
       setLoading(true);
-      
+
       const salida: SalidaFormData = {
         obra_id: materialSeleccionado.obra_id || '',
         material_id: materialSeleccionado.materialId,
@@ -214,10 +224,10 @@ const Salidas: React.FC = () => {
       };
 
       await salidasService.create(salida);
-      
+
       // Actualizar stock
       await cargarDatosIniciales();
-      
+
       // Mostrar información sobre fotos capturadas
       const materialPhotos = getMaterialPhotos(materialSeleccionado.codigo);
       if (materialPhotos.length > 0) {
@@ -225,7 +235,7 @@ const Salidas: React.FC = () => {
       } else {
         toast.success('Salida registrada correctamente');
       }
-      
+
       // Limpiar formulario
       setMaterialSeleccionado(null);
       setCantidadSalida('');
@@ -246,7 +256,7 @@ const Salidas: React.FC = () => {
           <Package className="h-6 w-6" />
           Salidas de Almacén
         </h1>
-        
+
         {/* Filtros */}
         <div className="bg-gray-50 rounded-lg p-4 mb-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Filtros de Búsqueda</h2>
@@ -268,7 +278,7 @@ const Salidas: React.FC = () => {
                 ))}
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <FileText className="inline h-4 w-4 mr-1" />
@@ -295,7 +305,7 @@ const Salidas: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Search className="inline h-4 w-4 mr-1" />
@@ -313,18 +323,10 @@ const Salidas: React.FC = () => {
           </div>
           <div className="mt-4 flex justify-end">
             <button
-              onClick={async () => {
-                const ok = await stockService.seedDemoStock();
-                if (ok) {
-                  toast.success('Stock demo agregado');
-                  await cargarDatosIniciales();
-                } else {
-                  toast.error('No se pudo agregar stock demo');
-                }
-              }}
-              className="px-3 py-2 text-sm border rounded-md bg-green-600 text-white hover:bg-green-700"
+              onClick={quitarFiltros}
+              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
             >
-              Poner Stock Demo
+              Filtrar
             </button>
           </div>
         </div>
@@ -361,9 +363,8 @@ const Salidas: React.FC = () => {
                         {material.descripcion}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span className={`font-semibold ${
-                          material.stockActual > 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
+                        <span className={`font-semibold ${material.stockActual > 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
                           {material.stockActual}
                         </span>
                       </td>
@@ -427,7 +428,7 @@ const Salidas: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-              
+
               {materialesDisponibles.length === 0 && (
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -442,7 +443,7 @@ const Salidas: React.FC = () => {
         {materialSeleccionado && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-blue-800 mb-4">Registrar Salida</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Material Seleccionado</label>
@@ -452,7 +453,7 @@ const Salidas: React.FC = () => {
                   <p className="text-sm text-green-600">Stock disponible: {materialSeleccionado.stockActual} {materialSeleccionado.unidad}</p>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Cantidad a Entregar *</label>
                 <input
@@ -478,7 +479,7 @@ const Salidas: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
               <textarea
@@ -489,7 +490,7 @@ const Salidas: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={registrarSalida}
@@ -503,7 +504,7 @@ const Salidas: React.FC = () => {
                 )}
                 Registrar Salida
               </button>
-              
+
               <button
                 onClick={() => setMaterialSeleccionado(null)}
                 className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
