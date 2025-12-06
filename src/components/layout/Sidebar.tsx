@@ -54,7 +54,7 @@ const navigation: NavItem[] = [
     name: 'Gestión de Materiales',
     href: '/materiales',
     icon: CubeIcon,
-    roles: ['COORDINACION']
+    roles: ['COORDINACION', 'ALMACEN_CENTRAL']
   },
   {
     name: 'Panel Logística',
@@ -97,6 +97,37 @@ const navigation: NavItem[] = [
     href: '/almacen/salidas',
     icon: ArrowLeftOnRectangleIcon,
     roles: ['ALMACENERO']
+  },
+  // Almacén Central
+  {
+    name: 'Panel Almacén Central',
+    href: '/almacen-central/dashboard',
+    icon: BuildingStorefrontIcon,
+    roles: ['ALMACEN_CENTRAL']
+  },
+  {
+    name: 'Inventario Central',
+    href: '/almacen-central/inventario',
+    icon: CubeIcon,
+    roles: ['ALMACEN_CENTRAL']
+  },
+  {
+    name: 'Entrada de Material',
+    href: '/almacen-central/entrada',
+    icon: ArrowRightOnRectangleIcon,
+    roles: ['ALMACEN_CENTRAL']
+  },
+  {
+    name: 'Transferencia a Obra',
+    href: '/almacen-central/transferencia',
+    icon: TruckIcon,
+    roles: ['ALMACEN_CENTRAL']
+  },
+  {
+    name: 'Movimientos',
+    href: '/almacen-central/movimientos',
+    icon: ClipboardDocumentListIcon,
+    roles: ['ALMACEN_CENTRAL']
   },
   {
     name: 'Panel Producción',
@@ -186,7 +217,7 @@ const navigation: NavItem[] = [
     name: 'Perfil',
     href: '/perfil',
     icon: UserIcon,
-    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO', 'PRODUCCION', 'RESIDENTE']
+    roles: ['COORDINACION', 'LOGISTICA', 'ALMACENERO', 'PRODUCCION', 'RESIDENTE', 'ALMACEN_CENTRAL']
   },
   {
     name: 'Administración de Obras',
@@ -279,7 +310,7 @@ const Sidebar: React.FC = () => {
       {/* Footer */}
       <div className="p-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">
-          © 2024 Sistema de Almacén
+          © 2026 Sistema de Almacén DEBV
         </p>
       </div>
     </div>

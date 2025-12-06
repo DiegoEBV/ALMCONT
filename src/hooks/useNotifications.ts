@@ -1,4 +1,6 @@
+
 import { useState, useEffect, useCallback } from 'react';
+import { useNotificationContext } from '../context/NotificationContext';
 
 export type NotificationPermission = 'default' | 'granted' | 'denied';
 
@@ -43,6 +45,7 @@ interface NotificationActions {
 const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa40HI80NM9f7LE4F7qBYVRtjHOu1fJ1wJgLkPTBHm4gcNJoDc9VQHyOfhBGBc'; // Reemplazar con tu clave VAPID pública
 
 export const useNotifications = (): NotificationState & NotificationActions => {
+  const { addNotification } = useNotificationContext();
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
   const [isPushSupported, setIsPushSupported] = useState(false);
@@ -162,13 +165,10 @@ export const useNotifications = (): NotificationState & NotificationActions => {
           body: options.body,
           icon: options.icon || '/icons/icon-192x192.png',
           badge: options.badge || '/icons/icon-72x72.png',
-          // image: options.image, // Comentado porque no está soportado en NotificationOptions
           tag: options.tag,
           data: options.data,
           requireInteraction: options.requireInteraction,
           silent: options.silent,
-          // vibrate: options.vibrate // Comentado porque no está soportado en NotificationOptions,
-          // actions: options.actions // Comentado porque no está soportado en NotificationOptions
         });
       } else {
         // Fallback a Notification API básica
@@ -179,14 +179,22 @@ export const useNotifications = (): NotificationState & NotificationActions => {
           data: options.data,
           requireInteraction: options.requireInteraction,
           silent: options.silent
-          // vibrate: options.vibrate // Comentado porque no está soportado en NotificationOptions
         });
       }
+
+      // Agregar al historial de notificaciones internas
+      addNotification({
+        title: options.title,
+        message: options.body || '',
+        type: 'info',
+        link: options.data?.url
+      });
+
     } catch (error) {
       console.error('Error showing notification:', error);
       throw error;
     }
-  }, [isSupported, permission]);
+  }, [isSupported, permission, addNotification]);
 
   // Suscribirse a push notifications
   const subscribeToPush = useCallback(async (): Promise<PushSubscription | null> => {
@@ -298,18 +306,6 @@ export const useNotifications = (): NotificationState & NotificationActions => {
       tag: 'test-notification',
       requireInteraction: false,
       vibrate: [200, 100, 200],
-      // actions: [
-      //   {
-      //     action: 'view',
-      //     title: 'Ver App',
-      //     icon: '/icons/icon-72x72.png'
-      //   },
-      //   {
-      //     action: 'close',
-      //     title: 'Cerrar',
-      //     icon: '/icons/icon-72x72.png'
-      //   }
-      // ] // Comentado porque no está soportado en NotificationOptions
     });
   }, [showNotification]);
 

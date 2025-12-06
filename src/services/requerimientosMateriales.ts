@@ -233,6 +233,58 @@ export const requerimientosMaterialesService = {
     }
   },
 
+  // Aprobar o rechazar requerimiento usando la función de Supabase
+  async aprobarRechazar(
+    requerimientoId: string,
+    accion: 'APROBAR' | 'RECHAZAR',
+    comentarios?: string
+  ): Promise<RequerimientoMaterial> {
+    try {
+      // Establecer contexto de usuario para RLS
+      await setUserContextWithMapping()
+
+      // Obtener el usuario actual
+      const currentUser = localAuth.getCurrentUser()
+      if (!currentUser) {
+        throw new Error('Usuario no autenticado')
+      }
+
+      // Mapear ID local a UUID de Supabase
+      const aprobadorUUID = await mapLocalIdToUUID(currentUser.id, 'usuario')
+      if (!aprobadorUUID) {
+        throw new Error('No se pudo mapear el usuario a UUID')
+      }
+
+      console.log('🔄 Procesando acción:', { requerimientoId, accion, aprobadorUUID })
+
+      // Llamar a la función de Supabase
+      const { data, error } = await supabase.rpc('aprobar_rechazar_requerimiento', {
+        p_requerimiento_id: requerimientoId,
+        p_aprobador_id: aprobadorUUID,
+        p_accion: accion,
+        p_comentarios: comentarios || null
+      })
+
+      if (error) {
+        console.error('❌ Error en RPC:', error)
+        throw error
+      }
+
+      console.log('✅ Resultado de aprobación:', data)
+
+      // Obtener el requerimiento actualizado
+      const updated = await this.getById(requerimientoId)
+      if (!updated) {
+        throw new Error('No se pudo obtener el requerimiento actualizado')
+      }
+
+      return updated
+    } catch (error) {
+      console.error('❌ Error en aprobarRechazar:', error)
+      throw error
+    }
+  },
+
   // Actualizar detalle de requerimiento (comentarios)
   async updateDetalle(id: string, updates: Partial<DetalleRequerimiento>): Promise<DetalleRequerimiento> {
     try {

@@ -55,7 +55,7 @@ const GPSTracking: React.FC = () => {
       alertType: event.alert_type,
       timestamp: event.timestamp
     });
-    
+
     // Refresh alerts to show new geofence alerts
     refreshData();
   }, [refreshData]);
@@ -68,7 +68,7 @@ const GPSTracking: React.FC = () => {
       speedLimit: event.speed_limit,
       timestamp: event.timestamp
     });
-    
+
     // Refresh alerts to show new speed alerts
     refreshData();
   }, [refreshData]);
@@ -162,11 +162,10 @@ const GPSTracking: React.FC = () => {
 
           <div className="flex items-center gap-4">
             {/* Connection Status */}
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-              isConnected 
-                ? 'bg-green-100 text-green-800' 
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isConnected
+                ? 'bg-green-100 text-green-800'
                 : 'bg-red-100 text-red-800'
-            }`}>
+              }`}>
               {isConnected ? (
                 <>
                   <Wifi className="w-4 h-4" />
@@ -213,9 +212,8 @@ const GPSTracking: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <div className={`bg-white border-r border-gray-200 transition-all duration-300 ${
-          sidebarCollapsed ? 'w-0' : 'w-96'
-        } overflow-hidden`}>
+        <div className={`bg-white border-r border-gray-200 transition-all duration-300 ${sidebarCollapsed ? 'w-0' : 'w-96'
+          } overflow-hidden`}>
           <div className="h-full flex flex-col">
             {/* Controls */}
             <div className="p-4 border-b border-gray-200">
@@ -252,9 +250,8 @@ const GPSTracking: React.FC = () => {
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           className="w-6 bg-white border-r border-gray-200 hover:bg-gray-50 transition-colors flex items-center justify-center"
         >
-          <div className={`w-1 h-8 bg-gray-400 rounded-full transition-transform ${
-            sidebarCollapsed ? 'rotate-180' : ''
-          }`}></div>
+          <div className={`w-1 h-8 bg-gray-400 rounded-full transition-transform ${sidebarCollapsed ? 'rotate-180' : ''
+            }`}></div>
         </button>
 
         {/* Map Container */}
@@ -361,8 +358,8 @@ const GPSTracking: React.FC = () => {
       </div>
 
       {showAlertsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+          <Card className="p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto relative z-[10000]">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Alertas</h3>
               <button onClick={() => setShowAlertsModal(false)} className="px-3 py-1 border rounded">Cerrar</button>

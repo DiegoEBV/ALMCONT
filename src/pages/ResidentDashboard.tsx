@@ -56,20 +56,19 @@ const ResidentDashboard: React.FC = () => {
     try {
       setProcessingId(req.id)
 
-      // Actualizar estado
-      await requerimientosMaterialesService.updateEstado(req.id, newStatus)
-
-      // Si se aprueba, podríamos querer crear notificaciones o disparar otros flujos
-      // Por ahora solo actualizamos el estado local
+      // Usar el nuevo método de aprobación/rechazo
+      const accion = newStatus === 'APROBADO' ? 'APROBAR' : 'RECHAZAR'
+      await requerimientosMaterialesService.aprobarRechazar(req.id, accion)
 
       toast.success(`Requerimiento ${newStatus === 'APROBADO' ? 'aprobado' : 'rechazado'} exitosamente`)
       await loadRequerimientos()
 
       if (expandedId === req.id) setExpandedId(null)
 
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error actualizando estado:', e)
-      toast.error('No se pudo actualizar el estado del requerimiento')
+      const errorMessage = e?.message || 'No se pudo actualizar el estado del requerimiento'
+      toast.error(errorMessage)
     } finally {
       setProcessingId(null)
     }

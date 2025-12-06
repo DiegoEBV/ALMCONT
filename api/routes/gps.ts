@@ -114,10 +114,7 @@ router.get('/vehicles/:id', optionalAuth, async (req, res) => {
     // Get vehicle details
     const { data: vehicle, error: vehicleError } = await supabase
       .from('vehicles')
-      .select(`
-        *,
-        current_location:gps_locations!vehicles_current_location_id_fkey(*)
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -126,22 +123,32 @@ router.get('/vehicles/:id', optionalAuth, async (req, res) => {
       return res.status(404).json({ error: 'Vehículo no encontrado' });
     }
 
-    // Get location history
-    const { data: locations, error: locationsError } = await supabase
-      .from('gps_locations')
-      .select('*')
-      .eq('vehicle_id', id)
-      .order('recorded_at', { ascending: false })
-      .limit(Number(limit));
+    // Get location history through device
+    let locations: any[] = [];
 
-    if (locationsError) {
-      console.error('Error fetching locations:', locationsError);
-      return res.status(500).json({ error: 'Error al obtener historial de ubicaciones' });
+    // First, get the device assigned to this vehicle
+    const { data: device } = await supabase
+      .from('gps_devices')
+      .select('id')
+      .eq('vehicle_id', id)
+      .single();
+
+    if (device) {
+      const { data: locationData, error: locationsError } = await supabase
+        .from('gps_locations')
+        .select('*')
+        .eq('device_id', device.id)
+        .order('recorded_at', { ascending: false })
+        .limit(Number(limit));
+
+      if (!locationsError) {
+        locations = locationData || [];
+      }
     }
 
     res.json({
       ...vehicle,
-      location_history: locations || []
+      location_history: locations
     });
   } catch (error) {
     console.error('Error in /vehicles/:id route:', error);
@@ -387,14 +394,17 @@ router.get('/alerts', optionalAuth, async (req, res) => {
       .from('gps_alerts')
       .select(`
         *,
-        vehicle:vehicles(*),
+        device:gps_devices(
+          *,
+          vehicle:vehicles(*)
+        ),
         geofence:geofences(*)
       `)
-      .order('created_at', { ascending: false })
+      .order('triggered_at', { ascending: false })
       .limit(Number(limit));
 
     if (status) {
-      query = query.eq('status', status);
+      query = query.eq('is_resolved', status === 'resolved');
     }
 
     const { data: alerts, error } = await query;
@@ -440,18 +450,29 @@ router.put('/alerts/:id/status', authenticateToken, async (req, res) => {
 router.get('/locations/vehicle/:vehicleId', optionalAuth, async (req, res) => {
   try {
     const { vehicleId } = req.params;
-    const { 
-      limit = 100, 
-      startDate, 
+    const {
+      limit = 100,
+      startDate,
       endDate,
       minSpeed,
-      maxSpeed 
+      maxSpeed
     } = req.query;
+
+    // First, get the device assigned to this vehicle
+    const { data: device } = await supabase
+      .from('gps_devices')
+      .select('id')
+      .eq('vehicle_id', vehicleId)
+      .single();
+
+    if (!device) {
+      return res.json([]);
+    }
 
     let query = supabase
       .from('gps_locations')
       .select('*')
-      .eq('vehicle_id', vehicleId)
+      .eq('device_id', device.id)
       .order('recorded_at', { ascending: false })
       .limit(Number(limit));
 

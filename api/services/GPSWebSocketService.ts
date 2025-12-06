@@ -15,8 +15,8 @@ export class GPSWebSocketService {
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: process.env.NODE_ENV === 'production' 
-          ? process.env.FRONTEND_URL 
+        origin: process.env.NODE_ENV === 'production'
+          ? process.env.FRONTEND_URL
           : ['http://localhost:3000', 'http://localhost:5173'],
         methods: ['GET', 'POST'],
         credentials: true
@@ -31,7 +31,7 @@ export class GPSWebSocketService {
   private setupEventHandlers(): void {
     this.io.on('connection', (socket) => {
       console.log(`GPS WebSocket client connected: ${socket.id}`);
-      
+
       // Store client connection
       this.connectedClients.set(socket.id, {
         socket,
@@ -44,7 +44,7 @@ export class GPSWebSocketService {
         socket.join('gps-tracking');
         this.connectedClients.get(socket.id)?.joinedRooms.add('gps-tracking');
         console.log(`Client ${socket.id} joined GPS tracking room`);
-        
+
         // Send initial data
         this.sendInitialGPSData(socket);
       });
@@ -114,10 +114,7 @@ export class GPSWebSocketService {
       // Send current vehicle locations
       const { data: vehicles, error } = await supabase
         .from('vehicles')
-        .select(`
-          *,
-          current_location:gps_locations!vehicles_current_location_id_fkey(*)
-        `);
+        .select('*');
 
       if (!error && vehicles) {
         socket.emit('initial-vehicles', vehicles);
@@ -128,11 +125,14 @@ export class GPSWebSocketService {
         .from('gps_alerts')
         .select(`
           *,
-          vehicle:vehicles(*),
+          device:gps_devices(
+            *,
+            vehicle:vehicles(*)
+          ),
           geofence:geofences(*)
         `)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
+        .eq('is_resolved', false)
+        .order('triggered_at', { ascending: false })
         .limit(10);
 
       if (!alertsError && alerts) {
@@ -147,7 +147,7 @@ export class GPSWebSocketService {
   // Broadcast location update to all connected clients
   public broadcastLocationUpdate(locationUpdate: LocationUpdateEvent): void {
     this.io.to('gps-tracking').emit('location-update', locationUpdate);
-    
+
     // Also send to specific vehicle subscribers
     const vehicleRoom = `vehicle-${locationUpdate.vehicle_id}`;
     this.io.to(vehicleRoom).emit('location-update', locationUpdate);
@@ -156,7 +156,7 @@ export class GPSWebSocketService {
   // Broadcast geofence alert
   public broadcastGeofenceAlert(alert: GeofenceAlertEvent): void {
     this.io.to('gps-tracking').emit('geofence-alert', alert);
-    
+
     // Also send to specific vehicle subscribers
     const vehicleRoom = `vehicle-${alert.vehicle_id}`;
     this.io.to(vehicleRoom).emit('geofence-alert', alert);
@@ -165,7 +165,7 @@ export class GPSWebSocketService {
   // Broadcast speed alert
   public broadcastSpeedAlert(alert: SpeedAlertEvent): void {
     this.io.to('gps-tracking').emit('speed-alert', alert);
-    
+
     // Also send to specific vehicle subscribers
     const vehicleRoom = `vehicle-${alert.vehicle_id}`;
     this.io.to(vehicleRoom).emit('speed-alert', alert);
@@ -193,12 +193,15 @@ export class GPSWebSocketService {
     try {
       // Get recent location updates (last 30 seconds)
       const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
-      
+
       const { data: recentLocations, error } = await supabase
         .from('gps_locations')
         .select(`
           *,
-          vehicle:vehicles(*)
+          device:gps_devices(
+            *,
+            vehicle:vehicles(*)
+          )
         `)
         .gte('recorded_at', thirtySecondsAgo)
         .order('recorded_at', { ascending: false });
@@ -210,14 +213,15 @@ export class GPSWebSocketService {
 
       // Broadcast each location update
       recentLocations?.forEach((location) => {
-        if (location.vehicle) {
+        if (location.device?.vehicle) {
+          const vehicle = location.device.vehicle;
           const locationUpdate: LocationUpdateEvent = {
-            vehicle_id: location.vehicle_id,
-            vehicle_plate: location.vehicle.plate_number,
+            vehicle_id: vehicle.id,
+            vehicle_plate: vehicle.plate_number,
             location: {
               id: location.id,
               device_id: location.device_id,
-              vehicle_id: location.vehicle_id,
+              vehicle_id: vehicle.id,
               latitude: location.latitude,
               longitude: location.longitude,
               altitude: location.altitude,
@@ -253,16 +257,19 @@ export class GPSWebSocketService {
     try {
       // Get recent geofence alerts (last 30 seconds)
       const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
-      
+
       const { data: alerts, error } = await supabase
         .from('gps_alerts')
         .select(`
           *,
-          vehicle:vehicles(*),
+          device:gps_devices(
+            *,
+            vehicle:vehicles(*)
+          ),
           geofence:geofences(*)
         `)
         .eq('alert_type', 'geofence')
-        .gte('created_at', thirtySecondsAgo);
+        .gte('triggered_at', thirtySecondsAgo);
 
       if (error) {
         console.error('Error checking geofence violations:', error);
@@ -270,19 +277,20 @@ export class GPSWebSocketService {
       }
 
       alerts?.forEach((alert) => {
-        if (alert.vehicle && alert.geofence) {
+        if (alert.device?.vehicle && alert.geofence) {
+          const vehicle = alert.device.vehicle;
           const geofenceAlert: GeofenceAlertEvent = {
             alert_id: alert.id,
-            vehicle_id: alert.vehicle_id,
-            vehicle_plate: alert.vehicle.plate_number,
+            vehicle_id: vehicle.id,
+            vehicle_plate: vehicle.plate_number,
             geofence_id: alert.geofence_id!,
             geofence_name: alert.geofence.name,
-            alert_type: alert.metadata?.type || 'entry',
+            alert_type: alert.alert_data?.type || 'entry',
             location: {
-              latitude: alert.metadata?.latitude || 0,
-              longitude: alert.metadata?.longitude || 0
+              latitude: alert.alert_data?.latitude || 0,
+              longitude: alert.alert_data?.longitude || 0
             },
-            timestamp: alert.created_at
+            timestamp: alert.triggered_at
           };
 
           this.broadcastGeofenceAlert(geofenceAlert);
@@ -298,15 +306,18 @@ export class GPSWebSocketService {
     try {
       // Get recent speed alerts (last 30 seconds)
       const thirtySecondsAgo = new Date(Date.now() - 30000).toISOString();
-      
+
       const { data: alerts, error } = await supabase
         .from('gps_alerts')
         .select(`
           *,
-          vehicle:vehicles(*)
+          device:gps_devices(
+            *,
+            vehicle:vehicles(*)
+          )
         `)
         .eq('alert_type', 'speed')
-        .gte('created_at', thirtySecondsAgo);
+        .gte('triggered_at', thirtySecondsAgo);
 
       if (error) {
         console.error('Error checking speed violations:', error);
@@ -314,18 +325,19 @@ export class GPSWebSocketService {
       }
 
       alerts?.forEach((alert) => {
-        if (alert.vehicle) {
+        if (alert.device?.vehicle) {
+          const vehicle = alert.device.vehicle;
           const speedAlert: SpeedAlertEvent = {
             alert_id: alert.id,
-            vehicle_id: alert.vehicle_id,
-            vehicle_plate: alert.vehicle.plate_number,
-            current_speed: alert.metadata?.current_speed || 0,
-            speed_limit: alert.metadata?.speed_limit || 0,
+            vehicle_id: vehicle.id,
+            vehicle_plate: vehicle.plate_number,
+            current_speed: alert.alert_data?.current_speed || 0,
+            speed_limit: alert.alert_data?.speed_limit || 0,
             location: {
-              latitude: alert.metadata?.latitude || 0,
-              longitude: alert.metadata?.longitude || 0
+              latitude: alert.alert_data?.latitude || 0,
+              longitude: alert.alert_data?.longitude || 0
             },
-            timestamp: alert.created_at
+            timestamp: alert.triggered_at
           };
 
           this.broadcastSpeedAlert(speedAlert);
@@ -339,7 +351,7 @@ export class GPSWebSocketService {
 
   private cleanupInactiveConnections(): void {
     const fiveMinutesAgo = new Date(Date.now() - 300000);
-    
+
     this.connectedClients.forEach((client, socketId) => {
       if (client.lastActivity < fiveMinutesAgo) {
         console.log(`Cleaning up inactive GPS WebSocket connection: ${socketId}`);
@@ -368,25 +380,33 @@ export class GPSWebSocketService {
     try {
       const { data: vehicle, error } = await supabase
         .from('vehicles')
-        .select(`
-          *,
-          current_location:gps_locations!vehicles_current_location_id_fkey(*)
-        `)
+        .select('*')
         .eq('id', vehicleId)
         .single();
 
-      if (error || !vehicle?.current_location) {
-        throw new Error('Vehicle or location not found');
+      if (error || !vehicle) {
+        throw new Error('Vehicle not found');
       }
 
-      const locationUpdate: LocationUpdateEvent = {
-        vehicle_id: vehicle.id,
-        vehicle_plate: vehicle.plate_number,
-        location: vehicle.current_location,
-        timestamp: vehicle.current_location.recorded_at
-      };
+      // Get current location if exists
+      if (vehicle.current_location_id) {
+        const { data: location, error: locError } = await supabase
+          .from('gps_locations')
+          .select('*')
+          .eq('id', vehicle.current_location_id)
+          .single();
 
-      this.broadcastLocationUpdate(locationUpdate);
+        if (!locError && location) {
+          const locationUpdate: LocationUpdateEvent = {
+            vehicle_id: vehicle.id,
+            vehicle_plate: vehicle.plate_number,
+            location: location,
+            timestamp: location.recorded_at
+          };
+
+          this.broadcastLocationUpdate(locationUpdate);
+        }
+      }
 
     } catch (error) {
       console.error('Error triggering location update:', error);
