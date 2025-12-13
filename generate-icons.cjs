@@ -6,10 +6,10 @@ function generateIcon(size, isMaskable = false) {
   const padding = isMaskable ? size * 0.1 : 0; // 10% padding para maskable
   const iconSize = size - (padding * 2);
   const offset = padding;
-  
+
   const svgContent = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
   ${isMaskable ? `<rect width="${size}" height="${size}" fill="#3B82F6"/>` : ''}
-  <g transform="translate(${offset}, ${offset}) scale(${iconSize/512})">
+  <g transform="translate(${offset}, ${offset}) scale(${iconSize / 512})">
     <!-- Fondo con gradiente -->
     <rect width="512" height="512" rx="64" fill="url(#gradient)"/>
     
